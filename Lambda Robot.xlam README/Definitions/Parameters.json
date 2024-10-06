@@ -1,0 +1,100 @@
+{
+  "Parameters": [
+    {
+      "Name": "FormulaFormat_AddPrefixOnParam",
+      "Description": "Add Let Var Prefix in the parameter as well or not.",
+      "Type": "DefaultParameter",
+      "Value": "false",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_IndentChar",
+      "Description": "Indent Char option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": " ",
+      "DataType": "String",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_IndentSize",
+      "Description": "Indent Size option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "3",
+      "DataType": "Integer",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_LambdaParamStyle",
+      "Description": "Lambda Parameter naming convention. Allowed values are \"Pascal\", \"Camel\" or \"Snake_Case\".",
+      "Type": "DefaultParameter",
+      "Value": "Snake_Case",
+      "DataType": "String",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_LetVarPrefix",
+      "Description": "What prefix to use for each let var. e.g. _ or var.",
+      "Type": "DefaultParameter",
+      "Value": "_",
+      "DataType": "String",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_Multiline",
+      "Description": "Multiline option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "true",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_OnlyWrapFunctionAfterNChars",
+      "Description": "OnlyWrapFunctionAfterNChars option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "80",
+      "DataType": "Integer",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_SpacesAfterArgumentSeparators",
+      "Description": "SpacesAfterArgumentSeparators option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "true",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_SpacesAfterArrayColumnSeparators",
+      "Description": "SpacesAfterArrayColumnSeparators option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "true",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_SpacesAfterArrayRowSeparators",
+      "Description": "SpacesAfterArrayRowSeparators option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "true",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_SpacesAroundInfixOperators",
+      "Description": "SpacesAroundInfixOperators option for Format Formula.",
+      "Type": "DefaultParameter",
+      "Value": "true",
+      "DataType": "Boolean",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_VariableStyle",
+      "Description": "Let Variable or Parameter naming convention. Allowed values are \"Pascal\", \"Camel\" or \"Snake_Case\".",
+      "Type": "DefaultParameter",
+      "Value": "Pascal",
+      "DataType": "String",
+      "IsUserParameter": true
+    }
+  ]
+}

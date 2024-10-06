@@ -1,0 +1,272 @@
+{
+  "Commands": [
+    {
+      "Name": "Audit Formula Steps",
+      "Description": "Generate steps for each of the let variable calculation and place all LAMBDA parameters and mark them as input cell.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "afs"
+      ],
+      "MacroExpression": "modAuditLambdaSteps.GenerateLambdaSteps([[ActiveCell]],[[NewTableTargetToRight]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Cancel Lambda Edit",
+      "Description": "Cancel any edits to Lambda definition in active cell and revert back to custom Lambda call.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell;ExcelActiveCellHasComment",
+      "LaunchCodes": [
+        "cle"
+      ],
+      "MacroExpression": "modLambdaEditor.CancelEditLambda([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Cycle LET Steps",
+      "Description": "Cyclically change last steps of the let so that we can see different steps calculated value.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula|ExcelActiveCellIsSpillParent",
+      "LaunchCodes": [
+        "cls"
+      ],
+      "MacroExpression": "modLETStepManager.CycleLETSteps([[ActiveCell]],[[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Edit Lambda",
+      "Description": "Converts a custom Lambda function to it's definition for editing.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "el"
+      ],
+      "MacroExpression": "modLambdaEditor.EditLambda([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Generate Formula Dependency Info",
+      "Description": "Generates a table of formula dependency info for the active cell.  The table is placed in first unused space to the right.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modLambdaBuilder.GenerateDependencyInfo([[ActiveCell]],[[NewTableTargetToRight]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Generate Lambda Dependency List",
+      "Description": "Generate list of Lambdas the ActiveCell formula is dependent on.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modDependencyFormulaReplacer.GenerateLambdaFormulaDependency([[ActiveCell]],[[NewTableTargetToRight]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Generate Lambda Statement",
+      "Description": "Generate a Lambda statement based on formula precedents for the active cell and replace ActiveCell formula with generated one.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "gl"
+      ],
+      "MacroExpression": "modLambdaBuilder.GenerateLambdaStatement([[ActiveCell]],[[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Generate Let Statement",
+      "Description": "Generate a Let statement based on formula precedents for the active cell and replace ActiveCell formula with generated LET.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "let"
+      ],
+      "MacroExpression": "modLambdaBuilder.GenerateLetStatement([[ActiveCell]],[[ActiveCell]])",
+      "Tags": [
+        "LET"
+      ]
+    },
+    {
+      "Name": "Generate Multi Column Lookup Lambda",
+      "Description": "Generate multi column lookup lambda from ActiveCell. It will return nth column value by using n-1 parameter and filter by them. ",
+      "Type": "VBAMacroCommand",
+      "MacroExpression": "MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Include Lambda Dependencies",
+      "Description": "Create Let step for all necessary Lambdas with their definition so that formula became independent of any Lambdas.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modDependencyFormulaReplacer.IncludeLambdaDependencies([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Lambda Properties",
+      "Description": "Edit Lambda properties like Name, Author, Metadata, etc.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modMetadataEditor.EditLambdaProperties([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "LAMBDA To LET",
+      "Description": "Convert ActiveCell Lambda formula to LET formula.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modAuditLambdaSteps.LambdaToLet([[ActiveCell]],[[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "LET To LAMBDA",
+      "Description": "Convert ActiveCell LET formula to LAMBDA formula.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modLambdaBuilder.LetToLambda([[ActiveCell]],[[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Mark As Input Cells",
+      "Description": "Change selected cells background and font color to mark as input cells.",
+      "Type": "VBAMacroCommand",
+      "LaunchCodes": [
+        "i"
+      ],
+      "MacroExpression": "modLambdaBuilder.MarkAsInputCells([[Selection]],False)",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Mark Lambda As LET Step",
+      "Description": "Create LETStep_FX and LETStepRef_FX named range for activecell formula so that we can use them for further calculation for generating lambda statement.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula|ExcelActiveCellIsSpillParent",
+      "MacroExpression": "modLambdaBuilder.MarkLambdaAsLETStep([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Paste Combine Arrays",
+      "Description": "Paste a dynamic array referencing the copied cells by combining any dynamic arrays automatically.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ClipboardHasExcelData;ExcelActiveCellIsEmpty;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "pca"
+      ],
+      "MacroExpression": "modCombineArray.PasteCombineArrays([[Clipboard]],[[ActiveCell]])",
+      "Tags": [
+        "Paste"
+      ]
+    },
+    {
+      "Name": "Paste Lambda Statement",
+      "Description": "Generate a Lambda statement in the active cell based on formula present in copied cell.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ClipboardHasExcelData;ExcelCopiedRangeIsNotEmpty;ExcelCopiedRangeIsSingleCell",
+      "LaunchCodes": [
+        "pl"
+      ],
+      "MacroExpression": "modLambdaBuilder.GenerateLambdaStatement([[Clipboard]],[[ActiveCell]])",
+      "Tags": [
+        "Paste",
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Remove Lambda",
+      "Description": "Removes the defined name for the Lambda in active cell and reverts back to Lambda definition.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modLambdaEditor.RemoveLambda([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Remove Last LET Step",
+      "Description": "Remove last LET Step from ActiveCell formula. if ActiveCell formula =LET(X,1,Y,2,Add,X+Y,Add) then output will be =LET(X,1,Y,2,Y).",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "MacroExpression": "modLETStepManager.RemoveLastLETStep([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Remove Unused Lambdas",
+      "Description": "Removes all lambdas from the name manager that are not currently being used in the active workbook.",
+      "Type": "VBAMacroCommand",
+      "MacroExpression": "modUnUsedLambdas.RemoveUnusedLambdas()",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Reset Cycle LET Steps",
+      "Description": "Remove our special identifier if the initial formula last step was calculation or just refer the final steps.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula|ExcelActiveCellIsSpillParent",
+      "MacroExpression": "modLETStepManager.CycleLETSteps([[ActiveCell]],[[ActiveCell]],True)",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Save Lambda",
+      "Description": "Saves the Lambda definition in the active cell as a named range.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "sl"
+      ],
+      "MacroExpression": "modLambdaEditor.SaveLambda([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Save Lambda As",
+      "Description": "Saves the Lambda definition in the active cell as a new named range specified by user.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "sla"
+      ],
+      "MacroExpression": "modLambdaEditor.SaveLambdaAs([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA"
+      ]
+    }
+  ]
+}
