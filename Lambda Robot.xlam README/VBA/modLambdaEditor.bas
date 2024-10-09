@@ -302,7 +302,14 @@ Private Sub SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined(ByVal ForCel
     On Error Resume Next
     Dim CurrentName As name
     Set CurrentName = ForCell.Worksheet.Parent.Names.Add(name:=LambdaName, RefersTo:=DefPart)
-    CurrentName.Comment = CommentInNameManager
+    
+    ' We have noticed that sometimes changing comment change the RefersTo of the Lambda (Portuguese/Brazil).
+    ' That's why we are resetting it again to the original.
+    If CommentInNameManager <> vbNullString Then
+        CurrentName.RefersTo = "=$A$1"
+        CurrentName.Comment = CommentInNameManager
+        CurrentName.RefersTo = DefPart
+    End If
     
     ' If an error occurred during adding new name, show a message box and exit the subroutine
     If Err.Number <> 0 Then

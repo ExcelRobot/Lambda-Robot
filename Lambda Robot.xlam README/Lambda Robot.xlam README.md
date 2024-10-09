@@ -105,7 +105,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L599)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L606)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell AND ExcelActiveCellHasComment |
 | Launch Codes | <code>cle</code> |
 
@@ -351,7 +351,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L557)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L564)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -426,7 +426,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L452)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L459)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>sla</code> |
 
