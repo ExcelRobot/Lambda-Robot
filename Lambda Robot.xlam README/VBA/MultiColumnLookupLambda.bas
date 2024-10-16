@@ -2,6 +2,7 @@ Attribute VB_Name = "MultiColumnLookupLambda"
 '@IgnoreModule UndeclaredVariable, AssignmentNotUsed
 '@Folder "MultiColumnLookup"
 Option Explicit
+Option Private Module
 
 ' --------------------------------------------< OA Robot >--------------------------------------------
 ' Command Name:           Generate Multi Column LookUp Lambda
@@ -21,7 +22,7 @@ Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional By
     
     ' If IsUndo is True, restore the old formula and exit
     If IsUndo Then
-        FormulaInCell.Formula2 = OldFormula
+        FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
         Exit Sub
     End If
@@ -33,7 +34,7 @@ Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional By
     ' Set the formula in the specified cell
     Set FormulaInCell = FromRange.SpillParent
     OldFormula = FromRange.Formula2
-    FormulaInCell.Formula2 = LambdaFormula
+    FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(LambdaFormula)
     AssingOnUndo "GenerateMultiColumnLookUpLambda"
     Logger.Log TRACE_LOG, "Exit MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
     

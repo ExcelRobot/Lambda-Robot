@@ -2,6 +2,7 @@ Attribute VB_Name = "modLambdaEditor"
 '@IgnoreModule UndeclaredVariable, AssignmentNotUsed, ImplicitActiveWorkbookReference, UnrecognizedAnnotation, ProcedureNotUsed
 '@Folder "Lambda.Editor.XLRobot"
 Option Explicit
+Option Private Module
 
 '--------------------------------------------< OA HOTKEY >--------------------------------------------
 ' Command Name:           Edit Lambda
@@ -123,7 +124,7 @@ Private Sub PutFormulaWhichHasError(ByVal GivenRange As Range, ByVal FormulaText
     GivenRange.NumberFormat = "@"
     
     ' Insert the formula text into the cell. Since the number format is set to text, even formulas with errors can be inserted without issues
-    GivenRange.Formula2 = FormulaText
+    GivenRange.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
     
     ' After inserting the formula, restore the cell's original number format
     GivenRange.NumberFormat = PreviousNumberFormat
@@ -149,8 +150,10 @@ Public Sub DeleteComment(ByVal ToCell As Range)
     Dim CurrentComment As Comment
     Set CurrentComment = ToCell.Comment
     On Error GoTo ExitSub
-    CurrentComment.Delete
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.DeleteComment"
+    If Text.IsStartsWith(CurrentComment.Text, LAMBDA_NAME_NOTE_PREFIX) Then
+        CurrentComment.Delete
+    End If
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.DeleteComment"
     Exit Sub
     
 ExitSub:
@@ -530,7 +533,7 @@ Public Sub SaveLambdaAsAfterTakingUserInput(ByVal OfCell As Range _
     Set CurrentPresenter = EditMetadataForCell(OfCell, True, DefaultName)
     ' If the Presenter was cancelled, revert to the old formula and exit
     If CurrentPresenter.IsProcessCancelled Then
-        OfCell.Formula2 = OldFormulaIfPopUpCancelled
+        OfCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormulaIfPopUpCancelled)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
         Exit Sub
     End If

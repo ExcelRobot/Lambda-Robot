@@ -2,6 +2,7 @@ Attribute VB_Name = "modLETStepManager"
 '@IgnoreModule UndeclaredVariable
 '@Folder "Step.Manager"
 Option Explicit
+Option Private Module
 
 Private Sub Test()
     AddLetStep ActiveCell, "Sum By Row", "=BYROW([[PreviousStep]],LAMBDA(x,SUM(x)))"

@@ -3,6 +3,7 @@ Attribute VB_Name = "modUserParameter"
 '@Folder "ParameterTaker"
 ' @IgnoreModule ImplicitActiveSheetReference
 Option Explicit
+Option Private Module
 
 Public Function GetOrAskForParameterValue(ByVal ParameterCell As Range _
                                           , ByVal ParameterPrompt As String _

@@ -12,6 +12,7 @@ Attribute VB_Name = "modSharedConstant"
 
 
 Option Explicit
+Option Private Module
 
 ' Table related constants
 Public Const TABLE_ALL_MARKER As String = "[#All]"

@@ -1,5 +1,6 @@
 Attribute VB_Name = "modActualFormulaCellFinder"
 Option Explicit
+Option Private Module
 
 Public Function LoopBackToActualCell(ByVal FormulaStartCell As Range) As Range
     

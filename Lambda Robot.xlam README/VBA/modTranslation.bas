@@ -1,5 +1,6 @@
 Attribute VB_Name = "modTranslation"
 Option Explicit
+Option Private Module
 
 #Const DEVELOPMENT_MODE = True
 
@@ -27,12 +28,6 @@ Private Sub TestTranslatePasteFormula()
     PasteTranslateFormula ActiveCell.Formula2, ActiveCell.Offset(-2, 0)
 End Sub
 
-'--------------------------------------------< OA Robot >--------------------------------------------
-' Command Name:           Copy Formula To English
-' Description:            Copy Activecell formula after translating to en-us.
-' Macro Expression:       modTranslation.CopyFormulaToEnglish([ActiveCell])
-' Generated:              08/14/2024 07:15 PM
-'----------------------------------------------------------------------------------------------------
 Public Function CopyFormulaToEnglish(ByVal FormulaCell As Range) As String
 
     If FormulaCell Is Nothing Then Exit Function
@@ -43,19 +38,13 @@ Public Function CopyFormulaToEnglish(ByVal FormulaCell As Range) As String
 
 End Function
 
-'--------------------------------------------< OA Robot >--------------------------------------------
-' Command Name:           Paste Translation Formula
-' Description:            Paste English(US) version formula after translating to the user excel language and put in the ActiveCell.
-' Macro Expression:       modTranslation.PasteTranslateFormula(<[Clipboard],[ActiveCell])
-' Generated:              08/14/2024 11:57 AM
-'----------------------------------------------------------------------------------------------------
 Public Sub PasteTranslateFormula(ByVal enUSFormula As String _
                                  , ByVal AddTranslatedFormulaToCell As Range)
 
     If enUSFormula = vbNullString Then Exit Sub
     If AddTranslatedFormulaToCell Is Nothing Then Exit Sub
 
-    AddTranslatedFormulaToCell.Formula2 = enUSFormula
+    AddTranslatedFormulaToCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(enUSFormula)
 
 End Sub
 

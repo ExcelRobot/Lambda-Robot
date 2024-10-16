@@ -4,6 +4,7 @@ Attribute VB_Name = "modUtility"
 '@IgnoreModule ImplicitActiveSheetReference, SuperfluousAnnotationArgument, UnrecognizedAnnotation, ProcedureNotUsed, UnassignedVariableUsage
 ' @Folder "Lambda.Editor.Utility"
 Option Explicit
+Option Private Module
 
 #If VBA7 Then                                    ' Excel 2010 or later
     
@@ -1748,7 +1749,7 @@ Public Sub AssignFormulaIfErrorPrintIntoDebugWindow(ByVal PutFormulaOnCell As Ra
     
     ' Assigns a formula to the specified cell and prints the formula into the debug window if an error occurs.
     On Error GoTo PrintFormulaToDebugWindow
-    PutFormulaOnCell.Formula2 = ReplaceNewlineWithChar10(FormulaText)
+    PutFormulaOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
     Exit Sub
 
 PrintFormulaToDebugWindow:
@@ -2373,7 +2374,7 @@ End Function
 
 Public Sub UpdateFormulaAndCalculate(ByVal OnCell As Range, ByVal FormulaText As String)
     
-    OnCell.Formula2 = FormulaText
+    OnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
     OnCell.Calculate
     
 End Sub
@@ -3255,3 +3256,12 @@ Public Function UnEscapeSingleQuote(ByVal OnText As String) As String
     UnEscapeSingleQuote = Replace(OnText, SINGLE_QUOTE & SINGLE_QUOTE, SINGLE_QUOTE)
 End Function
 
+Public Function ReplaceInvalidCharFromFormulaWithValid(ByVal Formula As String) As String
+    
+    Dim Result As String
+    Result = Replace(Formula, vbCrLf, vbLf)
+    Result = Replace(Result, Chr(160), Chr(32))
+    
+    ReplaceInvalidCharFromFormulaWithValid = Result
+    
+End Function

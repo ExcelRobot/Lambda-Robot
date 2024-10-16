@@ -4,7 +4,7 @@ Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} LambdaMetadataView
    ClientHeight    =   11100
    ClientLeft      =   -270
    ClientTop       =   -1290
-   ClientWidth     =   13485
+   ClientWidth     =   13480
    OleObjectBlob   =   "LambdaMetadataView.frx":0000
    StartUpPosition =   2  'CenterScreen
 End

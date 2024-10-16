@@ -3,7 +3,7 @@ Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ParamSelector
    Caption         =   "Lambda Parameter Setup"
    ClientHeight    =   8120
    ClientLeft      =   -360
-   ClientTop       =   -1755
+   ClientTop       =   -1760
    ClientWidth     =   16140
    OleObjectBlob   =   "ParamSelector.frx":0000
    WhatsThisHelp   =   -1  'True

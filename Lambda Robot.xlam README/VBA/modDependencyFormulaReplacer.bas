@@ -1,5 +1,6 @@
 Attribute VB_Name = "modDependencyFormulaReplacer"
 Option Explicit
+Option Private Module
 
 '--------------------------------------------< OA Robot >--------------------------------------------
 ' Command Name:           Include Lambda Dependencies
@@ -18,7 +19,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
 
     ' If it is Undo operation, restore old formula and exit subroutine
     If IsUndo Then
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = OldFormula
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modDependencyFormulaReplacer.IncludeLambdaDependencies"
         Exit Sub
     Else

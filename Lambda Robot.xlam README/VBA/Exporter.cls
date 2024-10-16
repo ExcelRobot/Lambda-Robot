@@ -274,7 +274,7 @@ Private Function GenerateGist(ByVal CurrentName As name) As String
     ' Generate a code snippet (gist) for the given lambda (CurrentName).
 
     ' Set the lambda definition on the cell to the formula of the current named range
-    This.LambdaDefinitionOnCell.Formula2 = CurrentName.RefersTo
+    This.LambdaDefinitionOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(CurrentName.RefersTo)
 
     ' Create a presenter to show the lambda definition
     Dim CurrentPresenter As Presenter

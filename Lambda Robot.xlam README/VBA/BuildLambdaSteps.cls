@@ -308,7 +308,7 @@ Private Sub PlaceStepFormula(ByRef PutOnCell, ByRef HeadersRange As Range _
         Dim Formula As String
         Formula = UpdateForPreviousLetVar(CalculationFunction, This.VarNameVsCalculationAreaMap)
         ' Updating the formula of the cell
-        PutOnCell.Formula2 = UpdateForIsOmitted(Formula)
+        PutOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(UpdateForIsOmitted(Formula))
 '        Debug.Assert PutOnCell.Offset(-1, 0).Value <> "AllPaths"
         PutOnCell.Calculate
         ' Handling cases where the formula is a lambda

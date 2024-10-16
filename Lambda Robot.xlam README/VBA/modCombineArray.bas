@@ -1,5 +1,6 @@
 Attribute VB_Name = "modCombineArray"
 Option Explicit
+Option Private Module
 
 '--------------------------------------------< OA Robot >--------------------------------------------
 ' Command Name:           Paste Combine Arrays
@@ -8,7 +9,7 @@ Option Explicit
 ' Generated:              09/15/2024 06:06 PM
 '----------------------------------------------------------------------------------------------------
 Sub PasteCombineArrays(SourceRange As Range, cellDestination As Range)
-    cellDestination.Cells(1, 1).Formula2 = "=" & SplitAreaByAddress(SourceRange, cellDestination)
+    cellDestination.Cells(1, 1).Formula2 = ReplaceInvalidCharFromFormulaWithValid("=" & SplitAreaByAddress(SourceRange, cellDestination))
 End Sub
 
 Private Sub TestSplitAreaByAddress()

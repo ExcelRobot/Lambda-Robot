@@ -3,6 +3,7 @@ Attribute VB_Name = "modLambdaBuilder"
 '@Folder "Lambda.Editor.Driver"
 
 Option Explicit
+Option Private Module
 
 Public Sub TestGenerateDependencyInfo()
     
@@ -67,7 +68,7 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
 
     If IsUndo Then
         ' If undo, restore the old formula
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = OldFormula
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLetStatement"
         Exit Sub
     Else
@@ -121,7 +122,7 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
     Static OldFormula As String
 
     If IsUndo Then
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = OldFormula
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLambdaStatement"
         Exit Sub
     Else
@@ -286,7 +287,7 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
     
     ' If IsUndo is true, revert to old formula and exit subroutine
     If IsUndo Then
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = OldFormula
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.LetToLambda"
         Exit Sub
     Else

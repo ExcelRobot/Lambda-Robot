@@ -2,6 +2,7 @@ Attribute VB_Name = "TestModule"
 '@IgnoreModule UndeclaredVariable, ImplicitActiveSheetReference, UnrecognizedAnnotation, ProcedureNotUsed
 '@Folder "Lambda.Editor.Driver"
 Option Explicit
+Option Private Module
 
 Public Sub DeleteColumnsToRight(ByVal GivenRange As Range)
     

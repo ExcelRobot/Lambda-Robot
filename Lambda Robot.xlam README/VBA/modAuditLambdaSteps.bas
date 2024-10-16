@@ -4,6 +4,7 @@ Attribute VB_Name = "modAuditLambdaSteps"
 '@Ignore ProcedureNotUsed
 
 Option Explicit
+Option Private Module
 
 '--------------------------------------------< OA Robot >--------------------------------------------
 ' Command Name:           Generate Lambda Steps
@@ -59,10 +60,21 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
     ' Check if it's an undo operation.
     If IsUndo Then
         ' If there's a stored formula from a previous operation, put it back to its original cell.
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = OldFormula
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.LambdaToLet"
         Exit Sub
     Else
+        
+        ' If saved lambda then run Edit lambda first.
+        With LambdaFormulaCell
+            If IsSavedLambdaInCellFormula(.Formula2, .Worksheet) Then
+                If IsLambdaCreatedInExcelLabs(.Worksheet.Parent, GetSavedNamedNameFromCellFormula(.Formula2, .Worksheet)) Then
+                    Exit Sub
+                Else
+                    EditLambda LambdaFormulaCell
+                End If
+            End If
+        End With
         
         Dim InvalidOptReason As String
         InvalidOptReason = LambdaToLetOperationInvalidMessage(LambdaFormulaCell, PutLetOnCell)
@@ -76,6 +88,7 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
         
     End If
     
+    DeleteComment LambdaFormulaCell
     ' Begin error handling. If an error occurs anywhere in the code that follows,
     ' the program will jump to the ErrorHandler label.
     On Error GoTo ErrorHandler
@@ -83,7 +96,7 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
     Dim FormulaText As String
     FormulaText = ConvertLambdaToLet(LambdaFormulaCell.Formula2)
     ' Assign the converted formula to the target cell.
-    PutLetOnCell.Formula2 = FormulaText
+    PutLetOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
     ' If it's not an undo operation, set up for a possible future undo operation.
     If Not IsUndo Then
         ' Store the cell that has the converted formula for potential future undo.

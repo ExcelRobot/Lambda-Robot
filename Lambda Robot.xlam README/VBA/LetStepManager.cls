@@ -57,7 +57,7 @@ Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
     ' Checking if TargetCell is null
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
     ' Replacing the formula in the target cell
-    TargetCell.Formula2 = ReplaceNewlineWithChar10(FormulaText)
+    TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.AddLetStep"
     Exit Sub
     
@@ -240,7 +240,7 @@ Public Sub RemoveLastLETStep(ByVal FormulaCell As Range, Optional ByVal TargetCe
     Logger.Log DEBUG_LOG, "Removing last let step from formula:" & ReplaceOnFormula
     Logger.Log DEBUG_LOG, "Final formula after Removing last let step:" & ReplacedFormula
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
-    TargetCell.Formula2 = ReplaceNewlineWithChar10(ReplacedFormula)
+    TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(ReplacedFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.RemoveLastLETStep"
     Exit Sub
     
@@ -296,7 +296,7 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     Logger.Log DEBUG_LOG, "Final formula after Removing last let step:" & ReplacedFormula
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
     
-    TargetCell.Formula2 = ReplaceNewlineWithChar10(ReplacedFormula)
+    TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(ReplacedFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.CycleLETSteps"
     Exit Sub
     

@@ -3,6 +3,7 @@ Attribute VB_Name = "modMetadataEditor"
 '@Folder "Lambda.Editor.Metadata.Driver"
 
 Option Explicit
+Option Private Module
 
 '--------------------------------------------< OA Robot >--------------------------------------------
 ' Command Name:           Lambda Properties

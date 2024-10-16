@@ -4,6 +4,7 @@ Attribute VB_Name = "modDependencyLambdaResult"
 '@Folder "COM.Wrapper"
 
 Option Explicit
+Option Private Module
 
 #Const DEVELOPMENT_MODE = True
  
@@ -702,6 +703,54 @@ Public Function IsLambdaFunction(ByVal Formula As String) As Boolean
     End If
     
     IsLambdaFunction = Result
+    
+End Function
+
+Public Function GetSavedNamedNameFromCellFormula(ByVal FormulaText As String _
+                                           , ByVal FormulaSheet As Worksheet) As String
+    
+    ' Extract the saved name from the cell formula. Like if we have a formula =AnySavedName or lambda invocation
+    ' =MyLambda(Param1..) then it will extract the Lambda Name or Named range name.
+    
+    #If DEVELOPMENT_MODE Then
+        Dim ParsedFormulaResult As OARobot.FormulaParseResult
+    #Else
+        Dim ParsedFormulaResult As Object
+    #End If
+    
+    Set ParsedFormulaResult = ParseFormula(FormulaText, FormulaSheet.Parent)
+    
+    Dim Result As String
+    
+    If Not ParsedFormulaResult.ParseSuccess Then
+        Result = vbNullString
+    ElseIf ParsedFormulaResult.Expr.IsName Then
+        Result = ParsedFormulaResult.Expr.AsName.name.String
+    ElseIf ParsedFormulaResult.Expr.IsFunction Then
+        Result = ParsedFormulaResult.Expr.AsFunction.FunctionName.AsName.name.String
+    End If
+    
+    GetSavedNamedNameFromCellFormula = Result
+    
+End Function
+
+Public Function IsSavedLambdaInCellFormula(ByVal FormulaText As String _
+                                           , ByVal FormulaSheet As Worksheet) As Boolean
+    
+    Dim LambdaName As String
+    LambdaName = GetSavedNamedNameFromCellFormula(FormulaText, FormulaSheet)
+    
+    Dim Result As Boolean
+    Dim RefersTo As String
+    
+    If LambdaName = vbNullString Then
+        Result = False
+    Else
+        RefersTo = FormulaSheet.Parent.Names(LambdaName).RefersTo
+        Result = IsLambdaFunction(RefersTo)
+    End If
+    
+    IsSavedLambdaInCellFormula = Result
     
 End Function
 

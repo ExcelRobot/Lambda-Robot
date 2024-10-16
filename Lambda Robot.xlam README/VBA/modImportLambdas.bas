@@ -1,5 +1,6 @@
 Attribute VB_Name = "modImportLambdas"
 Option Explicit
+Option Private Module
 
 Public Sub ImportAllLambdas(ByVal FileName As String _
                            , Optional ByVal ReplaceIfExists As Boolean = False)

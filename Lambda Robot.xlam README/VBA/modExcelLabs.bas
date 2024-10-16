@@ -1,6 +1,6 @@
 Attribute VB_Name = "modExcelLabs"
 Option Explicit
-
+Option Private Module
 
 Private Sub Test()
     

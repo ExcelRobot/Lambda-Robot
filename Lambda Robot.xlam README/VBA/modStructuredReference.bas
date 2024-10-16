@@ -4,15 +4,10 @@ Attribute VB_Name = "modStructuredReference"
 ' @Folder "Lambda.Editor.Utility"
 ' @IgnoreModule IndexedDefaultMemberAccess
 Option Explicit
+Option Private Module
 
 Private Const TABLE_COL_SEPARATOR As String = ":"
 
-' --------------------------------------------< OA Robot >--------------------------------------------
-' Command Name:           Paste As References
-' Description:            Paste as references.
-' Macro Expression:       modStructuredReference.PasteAsReferences([Clipboard],[ActiveCell])
-' Generated:              08/18/2022 07:55 PM
-' ----------------------------------------------------------------------------------------------------
 Public Sub PasteAsReferences(ByVal CopyFrom As Range, ByVal PasteTo As Range)
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.PasteAsReferences"
@@ -30,12 +25,6 @@ Public Sub PasteAsReferences(ByVal CopyFrom As Range, ByVal PasteTo As Range)
     
 End Sub
 
-' --------------------------------------------< OA Robot >--------------------------------------------
-' Command Name:           Convert Formula To Structural Ref
-' Description:            Convert formula to structural ref.
-' Macro Expression:       modStructuredReference.ConvertFormulaToStructuredRef([ActiveCell])
-' Generated:              08/18/2022 09:47 PM
-' ----------------------------------------------------------------------------------------------------
 Public Sub ConvertFormulaToStructuredRef(ByVal FromCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.ConvertFormulaToStructuredRef"

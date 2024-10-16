@@ -2,6 +2,7 @@ Attribute VB_Name = "modExportLambdas"
 '@IgnoreModule UndeclaredVariable
 '@Folder "Lambda.Editor.Exporter.Driver"
 Option Explicit
+Option Private Module
 
 '@Ignore ProcedureNotUsed
 Public Sub ExportThisWorkbookLambda()

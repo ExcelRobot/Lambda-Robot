@@ -1,5 +1,6 @@
 Attribute VB_Name = "modUnUsedLambdas"
 Option Explicit
+Option Private Module
 
 Private Sub TestRemoveUnusedLambdas()
     RemoveUnusedLambdas ActiveWorkbook

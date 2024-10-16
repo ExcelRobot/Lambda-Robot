@@ -256,6 +256,6 @@
  </Names>
  <Worksheet ss:Name="Sheet1">
   <Table ss:ExpandedColumnCount="1" ss:ExpandedRowCount="1"
-   ss:DefaultColumnWidth="60" ss:DefaultRowHeight="18.75"/>
+   ss:DefaultColumnWidth="64" ss:DefaultRowHeight="18"/>
  </Worksheet>
 </Workbook>
