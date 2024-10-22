@@ -596,6 +596,7 @@ Public Sub RemoveLambda(ByVal OfCell As Range)
     
     ' Delete the comment that contains the lambda name
     DeleteComment OfCell
+    AutofitFormulaBar OfCell
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.RemoveLambda"
     
 End Sub

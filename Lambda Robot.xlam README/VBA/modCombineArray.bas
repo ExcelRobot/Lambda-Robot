@@ -10,6 +10,7 @@ Option Private Module
 '----------------------------------------------------------------------------------------------------
 Sub PasteCombineArrays(SourceRange As Range, cellDestination As Range)
     cellDestination.Cells(1, 1).Formula2 = ReplaceInvalidCharFromFormulaWithValid("=" & SplitAreaByAddress(SourceRange, cellDestination))
+    AutofitFormulaBar cellDestination.Cells(1, 1)
 End Sub
 
 Private Sub TestSplitAreaByAddress()

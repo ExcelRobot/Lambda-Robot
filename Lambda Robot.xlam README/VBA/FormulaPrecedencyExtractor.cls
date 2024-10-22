@@ -169,6 +169,18 @@ Public Sub ExtractAllPrecedencyInfo(ByVal FormulaStartCell As Range _
 
 End Sub
 
+Public Sub MarkAllAsNonInputCells(ByRef AllDependency As Collection)
+    
+    Dim CurrentDependency As DependencyInfo
+    
+    ' Find all the used named range ref. Now we need to check for other ref.
+    Dim Index As Long
+    For Each CurrentDependency In AllDependency
+        CurrentDependency.IsLabelAsInputCell = False
+    Next CurrentDependency
+    
+End Sub
+
 Private Sub ClearCatches()
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.ClearCatches"

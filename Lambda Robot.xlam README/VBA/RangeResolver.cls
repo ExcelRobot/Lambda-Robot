@@ -343,7 +343,7 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
     
     Dim RangeRefSheet As Worksheet
     
-    If IsImplicitColumnRef(DependencyText) Then
+    If IsImplicitColumnRef(DependencyText, InBook) Then
         Set Result = Nothing
     ElseIf IsTableExist(InBook:=InBook, TableName:=DependencyText) Then
         Set Result = GetTable(InBook, DependencyText).DataBodyRange
@@ -386,8 +386,21 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
     
 End Function
 
-Public Function IsImplicitColumnRef(ByVal ColRef As String) As Boolean
-    IsImplicitColumnRef = Text.IsStartsWith(ColRef, "[@") And Text.IsEndsWith(ColRef, "]")
+Public Function IsImplicitColumnRef(ByVal ColRef As String, ByVal InBook As Workbook) As Boolean
+    
+    Dim Result As Boolean
+    If Text.IsStartsWith(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
+        Result = True
+    ElseIf Text.Contains(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
+        ' So we have table name along with implicit col ref.
+        ' Let's check if we have a table or not.
+        Dim TableName As String
+        TableName = Text.BeforeDelimiter(ColRef, "[@")
+        Result = IsTableExist(InBook, TableName)
+    End If
+    
+    IsImplicitColumnRef = Result
+    
 End Function
 
 Private Function IsPossibleTableColRef(ByVal DependencyText As String) As Boolean

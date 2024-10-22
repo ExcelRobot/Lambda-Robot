@@ -164,13 +164,15 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
     ' This sub generates dependency information based on the provided formula.
 
     On Error GoTo ResetCalculation
-
-    ' Extract all precedence information using the FormulaPrecedencyExtractor.
-    This.PrecedencyExtractor.ExtractAllPrecedencyInfo FormulaStartCell, This.DependencySearchInRegion, Nothing
-
-    ' Add underscore on valid variable names for non-input cells.
-    This.PrecedencyExtractor.AddPrefixOnValidVarNameForNonInputCells This.PrecedencyExtractor.AllDependency
-    This.PrecedencyExtractor.UpdateValidVarForUsedNamedRanges This.PrecedencyExtractor.AllDependency
+    
+    With This.PrecedencyExtractor
+        ' Extract all precedence information using the FormulaPrecedencyExtractor.
+        .ExtractAllPrecedencyInfo FormulaStartCell, This.DependencySearchInRegion, Nothing
+        If TypeOfOperation = LET_STATEMENT_GENERATION Then .MarkAllAsNonInputCells .AllDependency
+        ' Add underscore on valid variable names for non-input cells.
+        .AddPrefixOnValidVarNameForNonInputCells .AllDependency
+        .UpdateValidVarForUsedNamedRanges .AllDependency
+    End With
     
     ' Check the type of operation requested.
     If TypeOfOperation = DEPENDENCY_INFO_GENERATION Then
@@ -203,7 +205,7 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
         PutAFECodeToSheet PutDependencyInfoOnRange, This.CurrentLambdaInfo.AFEScriptCode
     End If
 
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaParser.GenerateDependencyInfo"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaParser.GenerateDependencyInfo"
     Exit Sub
     Resume
 
@@ -228,27 +230,30 @@ ResetCalculation:
 
 End Sub
 
-Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection)
+Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection, ByVal TypeOfOperation As OperationType)
     
     Logger.Log TRACE_LOG, "Enter FormulaParser.RecalculatePrecedencyAgain"
     ' This sub recalculates the precedence again after user modification of dependencies.
     
-    ' Extract all precedence information again, considering the user-modified dependencies.
-    This.PrecedencyExtractor.ExtractAllPrecedencyInfo This.PrecedencyExtractor.FormulaStartCell, _
-                                                      This.DependencySearchInRegion, _
-                                                      UserModifiedDependency
+    With This.PrecedencyExtractor
+        ' Extract all precedence information again, considering the user-modified dependencies.
+        .ExtractAllPrecedencyInfo .FormulaStartCell, _
+                                  This.DependencySearchInRegion, _
+                                  UserModifiedDependency
+                                  
+        If TypeOfOperation = LET_STATEMENT_GENERATION Then .MarkAllAsNonInputCells .AllDependency
+        ' Add an underscore on valid variable names for non-input cells.
+        .AddPrefixOnValidVarNameForNonInputCells .AllDependency
 
-    ' Add an underscore on valid variable names for non-input cells.
-    This.PrecedencyExtractor.AddPrefixOnValidVarNameForNonInputCells This.PrecedencyExtractor.AllDependency
+        ' Get the dependency data and sort it.
+        .DependencyData = GetAllDependencyToArrayAndSort(.AllDependency)
 
-    ' Get the dependency data and sort it.
-    This.PrecedencyExtractor.DependencyData = GetAllDependencyToArrayAndSort(This.PrecedencyExtractor.AllDependency)
+        ' Reorder the dependency data to accommodate user-modified dependencies.
+        .DependencyData = ReorderForUserModifiedDependency(.DependencyData, UserModifiedDependency)
 
-    ' Reorder the dependency data to accommodate user-modified dependencies.
-    This.PrecedencyExtractor.DependencyData = ReorderForUserModifiedDependency(This.PrecedencyExtractor.DependencyData, UserModifiedDependency)
-
-    ' Get the updated dependency objects collection.
-    Set This.PrecedencyExtractor.AllDependency = This.PrecedencyExtractor.GetDependencyObjectsFromData(This.PrecedencyExtractor.DependencyData)
+        ' Get the updated dependency objects collection.
+        Set .AllDependency = .GetDependencyObjectsFromData(.DependencyData)
+    End With
     Logger.Log TRACE_LOG, "Exit FormulaParser.RecalculatePrecedencyAgain"
 
 End Sub
@@ -513,7 +518,11 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
     ' Get the collection of DependencyInfo objects from the DependencyOrderData.
     Dim DependencyObjects As Collection
     Set DependencyObjects = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyOrderData)
-
+    
+    If TypeOfOperation = LET_STATEMENT_GENERATION Then
+        PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
+    End If
+    
     ' Update input cells from the user's choice depending on the TypeOfOperation.
     UpdateInputCellsFromUserChoice DependencyObjects, TypeOfOperation
     ActivateFormulaStartCell This.PrecedencyExtractor
@@ -604,6 +613,24 @@ Public Function GetLambdaPreview(ByVal DependencyObjects As Collection) As Strin
     
 End Function
 
+Public Function GetLetPreview(ByVal DependencyObjects As Collection) As String
+    
+    ' Returns the preview of the LET formula.
+    
+    Dim Result As String
+    With This.FormulaGen
+        .CreateLetAndLambdaStatements DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LET_STATEMENT_GENERATION, This.PrecedencyExtractor
+        ' Return the full Lambda expression along with the Lambda invocation argument.
+        Result = FormatFormula(.LetFormula)
+        Result = TranslateEnUSFormulaToApplicationLanguage(Result)
+        This.IsLetNeededInLambda = .IsLetNeededInLambda
+    End With
+    
+    GetLetPreview = Result
+    
+
+End Function
+
 Private Sub UpdateInputCellsFromUserChoice(ByRef DependencyObjects As Collection _
                                            , ByVal TypeOfOperation As OperationType)
     
@@ -611,10 +638,10 @@ Private Sub UpdateInputCellsFromUserChoice(ByRef DependencyObjects As Collection
     ' Updates the input cells from the user's choice if the operation type is LAMBDA_STATEMENT_GENERATION.
 
     ' If the operation type is not LAMBDA_STATEMENT_GENERATION, exit the subroutine.
-    If TypeOfOperation <> LAMBDA_STATEMENT_GENERATION Then Exit Sub
+    If Not (TypeOfOperation = LAMBDA_STATEMENT_GENERATION Or TypeOfOperation = LET_STATEMENT_GENERATION) Then Exit Sub
 
     ' Update the DependencyObjects based on the user's choice for renaming, reordering, or demoting input cells.
-    Set DependencyObjects = UpdateFromUserChooseForRenameOrReorderOrDemote(DependencyObjects)
+    Set DependencyObjects = UpdateFromUserChooseForRenameOrReorderOrDemote(DependencyObjects, TypeOfOperation)
 
     ' Get the number of non-input dependencies from the updated DependencyObjects.
     This.PrecedencyExtractor.NumberOfNonInputDependency = GetNumberOfNonInputDependency(DependencyObjects)
@@ -622,14 +649,19 @@ Private Sub UpdateInputCellsFromUserChoice(ByRef DependencyObjects As Collection
 
 End Sub
 
-Private Function UpdateFromUserChooseForRenameOrReorderOrDemote(ByVal DependencyObjects As Collection) As Collection
+Private Function UpdateFromUserChooseForRenameOrReorderOrDemote(ByVal DependencyObjects As Collection _
+, ByVal TypeOfOperation As OperationType) As Collection
     
     Logger.Log TRACE_LOG, "Enter FormulaParser.UpdateFromUserChooseForRenameOrReorderOrDemote"
     ' Updates the DependencyObjects based on the user's choice for renaming, reordering, or demoting input cells.
 
     ' Create a ParamSelector object.
-    Dim UF As ParamSelector
-    Set UF = New ParamSelector
+    Dim UF As Object
+    If TypeOfOperation = LAMBDA_STATEMENT_GENERATION Then
+        Set UF = New ParamSelector
+    Else
+        Set UF = New LETManagerUI
+    End If
 
     ' Set the DependencyObjects and Parser properties of the ParamSelector object.
     Set UF.DependencyObjects = DependencyObjects

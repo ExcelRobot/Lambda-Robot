@@ -2422,6 +2422,27 @@ Public Function GetNonInputLetStepsVarNameAndRangeReference(ByVal DependencyObje
     
 End Function
 
+Public Function GetLetStepsVarNameAndRangeReference(ByVal DependencyObjects As Collection) As Variant
+    
+    ' Retrieves variable names and range references for non-input let step cells from the given dependency object collection.
+
+    Dim LetStepsVarName As Collection
+    Set LetStepsVarName = New Collection
+
+    Dim CurrentDependencyInfo As DependencyInfo
+    For Each CurrentDependencyInfo In DependencyObjects
+        ' Check if the current dependency info represents a non-input let step cell.
+        If Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
+            ' Add the current dependency info to the collection of non-input let step cells.
+            LetStepsVarName.Add CurrentDependencyInfo
+        End If
+    Next CurrentDependencyInfo
+
+    ' Get the variable names and range references for the non-input let step cells.
+    GetLetStepsVarNameAndRangeReference = GetVarNameAndRangeReference(LetStepsVarName)
+    
+End Function
+
 Private Function GetVarNameAndRangeReference(ByVal FromDependencyColl As Collection) As Variant
     
     ' Retrieves variable names and range references from the given dependency object collection.

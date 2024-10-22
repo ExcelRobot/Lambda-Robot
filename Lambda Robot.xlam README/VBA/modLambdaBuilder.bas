@@ -68,7 +68,10 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
 
     If IsUndo Then
         ' If undo, restore the old formula
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+        If IsNotNothing(PutFormulaOnUndo) Then
+            PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+            AutofitFormulaBar PutFormulaOnUndo
+        End If
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLetStatement"
         Exit Sub
     Else
@@ -86,6 +89,7 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
                                                               , "Generated Let Statement : "
         ' Force calculation after assigning formula
         PutLetOnCell.Calculate
+        AutofitFormulaBar PutLetOnCell
         
         If Not IsUndo Then
             ' Check if FormulaRange and PutLetOnCell are the same, if so, store FormulaRange for future use, otherwise store PutLetOnCell
@@ -122,7 +126,10 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
     Static OldFormula As String
 
     If IsUndo Then
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+        If IsNotNothing(PutFormulaOnUndo) Then
+            PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+            AutofitFormulaBar PutFormulaOnUndo
+        End If
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLambdaStatement"
         Exit Sub
     Else
@@ -154,6 +161,7 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
 
         ' Include any lambda dependencies
         IncludeLambdaDependencies PutLambdaOnCell, IsUndo, True
+        AutofitFormulaBar PutLambdaOnCell
         PutLambdaOnCell.Calculate
         PutLambdaOnCell.Activate
         

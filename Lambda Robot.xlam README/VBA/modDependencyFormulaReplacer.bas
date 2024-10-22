@@ -19,7 +19,10 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
 
     ' If it is Undo operation, restore old formula and exit subroutine
     If IsUndo Then
-        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+        If IsNotNothing(PutFormulaOnUndo) Then
+            PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+            AutofitFormulaBar PutFormulaOnUndo
+        End If
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modDependencyFormulaReplacer.IncludeLambdaDependencies"
         Exit Sub
     Else
@@ -35,6 +38,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
     Dim DependencyReplacer As DependencyFormulaReplacer
     Set DependencyReplacer = New DependencyFormulaReplacer
     DependencyReplacer.IncludeLambdaDependencies LambdaInCell, Nothing, UPDATE_FORMULA_IN_CELL, IsOnlyLetStepOnes
+    AutofitFormulaBar LambdaInCell
     
     If Not IsUndo Then AssingOnUndo "IncludeLambdaDependencies"
     Logger.Log TRACE_LOG, "Exit modDependencyFormulaReplacer.IncludeLambdaDependencies"

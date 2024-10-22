@@ -23,6 +23,7 @@ Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional By
     ' If IsUndo is True, restore the old formula and exit
     If IsUndo Then
         FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
+        AutofitFormulaBar FormulaInCell
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
         Exit Sub
     End If
@@ -35,6 +36,7 @@ Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional By
     Set FormulaInCell = FromRange.SpillParent
     OldFormula = FromRange.Formula2
     FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(LambdaFormula)
+    AutofitFormulaBar FormulaInCell
     AssingOnUndo "GenerateMultiColumnLookUpLambda"
     Logger.Log TRACE_LOG, "Exit MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
     
