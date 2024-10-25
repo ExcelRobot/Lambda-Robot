@@ -3251,8 +3251,8 @@ Public Function IsReferenceFromDifferentBook(ByVal PrecedentsRef As String _
     
 End Function
 
-Public Function Max(ByVal FirstNumber As Variant, ByVal SecondNumber As Variant) As Variant
-    Max = Application.WorksheetFunction.Max(FirstNumber, SecondNumber)
+Public Function MaxValue(ByVal FirstNumber As Variant, ByVal SecondNumber As Variant) As Variant
+    MaxValue = Application.WorksheetFunction.Max(FirstNumber, SecondNumber)
 End Function
 
 Public Function IsSubRange(ByVal ParentRange As Range _

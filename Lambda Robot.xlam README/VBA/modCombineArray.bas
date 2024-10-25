@@ -300,9 +300,9 @@ Private Function MaxRowHeight(ByVal RowRange As Range) As Long
             SpillRowCount = CurrentCell.SpillParent.SpillingToRange.Rows.Count
                 
             If CurrentCell.SpillParent.Address = CurrentCell.Address Then
-                MaxHeight = Max(MaxHeight, SpillRowCount)
+                MaxHeight = MaxValue(MaxHeight, SpillRowCount)
             Else
-                MaxHeight = Max(MaxHeight, SpillRowCount - CurrentCell.Row + CurrentCell.SpillParent.Row)
+                MaxHeight = MaxValue(MaxHeight, SpillRowCount - CurrentCell.Row + CurrentCell.SpillParent.Row)
             End If
         End If
         
@@ -325,9 +325,9 @@ Private Function MaxColumnWidth(ByVal ColRange As Range) As Long
             SpillColCount = CurrentCell.SpillParent.SpillingToRange.Columns.Count
             
             If CurrentCell.SpillParent.Address = CurrentCell.Address Then
-                MaxWidth = Max(MaxWidth, SpillColCount)
+                MaxWidth = MaxValue(MaxWidth, SpillColCount)
             Else
-                MaxWidth = Max(MaxWidth, SpillColCount - CurrentCell.Column + CurrentCell.SpillParent.Column)
+                MaxWidth = MaxValue(MaxWidth, SpillColCount - CurrentCell.Column + CurrentCell.SpillParent.Column)
             End If
         End If
         
