@@ -221,6 +221,7 @@ Private Sub UpdateAllListBox()
         AllData = This.CrudOperator.ReadAll
         If IsArray(AllData) Then
             Me.Controls(METADATA_PAGE_LIST_BOX_NAME_PREFIX & CurrentSuffix).List = AllData
+            TryAdaptingScrollBarHeight Me.Controls(METADATA_PAGE_LIST_BOX_NAME_PREFIX & CurrentSuffix)
         End If
         Counter = Counter + 1
         
@@ -290,7 +291,7 @@ Private Sub GistButton_Click()
     DoEvents
     
     ' Wait for 2 seconds (2000 milliseconds) before clearing the message
-    Sleep 2000
+    Application.Wait (Now + TimeValue("00:00:02"))
     DoEvents
     
     ' Clear the progress label

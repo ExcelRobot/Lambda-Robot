@@ -170,7 +170,7 @@ Public Sub SendDataToSheet(ByVal GivenRange As Range, ByVal PutToRange As Range)
     End If
     
     PutDependencyDataOnRange.Value = AllData
-    Set This.PutDependencyOnTable = PutToRange.Parent.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
+    Set This.PutDependencyOnTable = PutToRange.Worksheet.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
     This.PutDependencyOnTable.ListColumns(3).Range.ColumnWidth = 50
     This.PutDependencyOnTable.ListColumns(5).Range.ColumnWidth = 50
     This.PutDependencyOnTable.Range.WrapText = False

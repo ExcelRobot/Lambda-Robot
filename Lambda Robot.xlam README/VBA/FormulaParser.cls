@@ -31,17 +31,21 @@ Private Type TFormulaParser
     IsLetNeededInLambda As Boolean
     InitialDependencyDataForReset As Variant
     FormulaGen As LETORLAMBDAGenerator
+    IsLetNeededInLetFormula As Boolean
 End Type
-
 Private This  As TFormulaParser
+
+Public Property Get IsLetNeededInLetFormula() As Boolean
+    IsLetNeededInLetFormula = This.FormulaGen.IsLetNeededInLetFormula
+End Property
 
 Public Property Get PrecedencyExtractor() As FormulaPrecedencyExtractor
     Set PrecedencyExtractor = This.PrecedencyExtractor
 End Property
 
-Public Property Get DependencyDataForReset() As Collection
-    Set DependencyDataForReset = This.PrecedencyExtractor.GetDependencyObjectsFromData(This.InitialDependencyDataForReset)
-End Property
+Public Function DependencyDataForReset(TypeOfOperation As OperationType) As Collection
+    Set DependencyDataForReset = This.PrecedencyExtractor.GetDependencyObjectsFromData(This.InitialDependencyDataForReset, TypeOfOperation)
+End Function
 
 Public Property Get IsLetNeededInLambda() As Boolean
     IsLetNeededInLambda = This.IsLetNeededInLambda
@@ -168,10 +172,15 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
     With This.PrecedencyExtractor
         ' Extract all precedence information using the FormulaPrecedencyExtractor.
         .ExtractAllPrecedencyInfo FormulaStartCell, This.DependencySearchInRegion, Nothing
-        If TypeOfOperation = LET_STATEMENT_GENERATION Then .MarkAllAsNonInputCells .AllDependency
+        If .IsProcessEnded Then
+            This.IsProcessTerminatedByUser = True
+            Exit Sub
+        End If
+        
         ' Add underscore on valid variable names for non-input cells.
         .AddPrefixOnValidVarNameForNonInputCells .AllDependency
         .UpdateValidVarForUsedNamedRanges .AllDependency
+        If TypeOfOperation = LET_STATEMENT_GENERATION Then .UpdateInputCellsValidVarNameNamingConvIfLetStepGen .AllDependency
     End With
     
     ' Check the type of operation requested.
@@ -198,10 +207,9 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
     LogGeneratedLambdaDetails
 
     ' Convert the full Let formula to AFEScript code.
-    This.CurrentLambdaInfo.AFEScriptCode = ConvertFullLetToAFEScript(This.CurrentLambdaInfo.LetFormula)
-
     ' If the type of operation is AFE script generation, put the AFE code to the sheet.
     If TypeOfOperation = AFE_SCRIPT_GENERATION Then
+        This.CurrentLambdaInfo.AFEScriptCode = ConvertFullLetToAFEScript(This.CurrentLambdaInfo.LetFormula)
         PutAFECodeToSheet PutDependencyInfoOnRange, This.CurrentLambdaInfo.AFEScriptCode
     End If
 
@@ -241,10 +249,9 @@ Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection
                                   This.DependencySearchInRegion, _
                                   UserModifiedDependency
                                   
-        If TypeOfOperation = LET_STATEMENT_GENERATION Then .MarkAllAsNonInputCells .AllDependency
         ' Add an underscore on valid variable names for non-input cells.
         .AddPrefixOnValidVarNameForNonInputCells .AllDependency
-
+        If TypeOfOperation = LET_STATEMENT_GENERATION Then .UpdateInputCellsValidVarNameNamingConvIfLetStepGen .AllDependency
         ' Get the dependency data and sort it.
         .DependencyData = GetAllDependencyToArrayAndSort(.AllDependency)
 
@@ -252,7 +259,7 @@ Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection
         .DependencyData = ReorderForUserModifiedDependency(.DependencyData, UserModifiedDependency)
 
         ' Get the updated dependency objects collection.
-        Set .AllDependency = .GetDependencyObjectsFromData(.DependencyData)
+        Set .AllDependency = .GetDependencyObjectsFromData(.DependencyData, TypeOfOperation)
     End With
     Logger.Log TRACE_LOG, "Exit FormulaParser.RecalculatePrecedencyAgain"
 
@@ -436,7 +443,7 @@ Private Sub SendDependencyDataToSheet(ByVal AllDependency As Collection, ByVal F
     ' Sort the dependency data and convert it back to an object collection.
     Dim DependencyData As Variant
     DependencyData = GetAllDependencyToArrayAndSort(AllDependency)
-    Set AllDependency = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyData)
+    Set AllDependency = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyData, DEPENDENCY_INFO_GENERATION)
     DependencyData = GetAllDependencyToArrayAndSort(AllDependency)
 
     ' Resize the target range to fit the dependency data.
@@ -517,7 +524,7 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
 
     ' Get the collection of DependencyInfo objects from the DependencyOrderData.
     Dim DependencyObjects As Collection
-    Set DependencyObjects = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyOrderData)
+    Set DependencyObjects = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyOrderData, TypeOfOperation)
     
     If TypeOfOperation = LET_STATEMENT_GENERATION Then
         PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
@@ -530,7 +537,7 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
     
     Dim FormulaGen As LETORLAMBDAGenerator
     Set FormulaGen = New LETORLAMBDAGenerator
-    FormulaGen.CreateLetAndLambdaStatements DependencyObjects, FormulaStartCell, TypeOfOperation, This.PrecedencyExtractor
+    FormulaGen.CreateLetOrLambdaStatement DependencyObjects, FormulaStartCell, TypeOfOperation, This.PrecedencyExtractor
     This.IsLetNeededInLambda = This.FormulaGen.IsLetNeededInLambda
     
     AddLambdaToNameManagerIfRequested FormulaGen.LambdaDef
@@ -600,7 +607,7 @@ Public Function GetLambdaPreview(ByVal DependencyObjects As Collection) As Strin
     
     Dim Result As String
     With This.FormulaGen
-        .CreateLetAndLambdaStatements DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LAMBDA_STATEMENT_GENERATION, This.PrecedencyExtractor
+        .CreateLetOrLambdaStatement DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LAMBDA_STATEMENT_GENERATION, This.PrecedencyExtractor
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LambdaDef & .LambdaInvocation)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)
@@ -619,7 +626,7 @@ Public Function GetLetPreview(ByVal DependencyObjects As Collection) As String
     
     Dim Result As String
     With This.FormulaGen
-        .CreateLetAndLambdaStatements DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LET_STATEMENT_GENERATION, This.PrecedencyExtractor
+        .CreateLetOrLambdaStatement DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LET_STATEMENT_GENERATION, This.PrecedencyExtractor
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LetFormula)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)

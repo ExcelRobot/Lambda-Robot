@@ -194,6 +194,7 @@ Private Function GetSelectedValueFromList(ByVal PromptTitle As String _
     UF.PromptLabel.Caption = PromptTitle
     ' Set the list items in the UserForm
     UF.ValidationListItems.List = ValidationList
+    TryAdaptingScrollBarHeight UF.ValidationListItems
     ' Display the UserForm
     UF.Show
     ' After the UserForm is closed, get the selected item from the UserForm

@@ -7,7 +7,7 @@ Option Private Module
 Public Sub DeleteColumnsToRight(ByVal GivenRange As Range)
     
     Dim FromSheet As Worksheet
-    Set FromSheet = GivenRange.Parent
+    Set FromSheet = GivenRange.Worksheet
     FromSheet.Range(GivenRange.Cells(1, 1), FromSheet.Cells(GivenRange.Row, FromSheet.Columns.Count)).EntireColumn.Delete
 
 End Sub
@@ -86,19 +86,19 @@ Public Sub ParserFailedToParse()
     
 End Sub
 
-Private Sub JSONTester()
-    
-    Dim Map As Scripting.Dictionary
-    Set Map = New Scripting.Dictionary
-    
-    With Map
-        .Add "Key1", "Value1"
-        .Add "Key2", "Value"
-    End With
-    
-    Debug.Print JsonConverter.ConvertToJson(Map, 2)
-    
-End Sub
+'Private Sub JSONTester()
+'
+'    Dim Map As Scripting.Dictionary
+'    Set Map = New Scripting.Dictionary
+'
+'    With Map
+'        .Add "Key1", "Value1"
+'        .Add "Key2", "Value"
+'    End With
+'
+'    Debug.Print JsonConverter.ConvertToJson(Map, 2)
+'
+'End Sub
 
 Public Sub TestStructuredRefManager()
     

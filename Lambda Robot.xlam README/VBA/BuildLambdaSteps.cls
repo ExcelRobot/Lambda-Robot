@@ -333,7 +333,7 @@ Private Sub PlaceStepFormula(ByRef PutOnCell, ByRef HeadersRange As Range _
         Set PutOnCell = PutOnCell.Offset(0, 1)
     Else
         ' Otherwise, move as many columns to the right as there are in the range specified by CellReference
-        Set PutOnCell = PutOnCell.Offset(0, LambdaInvocationCell.Parent.Range(CellReference).Columns.Count)
+        Set PutOnCell = PutOnCell.Offset(0, LambdaInvocationCell.Worksheet.Range(CellReference).Columns.Count)
     End If
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.PlaceStepFormula"
     
@@ -345,10 +345,10 @@ Private Sub FormatAndMoveWindowToLastCell(ByVal HeadersRange As Range, CellRefer
     MarkAllInputCells
     HeadersRange.Font.Bold = True
     modUtility.AutoFitRange HeadersRange, 50, 8
-    MoveColumnToRightOfScreen LambdaInvocationCell.Parent.Range(CellReference).Cells(1)
+    MoveColumnToRightOfScreen LambdaInvocationCell.Worksheet.Range(CellReference).Cells(1)
     If Not Application.ScreenUpdating Then Application.ScreenUpdating = True
     If This.LambdaName <> vbNullString Then
-        UpdateOrAddLambdaNameNote LambdaInvocationCell.Parent.Range(CellReference).Cells(1) _
+        UpdateOrAddLambdaNameNote LambdaInvocationCell.Worksheet.Range(CellReference).Cells(1) _
                                   , This.LambdaName, LAMBDA_NAME_AUDIT_PREFIX
     End If
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.FormatAndMoveWindowToLastCell"
@@ -434,7 +434,7 @@ Private Sub MarkAllInputCells()
         End If
         
         ' Get the range for the current cell reference
-        Set CurrentInputCells = This.LambdaInvocationCell.Parent.Range(CStr(CellReference))
+        Set CurrentInputCells = This.LambdaInvocationCell.Worksheet.Range(CStr(CellReference))
         ' Set the font color for the cells in the current range
         CurrentInputCells.Font.Color = FONT_COLOR_INDEX
         ' Mark the current range as input cells
@@ -459,7 +459,7 @@ Private Function UpdateForPreviousLetVar(ByVal CalculationFunction As String _
         Dim CellRef As String
         CellRef = CurrentMapper.Value
         ' If it is LETStep_FUNCTION then value will hold the named range name. So no need to check for range.
-        If Not Text.IsStartsWith(CurrentMapper.Value, LETSTEP_UNDERSCORE_PREFIX) Then
+        If Not IsStartsWithLetStepPrefix(CurrentMapper.Value) Then
             CellRef = ConvertFormulaToRef(CellRef, UseAbsoluteRangeRef _
                                                   , This.StepStartCell.Worksheet.name)
         End If

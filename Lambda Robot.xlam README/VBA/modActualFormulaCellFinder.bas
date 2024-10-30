@@ -50,6 +50,10 @@ Private Function LoopBackToCell(ByVal FromCell As Range) As Range
         
         Set Result = RangeResolver.GetRangeForDependency(DirectPrecedents(1, 1), FromCell)
         
+        If Result.Cells.CountLarge > 1 And (Not Result.HasSpill Or IsNull(Result.HasSpill)) Then
+            Exit Function
+        End If
+        
         ' Don't loop back to a cell where we don't have a formula.
         Dim TopCell As Range
         Set TopCell = Result.Cells(1)

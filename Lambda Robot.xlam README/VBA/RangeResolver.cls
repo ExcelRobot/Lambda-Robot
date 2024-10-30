@@ -77,6 +77,7 @@ Public Function FindRangeFromText(ByVal FromBook As Workbook _
                                 , FromBook _
                                  , FormulaInSheet _
                                   )
+        Set Result = Result.SpillingToRange
     Else
         ' The range reference is not dynamic, directly get the range.
         Set Result = GetRange(RangeReference, FromBook, FormulaInSheet)

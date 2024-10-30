@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} LETManagerUI 
    Caption         =   "LET Steps Manager"
-   ClientHeight    =   8115
+   ClientHeight    =   8120
    ClientLeft      =   -360
    ClientTop       =   -1755
    ClientWidth     =   16140
@@ -225,8 +225,10 @@ Private Sub UpdateLetStepsListBox()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.UpdateLetStepsListBox"
     ' Update the LetStepsListBox with non-input Let steps' variable names and range references
     Dim VarsName As Variant
-    VarsName = GetLetStepsVarNameAndRangeReference(This.DependencyObjects)
-
+    If This.Parser.IsLetNeededInLetFormula Then
+        VarsName = GetLetStepsVarNameAndRangeReference(This.DependencyObjects)
+    End If
+    
     ' Clear the ListBox if VarsName is not an array
     If Not IsArray(VarsName) Then
         Me.StepsListBox.Clear
@@ -236,6 +238,7 @@ Private Sub UpdateLetStepsListBox()
 
     ' Populate the ListBox with the variable names and range references
     Me.StepsListBox.List = VarsName
+    TryAdaptingScrollBarHeight Me.StepsListBox
     Logger.Log TRACE_LOG, "Exit LETManagerUI.UpdateLetStepsListBox"
 
 End Sub
@@ -256,7 +259,7 @@ Private Sub SelectLastFocusRange(ByVal ForListBox As MSForms.ListBox)
     On Error Resume Next
     Set FocusAbleRange = RangeResolver.GetRange(RangeReference)
     If FocusAbleRange.Address <> Selection.Address Then
-        FocusAbleRange.Parent.Activate
+        FocusAbleRange.Worksheet.Activate
         FocusAbleRange.Cells(1).Select
     End If
     Application.ScreenUpdating = True
@@ -352,7 +355,7 @@ Private Sub ResetButton_Click()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.ResetButton_Click"
 
     ' Reset the DependencyObjects to the initial state
-    Set This.DependencyObjects = This.Parser.DependencyDataForReset
+    Set This.DependencyObjects = This.Parser.DependencyDataForReset(LET_STATEMENT_GENERATION)
     This.Counter = 0
 
     ' Recalculate and update the DependencyObjects
@@ -393,19 +396,23 @@ Private Sub StepsListBox_Change()
     ' Enable or disable buttons based on selection
     Me.RenameStepButton.Enabled = IsEnableExceptExcludeButton
     Me.ExcludeStepButton.Enabled = IsEnableExcludeButton
-    Me.ValueButton.Enabled = IsEnableExceptExcludeButton
+    
+    If SelectedItemCount = 1 Then
+        Dim SelectedDependencyVarName As String
+        SelectedDependencyVarName = GetSelectedItemVarName(Me.StepsListBox)
+        Dim SelectedDependency As DependencyInfo
+        Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
+                                                              , This.DependencyObjects)
+        Me.ValueButton.Enabled = (Not SelectedDependency.IsUserMarkAsValue And Me.StepsListBox.ListIndex <> Me.StepsListBox.ListCount - 1)
+    Else
+        Me.ValueButton.Enabled = False
+    End If
 
     ' Enable or disable the ExpandButton based on the selected item in the ListBox
     EnableOrDisableExpandButton SelectedItemCount
 
     ' Select the last focused range in the ListBox
     SelectLastFocusRange Me.StepsListBox
-
-    ' Disable the ValueButton and MakeParamButton if the last item is selected in the ListBox
-    If SelectedItemCount = 1 And Me.StepsListBox.ListIndex = Me.StepsListBox.ListCount - 1 Then
-        Me.ValueButton.Enabled = False
-    End If
-
     Logger.Log TRACE_LOG, "Exit LETManagerUI.StepsListBox_Change"
 
 End Sub

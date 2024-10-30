@@ -38,7 +38,7 @@ Private Sub RetriveBasicStat(ByVal LambdaInCell As Range)
     
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.RetriveBasicStat"
     ' Set LambdaInSheet property with the parent sheet of the lambda cell
-    Set This.LambdaInSheet = LambdaInCell.Parent
+    Set This.LambdaInSheet = LambdaInCell.Worksheet
     ' Set LambdaInBook property with the parent workbook of the lambda cell
     Set This.LambdaInBook = LambdaInCell.Worksheet.Parent
     ' Set AllLambdas property with all the lambdas in the lambda workbook
@@ -113,8 +113,7 @@ Private Sub RemoveOtherIfOnlyLetStep(IsOnlyLetStepOnes As Boolean)
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.RemoveOtherIfOnlyLetStep"
     Dim CurrentDependencyInfo As DependencyInfo
     For Each CurrentDependencyInfo In This.AllDependency
-        If IsOnlyLetStepOnes And Not Text.IsStartsWith(CurrentDependencyInfo.ValidVarName _
-                                                       , LETSTEP_UNDERSCORE_PREFIX) Then
+        If IsOnlyLetStepOnes And Not IsStartsWithLetStepPrefix(CurrentDependencyInfo.ValidVarName) Then
             This.AllDependency.Remove CurrentDependencyInfo.ValidVarName
         End If
     Next CurrentDependencyInfo

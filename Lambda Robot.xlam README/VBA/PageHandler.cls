@@ -160,6 +160,7 @@ Private Sub NewButton_Click()
     This.CrudOperator.AddNew Me.CaptionTextBox.Value, Me.ValueTextBox.Value
     ListViewer.Clear
     ListViewer.List = This.CrudOperator.ReadAll
+    TryAdaptingScrollBarHeight ListViewer
     ClearCaptionAndValue
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword PageHandler.NewButton_Click"
     Exit Sub
@@ -242,6 +243,7 @@ Private Sub UpdateListViewer()
     If IsArray(AllData) Then
         ' Updates ListViewer with the latest data
         ListViewer.List = AllData
+        TryAdaptingScrollBarHeight ListViewer
     End If
     This.IsChangeByCode = False
     Logger.Log TRACE_LOG, "Exit PageHandler.UpdateListViewer"

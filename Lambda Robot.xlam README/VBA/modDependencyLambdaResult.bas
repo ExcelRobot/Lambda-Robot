@@ -189,6 +189,7 @@ End Function
 
 Public Function FormatFormula(ByVal FormulaText As String) As String
     
+    If FormulaText = vbNullString Then Exit Function
     #If DEVELOPMENT_MODE Then
         Dim Formatter As OARobot.FormulaFormatter
     #Else
@@ -1161,6 +1162,7 @@ Public Function ReplaceCellRefWithStepName(ByVal OnFormula As String _
                                             , ByVal CellRef As String _
                                              , ByVal SheetName As String) As String
     
+    If OnFormula = vbNullString Then Exit Function
     
     #If DEVELOPMENT_MODE Then
         Dim ExprReplacer As OARobot.ExpressionReplacer
@@ -1526,10 +1528,14 @@ If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
     Static Scope As OARobot.FormulaScopeInfo
     Static DefinedNames As OARobot.XLDefinedNames
     Dim Parser As OARobot.FormulaParser
+    Dim LocaleFactory As FormulaLocaleInfoFactory
+    Set LocaleFactory = New FormulaLocaleInfoFactory
 #Else
     Static Scope As Object
     Static DefinedNames As Object
     Dim Parser As Object
+    Dim LocaleFactory As Object
+    Set LocaleFactory = CreateObject("FormulaLocaleInfoFactory")
 #End If
     
 If ScopeBookName <> ForBook.name Or ScopeBookName = vbNullString Then
@@ -1542,7 +1548,7 @@ Set Parser = GetFormulaParser()
     
 If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
     
-Set ParseFormula = Parser.Parse(Formula, IsR1C1, , Scope, DefinedNames)
+Set ParseFormula = Parser.Parse(Formula, IsR1C1, LocaleFactory.EN_US, Scope, DefinedNames)
     
 End Function
 

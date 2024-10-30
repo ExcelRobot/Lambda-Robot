@@ -6,16 +6,6 @@ Attribute VB_Name = "modUtility"
 Option Explicit
 Option Private Module
 
-#If VBA7 Then                                    ' Excel 2010 or later
-    
-    Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As LongPtr)
-    
-#Else                                            ' Excel 2007 or earlier
-    
-    Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    
-#End If
-
 Public Function HasDynamicFormula(ByVal SelectionRange As Range) As Boolean
     
     ' Check if the selected range contains a dynamic formula (spill range).
@@ -88,51 +78,107 @@ NotExist:
     
 End Function
 
-Public Function FindLetVarName(ByVal FromRange As Range) As String
+Public Function FindLetVarName(ByVal FromRange As Range, Optional ByVal InvalidRegionForNameCell As Range) As String
     
     ' Find a suitable name for a variable based on the input FromRange.
     If FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
         FindLetVarName = FromRange.Worksheet.name
         Exit Function
     End If
-    
-    Dim CellAbove As Range
-    Dim CellTwoAbove As Range
-    Dim CellToLeft As Range
+        
+    Dim LetVarNameCell As Range
+    Set LetVarNameCell = FindLetVarNameCell(FromRange, InvalidRegionForNameCell)
 
+    ' Check for a suitable name
+    If IsProbableLetVarName(LetVarNameCell, InvalidRegionForNameCell) Then
+        FindLetVarName = LetVarNameCell.Value
+    End If
+    
+End Function
+
+Public Function FindLetVarNameCell(ByVal FromRange As Range, Optional ByVal InvalidRegionForNameCell As Range) As Range
+    
+    ' Find a suitable name for a variable based on the input FromRange.
+    If FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
+        Set FindLetVarNameCell = Nothing
+        Exit Function
+    End If
+        
+    Dim Result As Range
+    
     If IsNotNothing(FromRange) Then Set FromRange = FromRange.Cells(1)
-    If FromRange.Cells(1).Row > 1 Then Set CellAbove = FromRange.Offset(-1).Cells(1)
-    If FromRange.Cells(1).Row > 2 Then Set CellTwoAbove = FromRange.Offset(-2).Cells(1)
-    If FromRange.Cells(1).Column > 1 Then
-        Set CellToLeft = FromRange.Offset(0, -1).Cells(1)
+    
+    Dim OneCellAbove As Range
+    If FromRange.Row > 1 Then Set OneCellAbove = FromRange.Offset(-1)
+    
+    Dim TwoCellAbove As Range
+    If FromRange.Row > 2 Then Set TwoCellAbove = FromRange.Offset(-2)
+    
+    Dim OneCellLeft As Range
+    
+    If FromRange.Column > 1 Then
+        Set OneCellLeft = FromRange.Offset(0, -1)
     Else
-        Set CellToLeft = FromRange.Cells(1)
+        Set OneCellLeft = FromRange
     End If
 
     ' Look above for a suitable name
-    If IsNotNothing(CellAbove) Then
-        If GetCellValueIfErrorNullString(CellAbove) = vbNullString Then
-            If IsNotNothing(CellTwoAbove) Then
-                If IsProbableLetVarName(CellTwoAbove) Then
-                    FindLetVarName = CellTwoAbove.Value
-                    Exit Function
-                End If
+    If IsNotNothing(OneCellAbove) Then
+        If IsProbableLetVarName(OneCellAbove, InvalidRegionForNameCell) Then
+            Set Result = OneCellAbove
+        ElseIf IsNotNothing(TwoCellAbove) Then
+            If IsProbableLetVarName(TwoCellAbove, InvalidRegionForNameCell) Then
+                Set Result = TwoCellAbove
             End If
-        ElseIf IsProbableLetVarName(CellAbove) Then
-            FindLetVarName = CellAbove.Value
-            Exit Function
         End If
     End If
-
-    ' Scan left until a non-blank cell is found or we reach column A
-    Do While IsCellBlank(CellToLeft) And CellToLeft.Column > 1 And Not IsCellHidden(CellToLeft)
-        Set CellToLeft = CellToLeft.Offset(0, -1).Cells(1)
-    Loop
-
-    ' Check for a suitable name
-    If IsProbableLetVarName(CellToLeft) Then
-        FindLetVarName = CellToLeft.Value
+    
+    If IsNothing(Result) Then
+        
+        ' Scan left until a non-blank cell is found or we reach column A
+        
+        Do While IsValidToCheckOnLeftCellForLabel(InvalidRegionForNameCell, OneCellLeft)
+            Set OneCellLeft = OneCellLeft.Offset(0, -1)
+        Loop
+        
+        If IsProbableLetVarName(OneCellLeft, InvalidRegionForNameCell) Then
+            Set Result = OneCellLeft
+        End If
+        
     End If
+    
+    Set FindLetVarNameCell = Result
+    
+End Function
+
+Private Function IsValidToCheckOnLeftCellForLabel(ByVal InvalidRegionForNameCell As Range, ByVal OneCellLeft As Range) As Boolean
+    
+    Dim Result As Boolean
+    Result = ( _
+             IsCellBlank(OneCellLeft) _
+             And OneCellLeft.Column > 1 _
+             And Not IsCellHidden(OneCellLeft) _
+             And Not IsInsideInvalidRegion(InvalidRegionForNameCell, OneCellLeft) _
+             )
+    
+    IsValidToCheckOnLeftCellForLabel = Result
+    
+End Function
+
+Private Function IsInsideInvalidRegion(ByVal InvalidRegion As Range, ByVal CheckCell As Range) As Boolean
+    
+    Dim Result As Boolean
+    If IsNothing(InvalidRegion) Then
+        Result = False
+    ElseIf IsNothing(CheckCell) Then
+        Result = False
+    ElseIf InvalidRegion.Worksheet.name <> CheckCell.Worksheet.name Then
+        Result = False
+    Else
+        Result = IsNotNothing(Intersect(InvalidRegion, CheckCell))
+    End If
+    
+    IsInsideInvalidRegion = True
     
 End Function
 
@@ -155,11 +201,25 @@ Public Function GetCellValueIfErrorNullString(ByVal GivenCell As Range) As Strin
     
 End Function
 
-Private Function IsProbableLetVarName(ByVal CurrentCell As Range) As Boolean
+Private Function IsProbableLetVarName(ByVal CurrentCell As Range, ByVal InvalidRegionForNameCell As Range) As Boolean
     
     ' Check if CurrentCell is a probable variable name.
+    
+    If IsNotNothing(CurrentCell) And IsNotNothing(InvalidRegionForNameCell) Then
+        If CurrentCell.Worksheet.name = InvalidRegionForNameCell.Worksheet.name Then
+            If IsNotNothing(Intersect(InvalidRegionForNameCell, CurrentCell)) Then
+                IsProbableLetVarName = False
+                Exit Function
+            End If
+        End If
+    End If
+    
     Dim Result As Boolean
-    If Application.WorksheetFunction.Trim(CurrentCell.Value) = vbNullString Then
+    If IsNothing(CurrentCell) Then
+        Result = False
+    ElseIf IsError(CurrentCell.Value) Then
+        Result = False
+    ElseIf Application.WorksheetFunction.Trim(CurrentCell.Value) = vbNullString Then
         Result = False
     ElseIf HasDynamicFormula(CurrentCell) Or CurrentCell.HasFormula Then
         Result = False
@@ -1565,7 +1625,7 @@ Public Function GetRangeRefWithSheetName(ByVal GivenRange As Range _
     ' Returns the reference of the given range with the sheet name.
     ' If IsAbsolute is True, the reference is absolute; otherwise, it's relative.
     Dim SheetRef As Worksheet
-    Set SheetRef = GivenRange.Parent
+    Set SheetRef = GivenRange.Worksheet
     GetRangeRefWithSheetName = GetSheetRefForRangeReference(SheetRef.name, IsSingleQuoteMandatory) _
                                & GetRangeReference(GivenRange, IsAbsolute)
                                
@@ -2043,10 +2103,10 @@ Public Function FindFormulaText(ByVal FromBook As Workbook _
     If IsNothing(CurrentRange) Then
         FindFormulaText = vbNullString           ' Return an empty string if the range reference is not found.
     Else
-        If CurrentRange.Cells.Count = 1 Then
+        If CurrentRange.Cells.Count = 1 Or CurrentRange.HasSpill Then
             Dim Formula As String
             On Error Resume Next
-            Formula = CurrentRange.Formula2
+            Formula = CurrentRange.Cells(1).Formula2
             Formula = GetLambdaDefIfLETStepRefCell(CurrentRange, Formula, StartFormulaInSheet)
             FindFormulaText = Formula            ' Return the formula if it's a single cell range.
             On Error GoTo 0
@@ -2073,13 +2133,14 @@ Public Function GetLambdaDefIfLETStepRefCell(ByVal ForCell As Range _
     
     If Text.IsStartsWith(CurrentName.name, LETSTEPREF_UNDERSCORE_PREFIX) Then
         Dim name As String
-        name = VBA.Replace(CurrentName.name, LETSTEPREF_UNDERSCORE_PREFIX, LETSTEP_UNDERSCORE_PREFIX)
+        name = VBA.Replace(CurrentName.name, LETSTEPREF_UNDERSCORE_PREFIX, LETSTEP_UNDERSCORE_PREFIX, , 1)
         Set CurrentName = FindNamedRange(ForCell.Worksheet.Parent, name)
         If IsNotNothing(CurrentName) Then
             FinalFormula = CurrentName.RefersTo
             FinalFormula = RemoveSheetNameIfPresent(FinalFormula, StartFormulaInSheet.name)
         End If
     End If
+    
     GetLambdaDefIfLETStepRefCell = FinalFormula
     
 End Function
@@ -2092,8 +2153,9 @@ Private Function RemoveSheetNameIfPresent(ByVal FromFormula As String, ByVal She
     
 End Function
 
-Public Function FindRangeLabel(ByVal RangeReference As String, ByVal CurrentCell As Range _
-                                                              , ByVal IsJustCheckLabel As Boolean) As String
+Public Function FindRangeLabel(ByVal RangeReference As String _
+                               , ByVal CurrentCell As Range _
+                                , ByVal IsJustCheckLabel As Boolean) As String
     
     ' Finds the label for the given range reference.
 
@@ -2102,8 +2164,8 @@ Public Function FindRangeLabel(ByVal RangeReference As String, ByVal CurrentCell
 
     If IsSpilledRangeRef(RangeReference) Then
         ' The range reference is dynamic, remove the trailing '$' sign to get the actual range.
-        Set FindFromRange = CurrentCell.Parent.Range(Text.RemoveFromEnd(RangeReference, 1))
-        Set MatchToRange = CurrentCell.Parent.Range(RangeReference)
+        Set FindFromRange = CurrentCell.Worksheet.Range(Text.RemoveFromEnd(RangeReference, 1))
+        Set MatchToRange = CurrentCell.Worksheet.Range(RangeReference)
     Else
         ' The range reference is not dynamic, use the current cell' s first cell as the base for finding the range.
         Set FindFromRange = CurrentCell.Cells(1, 1)
@@ -2126,40 +2188,39 @@ Public Function IsSpilledRangeRef(ByVal RangeReference As String) As Boolean
     IsSpilledRangeRef = Text.IsEndsWith(RangeReference, DYNAMIC_CELL_REFERENCE_SIGN)
 End Function
 
-Public Function GetRangeLabelFromNameOrLabel(ByVal FindFromRange As Range, ByVal MatchToRange As Range _
-                                                                          , ByVal IsJustCheckLabel As Boolean _
-                                                                           , ByVal CurrentCell As Range) As String
+Public Function GetRangeLabelFromNameOrLabel(ByVal FindFromRange As Range _
+                                             , ByVal MatchToRange As Range _
+                                              , ByVal IsJustCheckLabel As Boolean _
+                                               , ByVal CurrentCell As Range) As String
     
     ' Retrieves the label for the given range reference by examining named ranges and let variable names.
-
     Logger.Log TRACE_LOG, "Enter modUtility.GetRangeLabelFromNameOrLabel"
-
-    ' Check if the current cell represents the header of a table and get the variable name if so.
+    Dim Result As String
+    
     If CurrentCell.Cells.Count > 1 And CurrentCell.Cells(1).Address = "$A$1" Then
-        GetRangeLabelFromNameOrLabel = modUtility.FindLetVarName(CurrentCell)
-        Exit Function
-    End If
-
-    ' If the IsJustCheckLabel flag is set, only check and return the variable name without further processing.
-    If IsJustCheckLabel Then
-        GetRangeLabelFromNameOrLabel = modUtility.FindLetVarName(FindFromRange)
-        Exit Function
-    End If
-
-    Dim CurrentName As name
-    Set CurrentName = modUtility.FindNamedRangeFromSubCell(FindFromRange)
-
-    If IsNotNothing(CurrentName) Then
-        ' Use the named range label only if it matches the MatchToRange and the MatchToRange is a multi-cell range.
-        If IsBothRangeEqual(CurrentName.RefersToRange, MatchToRange) And MatchToRange.Cells.Count > 1 Then
-            GetRangeLabelFromNameOrLabel = modUtility.ExtractNameFromLocalNameRange(CurrentName.name)
-        Else
-            GetRangeLabelFromNameOrLabel = modUtility.FindLetVarName(FindFromRange) ' Otherwise, get the variable name.
-        End If
+        Result = modUtility.FindLetVarName(CurrentCell)
+    ElseIf IsJustCheckLabel Then
+        ' If the IsJustCheckLabel flag is set, only check and return the variable name without further processing.
+        Result = modUtility.FindLetVarName(FindFromRange)
     Else
-        GetRangeLabelFromNameOrLabel = modUtility.FindLetVarName(FindFromRange) ' If not a named range, get the variable name.
-    End If
 
+        Dim CurrentName As name
+        Set CurrentName = modUtility.FindNamedRangeFromSubCell(FindFromRange)
+
+        If IsNotNothing(CurrentName) Then
+            ' Use the named range label only if it matches the MatchToRange and the MatchToRange is a multi-cell range.
+            If IsBothRangeEqual(CurrentName.RefersToRange, MatchToRange) And MatchToRange.Cells.Count > 1 Then
+                Result = modUtility.ExtractNameFromLocalNameRange(CurrentName.name)
+            Else
+                Result = modUtility.FindLetVarName(FindFromRange) ' Otherwise, get the variable name.
+            End If
+        Else
+            Result = modUtility.FindLetVarName(FindFromRange) ' If not a named range, get the variable name.
+        End If
+    End If
+    
+    GetRangeLabelFromNameOrLabel = Result
+    
     Logger.Log TRACE_LOG, "Exit modUtility.GetRangeLabelFromNameOrLabel"
     
 End Function
@@ -2424,8 +2485,6 @@ End Function
 
 Public Function GetLetStepsVarNameAndRangeReference(ByVal DependencyObjects As Collection) As Variant
     
-    ' Retrieves variable names and range references for non-input let step cells from the given dependency object collection.
-
     Dim LetStepsVarName As Collection
     Set LetStepsVarName = New Collection
 
@@ -2434,6 +2493,7 @@ Public Function GetLetStepsVarNameAndRangeReference(ByVal DependencyObjects As C
         ' Check if the current dependency info represents a non-input let step cell.
         If Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
             ' Add the current dependency info to the collection of non-input let step cells.
+            Debug.Print CurrentDependencyInfo.ValidVarName
             LetStepsVarName.Add CurrentDependencyInfo
         End If
     Next CurrentDependencyInfo
@@ -2972,6 +3032,18 @@ Public Function IsSpillParentIncluded(ByVal CheckOnCell As Range) As Boolean
     
 End Function
 
+Public Function IsFullSpillingRangeIncluded(ByVal SpillCells As Range) As Boolean
+    
+    Dim Result As Boolean
+    Result = False
+    If IsSpillParentIncluded(SpillCells) Then
+        Result = (GetSpillParentCell(SpillCells).SpillingToRange.Address = SpillCells.Address)
+    End If
+    
+    IsFullSpillingRangeIncluded = Result
+    
+End Function
+
 Public Function IsRefersToRangeIsNothing(ByVal CurrentName As name) As Boolean
     
     On Error GoTo ErrorHandler
@@ -3133,24 +3205,6 @@ Public Function ReplaceNewlineWithChar10(ByVal OnText As String) As String
     ReplaceNewlineWithChar10 = VBA.Replace(OnText, vbNewLine, Chr$(10))
 End Function
 
-Public Sub CopyDataToClipBoard(ByVal GivenText As String)
-    
-    Dim TotalWait As Long
-    On Error GoTo HandleError
-    CreateObject("htmlfile").parentWindow.clipboardData.SetData "text", GivenText
-    Exit Sub
-HandleError:
-    If Err.Number = -2147352319 And Err.Description = "Automation error" Then
-        Debug.Print "Wait for one sec."
-        TotalWait = TotalWait + 1
-        Sleep 1000
-        If TotalWait > 5 Then Exit Sub
-        DoEvents
-        Resume
-    End If
-    
-End Sub
-
 Public Function IsSheetExist(ByVal SheetTabName As String _
                              , Optional ByVal GivenWorkbook As Workbook) As Boolean
 
@@ -3286,3 +3340,23 @@ Public Function ReplaceInvalidCharFromFormulaWithValid(ByVal Formula As String) 
     ReplaceInvalidCharFromFormulaWithValid = Result
     
 End Function
+
+Public Function IsStartsWithLetStepPrefix(ByVal NameInFormula As String) As Boolean
+    IsStartsWithLetStepPrefix = Text.IsStartsWith(NameInFormula, LETSTEP_UNDERSCORE_PREFIX)
+End Function
+
+Public Sub TryAdaptingScrollBarHeight(ByVal ForListBox As MSForms.ListBox)
+    
+    ' Ref: https://stackoverflow.com/questions/5859459/how-to-fix-an-excel-listbox-that-cant-scroll-the-last-element-into-view
+    With ForListBox
+        .IntegralHeight = False
+        .IntegralHeight = True
+        Dim OldSelection As Long
+        OldSelection = .MultiSelect
+        .MultiSelect = fmMultiSelectSingle
+        .MultiSelect = OldSelection
+    End With
+    
+End Sub
+
+

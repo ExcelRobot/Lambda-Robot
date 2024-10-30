@@ -20,6 +20,7 @@ End Sub
 Public Function SplitCombinedCellsOfFormulaDep(ByVal FormulaCell As Range) As String
     
     If Not FormulaCell.HasFormula Then Exit Function
+    
     '    Debug.Assert FormulaCell.Address <> "$B$2"
     'Start the timer for this operation
     Logger.Log DEBUG_LOG, "Formula To Split Dependency: " & FormulaCell.Cells(1).Formula2
@@ -113,7 +114,7 @@ Private Function SplitAreaByAddress(ByVal AreaRange As Range, ByVal Destination 
     
 End Function
 
-Private Function IsSplitNeeded(ByVal AreaRange As Range) As Boolean
+Public Function IsSplitNeeded(ByVal AreaRange As Range) As Boolean
     
     Dim Result As Boolean
     
@@ -123,7 +124,20 @@ Private Function IsSplitNeeded(ByVal AreaRange As Range) As Boolean
         ElseIf AreaRange.Columns.CountLarge = .Columns.CountLarge Then
             Result = False
         Else
-            Result = IsAnyFormulaCellPresent(AreaRange)
+            ' If any formula cell present then
+            If IsAnyFormulaCellPresent(AreaRange) Then
+                ' This number comes from VSTACK and HSTACK maximum number of parameters count.
+                Const MAX_NUMBER_OF_FORMULA_CELLS_ALLOWED = 254
+                If IsNull(AreaRange.HasSpill) Then
+                    Result = (AreaRange.SpecialCells(xlCellTypeFormulas).Cells.Count <= MAX_NUMBER_OF_FORMULA_CELLS_ALLOWED)
+                ElseIf AreaRange.HasSpill Then
+                    Result = True
+                Else
+                    Result = (AreaRange.SpecialCells(xlCellTypeFormulas).Cells.Count <= MAX_NUMBER_OF_FORMULA_CELLS_ALLOWED)
+                End If
+            Else
+                Result = False
+            End If
         End If
     End With
     
@@ -300,9 +314,9 @@ Private Function MaxRowHeight(ByVal RowRange As Range) As Long
             SpillRowCount = CurrentCell.SpillParent.SpillingToRange.Rows.Count
                 
             If CurrentCell.SpillParent.Address = CurrentCell.Address Then
-                MaxHeight = MaxValue(MaxHeight, SpillRowCount)
+                MaxHeight = modUtility.MaxValue(MaxHeight, SpillRowCount)
             Else
-                MaxHeight = MaxValue(MaxHeight, SpillRowCount - CurrentCell.Row + CurrentCell.SpillParent.Row)
+                MaxHeight = modUtility.MaxValue(MaxHeight, SpillRowCount - CurrentCell.Row + CurrentCell.SpillParent.Row)
             End If
         End If
         
@@ -325,9 +339,9 @@ Private Function MaxColumnWidth(ByVal ColRange As Range) As Long
             SpillColCount = CurrentCell.SpillParent.SpillingToRange.Columns.Count
             
             If CurrentCell.SpillParent.Address = CurrentCell.Address Then
-                MaxWidth = MaxValue(MaxWidth, SpillColCount)
+                MaxWidth = modUtility.MaxValue(MaxWidth, SpillColCount)
             Else
-                MaxWidth = MaxValue(MaxWidth, SpillColCount - CurrentCell.Column + CurrentCell.SpillParent.Column)
+                MaxWidth = modUtility.MaxValue(MaxWidth, SpillColCount - CurrentCell.Column + CurrentCell.SpillParent.Column)
             End If
         End If
         

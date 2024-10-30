@@ -226,7 +226,7 @@ Private Function HasFormulaInAnyCell(ByVal GivenRange As Range) As Boolean
     ' Check if any cell in the given range contains a formula
     Dim RangeHavingFormula As Range
     Dim SheetRef As Worksheet
-    Set SheetRef = GivenRange.Parent
+    Set SheetRef = GivenRange.Worksheet
     Dim UsedRangeIntersectingGivenRange As Range
     ' Find the intersection between the given range and the used range of the sheet
     Set UsedRangeIntersectingGivenRange = FindIntersection(GivenRange, SheetRef.UsedRange)

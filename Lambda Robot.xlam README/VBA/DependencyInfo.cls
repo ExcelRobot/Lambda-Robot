@@ -39,8 +39,17 @@ Private Type TDependencyInfo
     SheetName As String
     BookName As String
     IsTableRef As Boolean
+    RangeLabelCell As Range
 End Type
 Private This As TDependencyInfo
+
+Public Property Get RangeLabelCell() As Range
+    Set RangeLabelCell = This.RangeLabelCell
+End Property
+
+Public Property Set RangeLabelCell(ByVal RHS As Range)
+    Set This.RangeLabelCell = RHS
+End Property
 
 Public Property Get IsTableRef() As Boolean
     IsTableRef = This.IsTableRef
@@ -315,6 +324,8 @@ Public Function StepOrArgumentCalcFunction(ByVal ContextCell As Range) As String
     
     If Not This.IsLabelAsInputCell Then
         Result = vbNullString
+    ElseIf This.IsUserMarkAsValue Then
+        Result = Text.RemoveFromStartIfPresent(This.FormulaText, EQUAL_SIGN)
     ElseIf This.BookName <> ContextBookName Then
         Result = This.NameInFormula
     ElseIf This.IsReferByNamedRange Then
@@ -344,26 +355,6 @@ Public Function StepOrArgumentCalcFunction(ByVal ContextCell As Range) As String
     StepOrArgumentCalcFunction = Result
     Logger.Log TRACE_LOG, "Exit DependencyInfo.StepOrArgumentCalcFunction"
         
-End Function
-
-Public Function ToJSON() As String
-    
-    Logger.Log TRACE_LOG, "Enter DependencyInfo.ToJSON"
-    ' This function converts the current DependencyInfo object to a JSON-formatted string.
-    
-    Dim Map As New Scripting.Dictionary
-    With Map
-        .Add "Level", This.Level
-        .Add "FormulaText", This.FormulaText
-        .Add "RangeReference", This.RangeReference
-        .Add "RangeLabel", This.RangeLabel
-        .Add "NameInFormula", This.NameInFormula
-    End With
-    
-    Const SPACE_COUNT As Long = 2
-    ToJSON = JsonConverter.ConvertToJson(Map, SPACE_COUNT)
-    Logger.Log TRACE_LOG, "Exit DependencyInfo.ToJSON"
-    
 End Function
 
 Public Sub UpdateNameInFormula(ByVal UpdatedName As String)

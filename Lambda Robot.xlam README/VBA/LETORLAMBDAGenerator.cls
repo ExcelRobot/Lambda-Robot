@@ -15,9 +15,13 @@ Private Type TLETORLAMBDAGenerator
     LetFormula As String
     IsLetNeededInLambda As Boolean
     PrecedencyExtractor As FormulaPrecedencyExtractor
+    IsLetNeededInLetFormula As Boolean
 End Type
-
 Private This As TLETORLAMBDAGenerator
+
+Public Property Get IsLetNeededInLetFormula() As Boolean
+    IsLetNeededInLetFormula = This.IsLetNeededInLetFormula
+End Property
 
 Public Property Get IsLetNeededInLambda() As Boolean
     IsLetNeededInLambda = This.IsLetNeededInLambda
@@ -35,53 +39,53 @@ Public Property Get LetFormula() As String
     LetFormula = This.LetFormula
 End Property
 
-Public Sub CreateLetAndLambdaStatements(ByVal DependencyObjects As Collection _
-                                        , ByVal FormulaStartCell As Range _
-                                         , ByVal TypeOfOperation As OperationType _
-                                          , ByVal PrecedencyExtractor As FormulaPrecedencyExtractor)
+Public Sub CreateLetOrLambdaStatement(ByVal DependencyObjects As Collection _
+                                       , ByVal FormulaStartCell As Range _
+                                        , ByVal TypeOfOperation As OperationType _
+                                         , ByVal PrecedencyExtractor As FormulaPrecedencyExtractor)
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetAndLambdaStatements"
     Set This.PrecedencyExtractor = PrecedencyExtractor
     
     If TypeOfOperation = LET_STATEMENT_GENERATION Then
-        PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
+        CreateLETStatement DependencyObjects, FormulaStartCell
+    ElseIf TypeOfOperation = LAMBDA_STATEMENT_GENERATION Then
+        CreateLambdaStatement DependencyObjects, FormulaStartCell
     End If
     
+    Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetAndLambdaStatements"
+    
+End Sub
+
+Private Sub CreateLambdaStatement(ByVal DependencyObjects As Collection _
+                                  , ByVal FormulaStartCell As Range)
+    
     ' Create Let statements without input cells and get the LetFormula.
+    ' Check if Let statement is needed for the Lambda function.
+    This.IsLetNeededInLambda = IsLETNeeded(DependencyObjects)
     Dim LetFormula As String
-    LetFormula = CreateLetStatementsWithoutInputCells(DependencyObjects, FormulaStartCell, False)
+    
+    If Not This.IsLetNeededInLambda Then
+        ' If Let statement is not needed, create the Let statement without input cells.
+        LetFormula = CreateLetStatementsWithoutInputCellsIfLetNotNeeded(DependencyObjects, True)
+    Else
+        LetFormula = CreateLetStatementsWithoutInputCells(DependencyObjects, FormulaStartCell, True)
+    End If
+    
     Logger.Log DEBUG_LOG, LetFormula
 
     ' Create the FullLambda statement based on the LetFormula and DependencyObjects.
     Dim FullLambda As String
     This.LambdaDef = CreateFullLambda(LetFormula, DependencyObjects)
-    
-    LetFormula = CreateLetStatementsWithoutInputCells(DependencyObjects, FormulaStartCell, True)
-    ' Create the FullLet statement based on the LetFormula and DependencyObjects.
-    Dim FullLet As String
-    FullLet = CreateFullLet(LetFormula, DependencyObjects)
-    This.LetFormula = FormatFormula(FullLet)
-
-    Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetAndLambdaStatements"
-    
+        
 End Sub
 
 Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As Collection _
                                                       , ByVal FormulaStartCell As Range _
-                                                      , ByVal IsForLetStatement As Boolean) As String
+                                                      , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCells"
     ' Creates the Let statement for the Lambda function excluding input cells.
-
-    ' Check if Let statement is needed for the Lambda function.
-    This.IsLetNeededInLambda = IsLETNeeded(DependencyObjects)
-    
-    If Not This.IsLetNeededInLambda Then
-        ' If Let statement is not needed, create the Let statement without input cells.
-        CreateLetStatementsWithoutInputCells = CreateLetStatementsWithoutInputCellsIfLetNotNeeded(DependencyObjects, IsForLetStatement)
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCells"
-        Exit Function
-    End If
     
     Dim LetFormula As String
     Dim CurrentDependencyInfo As DependencyInfo
@@ -90,7 +94,7 @@ Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As
     For Each CurrentDependencyInfo In DependencyObjects
         
         LetFormula = LetFormula & _
-                     GetLetStepFormulaForCurrDependency(DependencyObjects, FormulaStartCell, CurrentDependencyInfo)
+                     GetLetStepFormulaForCurrDependency(DependencyObjects, FormulaStartCell, CurrentDependencyInfo, IsConvertToAbsoluteRangeRef)
 
     Next CurrentDependencyInfo
 
@@ -100,14 +104,12 @@ Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As
     If This.PrecedencyExtractor.VarNameOfFormulaStartCell = vbNullString _
        Or CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
         Dim StructuralFormulaText As String
-        StructuralFormulaText = This.PrecedencyExtractor.FindStructuralFormulaText(FormulaStartCell _
-                                                                                   , FormulaStartCell.Formula)
-        StructuralFormulaText = ReplaceDependencyRefWithStepName(StructuralFormulaText, CurrentDependencyInfo, DependencyObjects)
+        StructuralFormulaText = ReplaceDependencyRefWithStepName(CurrentDependencyInfo.FormulaText, CurrentDependencyInfo, DependencyObjects)
         ' Append the remaining part of the Let statement or the StructuralFormulaText if LetFormulaWithoutInputCells is empty.
         If LetFormula <> LET_AND_OPEN_PAREN Then
             LetFormula = LetFormula & NEW_LINE & THREE_SPACE & _
                          StructuralFormulaText _
-                       & NEW_LINE & FIRST_PARENTHESIS_CLOSE
+                         & NEW_LINE & FIRST_PARENTHESIS_CLOSE
         Else
             LetFormula = StructuralFormulaText
         End If
@@ -122,7 +124,7 @@ Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As
     Logger.Log DEBUG_LOG, "Let Statement Part : " & LetFormula
 
     ' Call the function to update the blank range label and name in the formula with the Let variable name.
-    LetFormula = UpdateLetFormulaForNotLetStatementDepWithProperValue(LetFormula, DependencyObjects)
+    LetFormula = UpdateLetFormulaForNotLetStatementDepWithProperValue(LetFormula, DependencyObjects, IsConvertToAbsoluteRangeRef)
     CreateLetStatementsWithoutInputCells = LetFormula
 
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCells"
@@ -131,7 +133,8 @@ End Function
 
 Private Function GetLetStepFormulaForCurrDependency(ByVal DependencyObjects As Collection _
                                                     , ByVal FormulaStartCell As Range _
-                                                     , ByVal CurrentDependencyInfo As DependencyInfo) As String
+                                                     , ByVal CurrentDependencyInfo As DependencyInfo _
+                                                     , ByVal IsMakeAbsoluteRef As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.GetLetStepFormulaForCurrDependency"
     ' Check if the current dependency info is not an input cell and doesn't have a user mark to exclude from Let statement.
@@ -152,7 +155,7 @@ Private Function GetLetStepFormulaForCurrDependency(ByVal DependencyObjects As C
         If .IsUserMarkAsValue Then
             PossibleLetVarValue = RemoveStartingSingleQuoteAndEqualSign(.FormulaText)
         ElseIf .IsReferByNamedRange Then
-            If Text.IsStartsWith(.NameInFormula, LETSTEP_UNDERSCORE_PREFIX) Then
+            If IsStartsWithLetStepPrefix(.NameInFormula) Then
                 PossibleLetVarValue = RemoveStartingSingleQuoteAndEqualSign(.FormulaText)
             Else
                 PossibleLetVarValue = .NameInFormula
@@ -162,7 +165,11 @@ Private Function GetLetStepFormulaForCurrDependency(ByVal DependencyObjects As C
         ElseIf .HasFormula And (.HasAnyDependency Or Not .IsDemotedFromParameterCellToLetStep) Then
             PossibleLetVarValue = modUtility.RemoveStartingSingleQuoteAndEqualSign(.FormulaText)
         Else
-            PossibleLetVarValue = MakeAbsoluteReference(.RangeReference, FormulaStartCell)
+            If IsMakeAbsoluteRef Then
+                PossibleLetVarValue = MakeAbsoluteReference(.RangeReference, FormulaStartCell)
+            Else
+                PossibleLetVarValue = .NameInFormula
+            End If
             CorrectedNameInFormula = PossibleLetVarValue
         End If
         PossibleLetVarValue = FindLetVarValue(.RangeReference, PossibleLetVarValue _
@@ -190,7 +197,8 @@ Private Function GetLetStepFormulaForCurrDependency(ByVal DependencyObjects As C
 End Function
 
 Private Function UpdateLetFormulaForNotLetStatementDepWithProperValue(ByVal LetFormula As String _
-                                                                      , ByVal DependencyObjects As Collection) As String
+                                                                      , ByVal DependencyObjects As Collection _
+                                                                      , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
                                                               
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.UpdateLetFormulaForNotLetStatementDepWithProperValue"
     Dim CurrentDependencyInfo As DependencyInfo
@@ -203,7 +211,7 @@ Private Function UpdateLetFormulaForNotLetStatementDepWithProperValue(ByVal LetF
         Set CurrentDependencyInfo = DependencyObjects.Item(Counter)
         With CurrentDependencyInfo
             If Not .IsLabelAsInputCell And .IsMarkAsNotLetStatementByUser Then
-                UpdatedFormula = UpdateLetFormulaForCellRefWithProperFormulaText(UpdatedFormula, CurrentDependencyInfo, DependencyObjects)
+                UpdatedFormula = UpdateLetFormulaForCellRefWithProperFormulaText(UpdatedFormula, CurrentDependencyInfo, DependencyObjects, IsConvertToAbsoluteRangeRef)
                 DoEvents
             End If
         End With
@@ -218,7 +226,8 @@ End Function
 
 Private Function UpdateLetFormulaForCellRefWithProperFormulaText(ByVal LetFormula As String _
                                                                  , ByVal CurrentDependencyInfo As DependencyInfo _
-                                                                  , ByVal DependencyObjects As Collection) As String
+                                                                  , ByVal DependencyObjects As Collection _
+                                                                  , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
 
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.UpdateLetFormulaForCellRefWithProperFormulaText"
     Dim FormulaText As String
@@ -245,8 +254,10 @@ Private Function UpdateLetFormulaForCellRefWithProperFormulaText(ByVal LetFormul
         ElseIf .HasFormula And (.HasAnyDependency Or Not .IsDemotedFromParameterCellToLetStep) Then
             FormulaText = modUtility.RemoveStartingSingleQuoteAndEqualSign(ReplacedRefFormula)
             FormulaText = EncloseWithParenForMultiTerm(FormulaText)
-        Else
+        ElseIf IsConvertToAbsoluteRangeRef Then
             FormulaText = GetAbsoluteRefForNameInFormula(.RangeReference, .NameInFormula)
+        Else
+            FormulaText = .NameInFormula
         End If
         
         Dim Result As String
@@ -299,7 +310,7 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
     ' Update the Let formula with the Lambda argument names.
     Dim FinalLetWithLamdaArgumentName As String
     FinalLetWithLamdaArgumentName = UpdateFormulaForInputCells(LetFormula _
-                                                                         , DependencyObjects, True)
+                                                               , DependencyObjects, True)
 
     ' Combine the Lambda formula and Let formula to create the full Lambda.
     Dim FullLambda As String
@@ -317,16 +328,72 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
     
 End Function
 
+Private Sub CreateLETStatement(ByVal DependencyObjects As Collection _
+                               , ByVal FormulaStartCell As Range)
+    
+    This.PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
+    
+    This.IsLetNeededInLetFormula = IsLetNeededInLetStatement(DependencyObjects)
+    
+    Dim LetFormula As String
+    
+    If Not This.IsLetNeededInLetFormula Then
+        ' If Let statement is not needed, create the Let statement without input cells.
+        LetFormula = CreateLetStatementsWithoutInputCellsIfLetNotNeeded(DependencyObjects, False)
+    Else
+        LetFormula = CreateLetStatementsWithoutInputCells(DependencyObjects, FormulaStartCell, False)
+    End If
+    
+    LetFormula = Text.PadIfNotPresent(LetFormula, EQUAL_SIGN, FROM_START)
+    LetFormula = CreateFullLet(LetFormula, DependencyObjects)
+    This.LetFormula = FormatFormula(LetFormula)
+    
+End Sub
+
+Private Function IsLetNeededInLetStatement(ByVal DependencyObjects As Collection) As Boolean
+    
+    If DependencyObjects.Count = 1 Then
+        IsLetNeededInLetStatement = False
+        Exit Function
+    End If
+    
+    Dim CurrentDependencyInfo As DependencyInfo
+    Dim Counter As Long
+
+    For Each CurrentDependencyInfo In DependencyObjects
+        
+        With CurrentDependencyInfo
+            If Not .IsMarkAsNotLetStatementByUser Then
+                Counter = Counter + 1
+            End If
+        End With
+        
+        If Counter > 1 Then Exit For
+        
+    Next CurrentDependencyInfo
+    
+    Dim Result As Boolean
+    
+    If Counter = 1 Then
+        ' If only one let statement needed and if that is for the last step then don't add let
+        Set CurrentDependencyInfo = DependencyObjects.Item(DependencyObjects.Count)
+        Result = CurrentDependencyInfo.IsMarkAsNotLetStatementByUser
+    Else
+        Result = True
+    End If
+    
+    IsLetNeededInLetStatement = Result
+    
+End Function
+
 
 Private Function CreateFullLet(ByVal LetFormula As String, ByVal DependencyObjects As Collection) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateFullLet"
     ' Creates the full Let statement based on the Let formula and dependency objects collection.
-
     Dim LetPartForInputCells As String
     LetPartForInputCells = CreateLetPartForInputCells(DependencyObjects)
     LetFormula = UpdateFormulaForInputCells(LetFormula, DependencyObjects, False)
-
     If LetPartForInputCells <> vbNullString And Not Text.IsStartsWith(LetFormula, EQUAL_LET_FIRST_PAREN) Then
         LetFormula = Replace(LetFormula, EQUAL_SIGN, EQUAL_LET_FIRST_PAREN _
                                                   & NEW_LINE & THREE_SPACE, 1, 1) _
@@ -354,6 +421,31 @@ Private Function CreateFullLet(ByVal LetFormula As String, ByVal DependencyObjec
     
 End Function
 
+Private Function CreateLetPartForInputCells(ByVal DependencyObjects As Collection) As String
+    
+    Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetPartForInputCells"
+    Dim LetArgument As String
+    LetArgument = vbNullString
+    Dim CurrentDependencyInfo As DependencyInfo
+    Dim Prefix As String
+    Prefix = GetLetVarPrefix()
+    For Each CurrentDependencyInfo In DependencyObjects
+        With CurrentDependencyInfo
+            If .IsLabelAsInputCell And Not .IsMarkAsNotLetStatementByUser Then
+                Dim VarName As String
+                VarName = Prefix & MakeValidLetVarName(.ValidVarName, GetNamingConv(False))
+                LetArgument = LetArgument & THREE_SPACE _
+                            & VarName & LIST_SEPARATOR _
+                            & ONE_SPACE & .StepOrArgumentCalcFunction(This.PrecedencyExtractor.FormulaStartCell) _
+                            & LIST_SEPARATOR & vbNewLine
+            End If
+        End With
+    Next CurrentDependencyInfo
+    LetArgument = modUtility.RemoveEndingText(LetArgument, vbNewLine)
+    CreateLetPartForInputCells = LetArgument
+    Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetPartForInputCells"
+    
+End Function
 
 Private Function IsLETNeeded(ByVal DependencyObjects As Collection) As Boolean
     
@@ -375,11 +467,11 @@ End Function
 
 
 Private Function CreateLetStatementsWithoutInputCellsIfLetNotNeeded(ByVal DependencyObjects As Collection _
-                                                                    , ByVal IsForLetStatement As Boolean) As String
+                                                                    , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCellsIfLetNotNeeded"
     ' Creates the Let statement for the Lambda function without input cells when Let statement is not needed.
-
+    
     Dim CurrentDependencyInfo As DependencyInfo
     Set CurrentDependencyInfo = DependencyObjects.Item(DependencyObjects.Count)
 
@@ -388,15 +480,7 @@ Private Function CreateLetStatementsWithoutInputCellsIfLetNotNeeded(ByVal Depend
     Formula = modUtility.RemoveStartingSingleQuoteAndEqualSign(CurrentDependencyInfo.FormulaText)
 
     ' Call the function to update the blank range label and name in the formula with the Let variable name.
-    Formula = UpdateLetFormulaForNotLetStatementDepWithProperValue(Formula, DependencyObjects)
-    
-    If IsForLetStatement Then
-        Dim ResultStepName As String
-        ResultStepName = GetLetVarPrefix() & MakeValidLetVarName(LAST_STEP_NAME, GetNamingConv(False))
-        Formula = EQUAL_LET_FIRST_PAREN & ResultStepName & COMMA & Text.RemoveFromStartIfPresent(Formula, EQUAL_SIGN) _
-                & COMMA & ResultStepName & FIRST_PARENTHESIS_CLOSE
-    End If
-    
+    Formula = UpdateLetFormulaForNotLetStatementDepWithProperValue(Formula, DependencyObjects, IsConvertToAbsoluteRangeRef)
     CreateLetStatementsWithoutInputCellsIfLetNotNeeded = Formula
 
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCellsIfLetNotNeeded"
@@ -461,9 +545,12 @@ Private Function ReplaceDependencyRefWithStepName(ByVal Formula As String _
     Dim UpdatedFormula As String
     UpdatedFormula = Text.PadIfNotPresent(Formula, EQUAL_SIGN, FROM_START)
     Dim CurrentDependency As DependencyInfo
+    Dim ValidVarName As String
     For Each CurrentDependency In DependencyObjects
         
         With CurrentDependency
+            
+            ValidVarName = .ValidVarName
             
             If .RangeReference = ForDependency.RangeReference Then
                 Exit For
@@ -471,13 +558,13 @@ Private Function ReplaceDependencyRefWithStepName(ByVal Formula As String _
             
             Dim SheetPrefix As String
             SheetPrefix = GetSheetRefForRangeReference(.SheetName)
-            If Text.IsStartsWith(.NameInFormula, LETSTEP_UNDERSCORE_PREFIX) Then
-                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, SheetPrefix & .NameInFormula, .ValidVarName)
-                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, .NameInFormula, .ValidVarName)
+            If IsStartsWithLetStepPrefix(.NameInFormula) Then
+                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, SheetPrefix & .NameInFormula, ValidVarName)
+                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, .NameInFormula, ValidVarName)
             ElseIf Text.IsStartsWith(.NameInFormula, SheetPrefix & LETSTEP_UNDERSCORE_PREFIX) Then
-                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, .NameInFormula, .ValidVarName)
+                UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, .NameInFormula, ValidVarName)
             ElseIf Not .IsMarkAsNotLetStatementByUser Then
-                UpdatedFormula = ReplaceCellRefWithStepName(UpdatedFormula, .ValidVarName, .NameInFormula, .SheetName)
+                UpdatedFormula = ReplaceCellRefWithStepName(UpdatedFormula, ValidVarName, .NameInFormula, .SheetName)
             End If
             
         End With
@@ -568,8 +655,8 @@ Private Function UpdateFormulaForInputCells(ByVal LetFormula As String _
                     CellRef = .NameInFormula
                     UpdatedFormula = ReplaceCellRefWithStepName(UpdatedFormula, VarName, CellRef, .SheetName)
                 Else
+                    ' Change the naming convention to use Let Steps.
                     VarName = LetVarPrefix & MakeValidLetVarName(.ValidVarName, GetNamingConv(False))
-                    '@TODO: Check when we have added this IsForLambda param.
                     CellRef = .NameInFormula
                     ' CellRef = .ValidVarName
                     UpdatedFormula = ReplaceTokenWithNewToken(UpdatedFormula, CellRef, VarName)
@@ -581,37 +668,6 @@ Private Function UpdateFormulaForInputCells(ByVal LetFormula As String _
 
     UpdateFormulaForInputCells = UpdatedFormula
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.UpdateFormulaForInputCells"
-    
-End Function
-
-Private Function CreateLetPartForInputCells(ByVal DependencyObjects As Collection) As String
-
-    Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetPartForInputCells"
-    Dim LetArgument As String
-    LetArgument = vbNullString
-
-    Dim CurrentDependencyInfo As DependencyInfo
-    Dim Prefix As String
-    Prefix = GetLetVarPrefix()
-    For Each CurrentDependencyInfo In DependencyObjects
-        With CurrentDependencyInfo
-            If .IsLabelAsInputCell And Not .IsMarkAsNotLetStatementByUser Then
-                Dim VarName As String
-                VarName = Prefix & MakeValidLetVarName(.ValidVarName, GetNamingConv(False))
-                LetArgument = LetArgument & THREE_SPACE _
-                            & VarName & LIST_SEPARATOR _
-                            & ONE_SPACE & .StepOrArgumentCalcFunction(This.PrecedencyExtractor.FormulaStartCell) _
-                            & LIST_SEPARATOR & vbNewLine
-                          
-            Else
-                Exit For
-            End If
-        End With
-    Next CurrentDependencyInfo
-
-    LetArgument = modUtility.RemoveEndingText(LetArgument, vbNewLine)
-    CreateLetPartForInputCells = LetArgument
-    Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetPartForInputCells"
     
 End Function
 
@@ -670,4 +726,5 @@ Private Function GetAbsoluteRefForNameInFormula(ByVal RangeRef As String, ByVal 
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.GetAbsoluteRefForNameInFormula"
     
 End Function
+
 

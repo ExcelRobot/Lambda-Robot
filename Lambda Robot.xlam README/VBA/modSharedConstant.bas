@@ -155,7 +155,7 @@ End Function
 Public Function DependencyInfoObjectPropertiesName() As Collection
 
     Dim PropertiesNameArray As Variant
-    ReDim PropertiesNameArray(1 To 25)
+    ReDim PropertiesNameArray(1 To 26)
     PropertiesNameArray(1) = "RangeLabel"
     PropertiesNameArray(2) = "RangeReference"
     PropertiesNameArray(3) = "Level"
@@ -181,6 +181,7 @@ Public Function DependencyInfoObjectPropertiesName() As Collection
     PropertiesNameArray(23) = "IsLocalScopeNamedRange"
     PropertiesNameArray(24) = "BookName"
     PropertiesNameArray(25) = "IsTableRef"
+    PropertiesNameArray(26) = "IsUserSpecifiedName"
     Set DependencyInfoObjectPropertiesName = modUtility.VectorToCollection(PropertiesNameArray)
 
 End Function
