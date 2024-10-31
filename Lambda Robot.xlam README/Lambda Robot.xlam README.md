@@ -2,7 +2,7 @@
 
 \*\*Lambda Robot.xlam\*\* contains definitions for:
 
-[23 Robot Commands](#command-definitions)<BR>[12 Robot Parameters](#parameter-definitions)<BR>
+[23 Robot Commands](#command-definitions)<BR>[13 Robot Parameters](#parameter-definitions)<BR>
 
 <BR>
 
@@ -63,6 +63,7 @@
 | Name | Description |
 | --- | --- |
 | [FormulaFormat\_AddPrefixOnParam](#formulaformat_addprefixonparam) | Add Let Var Prefix in the parameter as well or not. |
+| [FormulaFormat\_BoMode](#formulaformat_bomode) | Set formula formatting option as Bo does. |
 | [FormulaFormat\_IndentChar](#formulaformat_indentchar) | Indent Char option for Format Formula. |
 | [FormulaFormat\_IndentSize](#formulaformat_indentsize) | Indent Size option for Format Formula. |
 | [FormulaFormat\_LambdaParamStyle](#formulaformat_lambdaparamstyle) | Lambda Parameter naming convention. Allowed values are "Pascal", "Camel" or "Snake\_Case". |
@@ -441,6 +442,21 @@
 ### FormulaFormat\_AddPrefixOnParam
 
 *Add Let Var Prefix in the parameter as well or not.*
+
+<sup>`@Lambda Robot.xlam` `!Default Parameter` </sup>
+
+| Property | Value |
+| --- | --- |
+| Default Value | <code>false</code> |
+| Data Type | Boolean |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### FormulaFormat\_BoMode
+
+*Set formula formatting option as Bo does.*
 
 <sup>`@Lambda Robot.xlam` `!Default Parameter` </sup>
 

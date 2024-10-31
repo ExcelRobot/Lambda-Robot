@@ -33,6 +33,7 @@ Private Type TFormulaParser
     FormulaGen As LETORLAMBDAGenerator
     IsLetNeededInLetFormula As Boolean
 End Type
+
 Private This  As TFormulaParser
 
 Public Property Get IsLetNeededInLetFormula() As Boolean
@@ -48,11 +49,7 @@ Public Function DependencyDataForReset(TypeOfOperation As OperationType) As Coll
 End Function
 
 Public Property Get IsLetNeededInLambda() As Boolean
-    IsLetNeededInLambda = This.IsLetNeededInLambda
-End Property
-
-Public Property Let IsLetNeededInLambda(ByVal RHS As Boolean)
-    This.IsLetNeededInLambda = RHS
+    IsLetNeededInLambda = This.FormulaGen.IsLetNeededInLambda
 End Property
 
 Public Property Let IsProcessTerminatedByUser(RHS As Boolean)
@@ -538,7 +535,6 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
     Dim FormulaGen As LETORLAMBDAGenerator
     Set FormulaGen = New LETORLAMBDAGenerator
     FormulaGen.CreateLetOrLambdaStatement DependencyObjects, FormulaStartCell, TypeOfOperation, This.PrecedencyExtractor
-    This.IsLetNeededInLambda = This.FormulaGen.IsLetNeededInLambda
     
     AddLambdaToNameManagerIfRequested FormulaGen.LambdaDef
     This.CurrentLambdaInfo.InvocationArgument = FormulaGen.LambdaInvocation
@@ -611,7 +607,6 @@ Public Function GetLambdaPreview(ByVal DependencyObjects As Collection) As Strin
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LambdaDef & .LambdaInvocation)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)
-        This.IsLetNeededInLambda = .IsLetNeededInLambda
     End With
     
     GetLambdaPreview = Result
@@ -630,7 +625,6 @@ Public Function GetLetPreview(ByVal DependencyObjects As Collection) As String
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LetFormula)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)
-        This.IsLetNeededInLambda = .IsLetNeededInLambda
     End With
     
     GetLetPreview = Result

@@ -11,7 +11,7 @@ End Sub
 Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
                                                  , ByVal StepFormula As String _
                                                   , Optional ByVal TargetCell As Range = Nothing)
-    LetStepManager.AddLetStep FormulaCell, StepName, StepFormula, TargetCell
+    LETStepManager.AddLetStep FormulaCell, StepName, StepFormula, TargetCell
 End Sub
 
 '--------------------------------------------< OA Robot >--------------------------------------------
@@ -21,7 +21,7 @@ End Sub
 ' Generated:              04/08/2023 05:50 PM
 '----------------------------------------------------------------------------------------------------
 Public Sub RemoveLastLETStep(ByVal FormulaCell As Range, Optional ByVal TargetCell As Range = Nothing)
-    LetStepManager.RemoveLastLETStep FormulaCell, TargetCell
+    LETStepManager.RemoveLastLETStep FormulaCell, TargetCell
 End Sub
 
 '--------------------------------------------< OA Robot >--------------------------------------------
@@ -33,7 +33,7 @@ End Sub
 Public Sub CycleLETSteps(ByVal FormulaCell As Range, Optional ByVal TargetCell As Range = Nothing _
                                                     , Optional ByVal IsReset As Boolean = False)
     
-    LetStepManager.CycleLETSteps FormulaCell, TargetCell, IsReset
+    LETStepManager.CycleLETSteps FormulaCell, TargetCell, IsReset
     
 End Sub
 

@@ -9,6 +9,13 @@
       "IsUserParameter": true
     },
     {
+      "Name": "FormulaFormat_BoMode",
+      "Description": "Set formula formatting option as Bo does.",
+      "Type": "DefaultParameter",
+      "Value": "false",
+      "DataType": "Boolean"
+    },
+    {
       "Name": "FormulaFormat_IndentChar",
       "Description": "Indent Char option for Format Formula.",
       "Type": "DefaultParameter",

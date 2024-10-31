@@ -394,7 +394,7 @@ Private Function ConvertToCamelCase(ByVal VarName As String) As String
         End If
         
     Else
-        If Not IsAllCaps(ValidName) Then
+        If Not IsAllCaps(ValidName) Or Len(ValidName) = 1 Then
             ValidName = LCase(ValidName)
         End If
     End If
@@ -2493,7 +2493,7 @@ Public Function GetLetStepsVarNameAndRangeReference(ByVal DependencyObjects As C
         ' Check if the current dependency info represents a non-input let step cell.
         If Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
             ' Add the current dependency info to the collection of non-input let step cells.
-            Debug.Print CurrentDependencyInfo.ValidVarName
+'            Debug.Print CurrentDependencyInfo.ValidVarName
             LetStepsVarName.Add CurrentDependencyInfo
         End If
     Next CurrentDependencyInfo

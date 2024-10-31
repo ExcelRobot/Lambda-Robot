@@ -199,15 +199,21 @@ Public Function FormatFormula(ByVal FormulaText As String) As String
     Set Formatter = GetFormulaFormatter()
     
     With Formatter
+    
         ' Set configuration from user context.
-        .IndentChar = GetIndentCharParamValue()
-        .IndentSize = GetIndentSizeParamValue()
-        .MultiLine = GetMultilineParamValue()
-        .OnlyWrapFunctionAfterNChars = GetOnlyWrapFunctionAfterNCharsParamValue()
-        .SpacesAfterArgumentSeparators = GetSpacesAfterArgumentSeparatorsParamValue()
-        .SpacesAfterArrayColumnSeparators = GetSpacesAfterArrayColumnSeparatorsParamValue()
-        .SpacesAfterArrayRowSeparators = GetSpacesAfterArrayRowSeparatorsParamValue()
-        .SpacesAroundInfixOperators = GetSpacesAroundInfixOperatorsParamValue()
+        If GetBoModeParamValue() Then
+            .CompactConfig
+        Else
+            .IndentChar = GetIndentCharParamValue()
+            .IndentSize = GetIndentSizeParamValue()
+            .MultiLine = GetMultilineParamValue()
+            .OnlyWrapFunctionAfterNChars = GetOnlyWrapFunctionAfterNCharsParamValue()
+            .SpacesAfterArgumentSeparators = GetSpacesAfterArgumentSeparatorsParamValue()
+            .SpacesAfterArrayColumnSeparators = GetSpacesAfterArrayColumnSeparatorsParamValue()
+            .SpacesAfterArrayRowSeparators = GetSpacesAfterArrayRowSeparatorsParamValue()
+            .SpacesAroundInfixOperators = GetSpacesAroundInfixOperatorsParamValue()
+        End If
+        
         ' Format the formula
         FormatFormula = .Format(FormulaText)
     End With
@@ -1316,6 +1322,10 @@ End Function
 
 Public Function GetSpacesAroundInfixOperatorsParamValue() As Boolean
     GetSpacesAroundInfixOperatorsParamValue = GetOAParamValue("FormulaFormat_SpacesAroundInfixOperators", True)
+End Function
+
+Public Function GetBoModeParamValue() As Boolean
+    GetBoModeParamValue = GetOAParamValue("FormulaFormat_BoMode", False)
 End Function
 
 Public Function GetUsedLambdas(ByVal Formula As String, ByVal AllLambdas As Collection _
