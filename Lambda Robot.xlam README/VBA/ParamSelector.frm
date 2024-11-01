@@ -13,7 +13,6 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-
 '@IgnoreModule UndeclaredVariable, ImplicitActiveSheetReference
 
 Option Explicit
@@ -326,7 +325,6 @@ Private Sub UpdateLetStepsListBox()
     
     ' Populate the ListBox with the variable names and range references
     Me.StepsListBox.List = VarsName
-    TryAdaptingScrollBarHeight Me.StepsListBox
     Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateLetStepsListBox"
     
 End Sub
@@ -348,7 +346,7 @@ Private Sub UpdateParametersListBox()
     
     ' Populate the ListBox with the variable names and range references
     Me.ParametersListBox.List = VarsName
-    TryAdaptingScrollBarHeight Me.ParametersListBox
+    
     Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateParametersListBox"
     
 End Sub
@@ -752,5 +750,4 @@ Private Sub ValueButton_Click()
     Logger.Log TRACE_LOG, "Exit ParamSelector.ValueButton_Click"
     
 End Sub
-
 

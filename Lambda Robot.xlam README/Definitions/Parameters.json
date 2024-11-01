@@ -43,8 +43,8 @@
       "Name": "FormulaFormat_LetVarPrefix",
       "Description": "What prefix to use for each let var. e.g. _ or var.",
       "Type": "DefaultParameter",
-      "Value": "_",
       "DataType": "String",
+      "DefaultValue": "_",
       "IsUserParameter": true
     },
     {
