@@ -12,22 +12,22 @@ Attribute VB_Exposed = False
 Option Explicit
 
 Public Function GetRangeRefFromNamedRangeOrTable(ByVal FromBook As Workbook _
-                                                  , ByVal GivenName As String _
-                                                   , ByVal HelperSheet As Worksheet) As String
+                                                 , ByVal GivenName As String _
+                                                  , ByVal HelperSheet As Worksheet) As String
     
     Logger.Log TRACE_LOG, "Enter RangeResolver.GetRangeRefFromNamedRangeOrTable"
     ' Extracts the range reference from a named range or a table.
 
-    If GivenName = vbNullString Then
-        GetRangeRefFromNamedRangeOrTable = vbNullString
+    If GivenName = vbNullString Or Is3DReference(GivenName) Then
+        GetRangeRefFromNamedRangeOrTable = GivenName
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetRangeRefFromNamedRangeOrTable"
         Exit Function
     End If
     
-    Dim CurrentName As name
+    Dim CurrentName As Name
     On Error Resume Next
     'Check for local scoped named range first and if not then for the global one.
-    Set CurrentName = FromBook.Names(GetSheetRefForRangeReference(HelperSheet.name, False) & GivenName)
+    Set CurrentName = FromBook.Names(GetSheetRefForRangeReference(HelperSheet.Name, False) & GivenName)
     If IsNothing(CurrentName) Then
         Set CurrentName = FromBook.Names(GivenName)
     End If
@@ -73,10 +73,10 @@ Public Function FindRangeFromText(ByVal FromBook As Workbook _
     If IsSpilledRangeRef(RangeReference) Then
         ' The range reference is dynamic, remove the trailing DYNAMIC_CELL_REFERENCE_SIGN sign and get the range.
         Set Result = GetRange( _
-                                Text.RemoveFromEndIfPresent(RangeReference, DYNAMIC_CELL_REFERENCE_SIGN) _
-                                , FromBook _
-                                 , FormulaInSheet _
-                                  )
+                     Text.RemoveFromEndIfPresent(RangeReference, DYNAMIC_CELL_REFERENCE_SIGN) _
+                     , FromBook _
+                      , FormulaInSheet _
+                       )
         Set Result = Result.SpillingToRange
     Else
         ' The range reference is not dynamic, directly get the range.
@@ -106,7 +106,7 @@ Public Function GetRange(ByVal RangeReference As String _
     Logger.Log TRACE_LOG, "Enter RangeResolver.GetRange"
     ' Get the range object from the given range reference.
     
-    If IsClosedWorkbookRef(RangeReference) Then
+    If IsClosedWorkbookRef(RangeReference) Or Is3DReference(RangeReference) Then
         Set GetRange = Nothing
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetRange"
         Exit Function
@@ -136,8 +136,8 @@ Public Function GetRange(ByVal RangeReference As String _
         Dim CurrentSheet As Worksheet
         Set CurrentSheet = GetSheetRefFromRangeRef(RangeReference, CurrentBook, DefaultSheet)
         If Text.Contains(RangeReference, SHEET_NAME_SEPARATOR) Then
-            Set Result = CurrentSheet.Range(Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_END))
-        ElseIf IsNamedRangeExist(CurrentBook, RangeReference) Then
+            Set Result = CurrentSheet.Range(Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end))
+        ElseIf Context.IsNamedRangeExist(CurrentBook, RangeReference) Then
             Set Result = CurrentBook.Names(RangeReference).RefersToRange
         ElseIf IsTableExist(CurrentBook, RangeReference) Then
             Set Result = GetTable(CurrentBook, RangeReference).DataBodyRange
@@ -149,12 +149,12 @@ Public Function GetRange(ByVal RangeReference As String _
     
     End If
     
-    Logger.Log DEBUG_LOG, "Book Name: " & Result.Worksheet.Parent.name _
-               & vbNewLine & "Worksheet Name: " & Result.Worksheet.name _
-               & vbNewLine & "Address: " & Result.Address & vbNewLine
+    Logger.Log DEBUG_LOG, "Book Name: " & Result.Worksheet.Parent.Name _
+                         & vbNewLine & "Worksheet Name: " & Result.Worksheet.Name _
+                         & vbNewLine & "Address: " & Result.Address & vbNewLine
     
     Set GetRange = Result
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetRange"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetRange"
     Exit Function
 
 NoRangeFound:
@@ -179,11 +179,11 @@ Private Function GetSheetRefFromRangeRef(ByVal RangeRef As String _
     If Not Text.Contains(RangeRef, SHEET_NAME_SEPARATOR) Then
         SheetName = vbNullString
     ElseIf Text.IsStartsWith(RangeRef, SINGLE_QUOTE & LEFT_BRACKET) _
-       Or Text.IsStartsWith(RangeRef, LEFT_BRACKET) Then
-        SheetName = Text.BetweenDelimiter(RangeRef, RIGHT_BRACKET, SHEET_NAME_SEPARATOR, , , , FROM_END)
+           Or Text.IsStartsWith(RangeRef, LEFT_BRACKET) Then
+        SheetName = Text.BetweenDelimiter(RangeRef, RIGHT_BRACKET, SHEET_NAME_SEPARATOR, , , , FROM_end)
         SheetName = Text.RemoveFromEndIfPresent(SheetName, SINGLE_QUOTE)
     Else
-        SheetName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        SheetName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
     End If
     
     SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
@@ -237,9 +237,9 @@ Private Function IsAnotherWorkbookTableOrNamedRangeRef(ByVal RangeRef As String 
     Dim Result As Boolean
     
     If IsValidForOtherBookStructuredRef Then
-        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
             
-        BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
         BookName = Text.RemoveFromBothEndIfPresent(BookName, SINGLE_QUOTE)
         BookName = UnEscapeSingleQuote(BookName)
             
@@ -247,12 +247,12 @@ Private Function IsAnotherWorkbookTableOrNamedRangeRef(ByVal RangeRef As String 
         ' It could be only sheet name if we have a sheet by that name and a local scoped named range.
         If IsOpenWorkbookExists(BookName) Then
             If IsSheetExist(BookName, TempBook) Then
-                If IsLocalScopedNamedRangeExist(TempBook.Worksheets(BookName), NamedOrTableOrRangePart) Then
+                If Context.IsLocalScopedNamedRangeExist(TempBook.Worksheets(BookName), NamedOrTableOrRangePart) Then
                     Result = False
                 End If
             Else
                 Set TempBook = Application.Workbooks.Item(BookName)
-                If IsNamedRangeExist(TempBook, NamedOrTableOrRangePart) Then
+                If Context.IsNamedRangeExist(TempBook, NamedOrTableOrRangePart) Then
                     Result = True
                 ElseIf IsTableExist(TempBook, NamedOrTableOrRangePart) Then
                     Result = True
@@ -288,7 +288,7 @@ Private Function GetWorkbookFromRangeRef(ByVal RangeRef As String _
     Dim NamedOrTableOrRangePart As String
     
     If Text.Contains(RangeRef, SHEET_NAME_SEPARATOR) Then
-        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
         
         If Text.IsStartsWith(RangeRef, SINGLE_QUOTE & LEFT_BRACKET) _
            Or Text.IsStartsWith(RangeRef, LEFT_BRACKET) Then
@@ -296,14 +296,14 @@ Private Function GetWorkbookFromRangeRef(ByVal RangeRef As String _
             BookName = UnEscapeSingleQuote(BookName)
         Else
             
-            BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+            BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
             BookName = Text.RemoveFromBothEndIfPresent(BookName, SINGLE_QUOTE)
             BookName = UnEscapeSingleQuote(BookName)
             
             ' Now this could be sheet name or book name.
             ' It could be only sheet name if we have a sheet by that name and a local scoped named range.
             If IsSheetExist(BookName, Result) And IsOpenWorkbookExists(BookName) Then
-                If IsLocalScopedNamedRangeExist(Result.Worksheets(BookName), NamedOrTableOrRangePart) Then
+                If Context.IsLocalScopedNamedRangeExist(Result.Worksheets(BookName), NamedOrTableOrRangePart) Then
                     BookName = vbNullString
                 End If
             End If
@@ -328,14 +328,16 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
     ' Retrieves the range object corresponding to the given dependency text.
     ' The function checks if the dependency text refers to a named range or a cell reference.
     
+    If Is3DReference(DependencyText) Then Exit Function
+    
     Dim Result As Range
-    Dim CurrentName As name
+    Dim CurrentName As Name
     
     Dim InBook As Workbook
     Set InBook = HelperCell.Worksheet.Parent
     On Error Resume Next
     ' Attempt to find the named range in the parent workbook.
-    If IsLocalScopedNamedRangeExist(HelperCell.Worksheet, DependencyText) Then
+    If Context.IsLocalScopedNamedRangeExist(HelperCell.Worksheet, DependencyText) Then
         Set CurrentName = HelperCell.Worksheet.Names(DependencyText)
     Else
         Set CurrentName = InBook.Names(DependencyText)
@@ -384,23 +386,6 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
     
     Set GetRangeForDependency = Result
     Logger.Log TRACE_LOG, "Exit RangeResolver.GetRangeForDependency"
-    
-End Function
-
-Public Function IsImplicitColumnRef(ByVal ColRef As String, ByVal InBook As Workbook) As Boolean
-    
-    Dim Result As Boolean
-    If Text.IsStartsWith(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
-        Result = True
-    ElseIf Text.Contains(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
-        ' So we have table name along with implicit col ref.
-        ' Let's check if we have a table or not.
-        Dim TableName As String
-        TableName = Text.BeforeDelimiter(ColRef, "[@")
-        Result = IsTableExist(InBook, TableName)
-    End If
-    
-    IsImplicitColumnRef = Result
     
 End Function
 
@@ -465,25 +450,7 @@ Private Function IsTableColumnRef(ByVal InBook As Workbook, ByVal DependencyText
     
 End Function
 
-Public Function IsTableExist(ByVal InBook As Workbook, ByVal TableName As String) As Boolean
-    
-    Logger.Log TRACE_LOG, "Enter RangeResolver.IsTableExist"
-    Dim Sheet As Worksheet
-    For Each Sheet In InBook.Worksheets
-        Dim Table As ListObject
-        For Each Table In Sheet.ListObjects
-            If Table.name = TableName Then
-                IsTableExist = True
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.IsTableExist"
-                Exit Function
-            End If
-        Next Table
-    Next Sheet
-    Logger.Log TRACE_LOG, "Exit RangeResolver.IsTableExist"
-    
-End Function
-
-Public Function GetTable(ByVal FromBook As Workbook, ByVal TableName As String) As ListObject
+Private Function GetTable(ByVal FromBook As Workbook, ByVal TableName As String) As ListObject
     
     Logger.Log TRACE_LOG, "Enter RangeResolver.GetTable"
     Dim CurrentSheet As Worksheet
@@ -491,9 +458,9 @@ Public Function GetTable(ByVal FromBook As Workbook, ByVal TableName As String) 
         
         Dim CurrentTable As ListObject
         For Each CurrentTable In CurrentSheet.ListObjects
-            If CurrentTable.name = TableName Then
+            If CurrentTable.Name = TableName Then
                 Set GetTable = CurrentTable
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetTable"
+                Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.GetTable"
                 Exit Function
             End If
         Next CurrentTable
@@ -503,15 +470,15 @@ Public Function GetTable(ByVal FromBook As Workbook, ByVal TableName As String) 
     
 End Function
 
-Public Function IsTableColExist(ByVal Table As ListObject, ByVal ColName As String) As Boolean
+Private Function IsTableColExist(ByVal Table As ListObject, ByVal ColName As String) As Boolean
     
     Logger.Log TRACE_LOG, "Enter RangeResolver.IsTableColExist"
     IsTableColExist = False
     Dim CurrentCol As ListColumn
     For Each CurrentCol In Table.ListColumns
-        If CurrentCol.name = ColName Then
+        If CurrentCol.Name = ColName Then
             IsTableColExist = True
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.IsTableColExist"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeResolver.IsTableColExist"
             Exit Function
         End If
     Next CurrentCol

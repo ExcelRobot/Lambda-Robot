@@ -34,7 +34,7 @@ Private Type TSpillRangePartFormulaCreator
     ColCount As Long
 End Type
 
-Private This As TSpillRangePartFormulaCreator
+Private this As TSpillRangePartFormulaCreator
 
 Public Function GetFormula(ByVal SelectedCells As Range, ByVal DestinationCell As Range) As String
     
@@ -45,17 +45,17 @@ Public Function GetFormula(ByVal SelectedCells As Range, ByVal DestinationCell A
     Dim Formula As String
 
     Dim TakeWithParentCellRef As String
-    TakeWithParentCellRef = TAKE_FX_NAME & "(" & This.ParentCellFormulaRef
+    TakeWithParentCellRef = TAKE_FX_NAME & "(" & this.ParentCellFormulaRef
     
     Dim TakeAndDropWithParentCellRef As String
-    TakeAndDropWithParentCellRef = TAKE_FX_NAME & "(" & DROP_FX_NAME & "(" & This.ParentCellFormulaRef
+    TakeAndDropWithParentCellRef = TAKE_FX_NAME & "(" & DROP_FX_NAME & "(" & this.ParentCellFormulaRef
     
-    With This
+    With this
         ' Here order of these cases are important. If you want to make it independent then you have to change code
         ' and add validation. But as select case statement will go one by one, we can keep in this way.
         Select Case True
             Case .IsSpillingRangeIncluded
-                Formula = This.ParentCellFormulaRef
+                Formula = this.ParentCellFormulaRef
             
             Case .IsTopLeftCellIncluded And .IsTopRightCellIncluded
                 Formula = TakeWithParentCellRef & "," & .RowCount & ")"
@@ -134,20 +134,20 @@ End Function
 
 Private Sub ExtractInfoFromSelectedCells(ByVal SelectedCells As Range, ByVal DestinationCell As Range)
     
-    With This
+    With this
         
         Set .SpillParentCell = SelectedCells.Cells(1).SpillParent
-        .SpillParentSheetName = .SpillParentCell.Worksheet.name
+        .SpillParentSheetName = .SpillParentCell.Worksheet.Name
         
         ' We are considering that workbook is same. If need to support for different workbook as well then need
         ' to change code accordingly.
         .ParentCellFormulaRef = vbNullString
-        If DestinationCell.Worksheet.name <> .SpillParentSheetName Then
+        If DestinationCell.Worksheet.Name <> .SpillParentSheetName Then
             .ParentCellFormulaRef = GetSheetRefForRangeReference(.SpillParentSheetName)
         End If
         
         .ParentCellFormulaRef = .ParentCellFormulaRef _
-                              & .SpillParentCell.Address(False, False) & "#"
+                                & .SpillParentCell.Address(False, False) & "#"
         
         Set .TopLeftCell = .SpillParentCell
         .IsTopLeftCellIncluded = IsSubRange(SelectedCells, .TopLeftCell)
@@ -168,10 +168,10 @@ Private Sub ExtractInfoFromSelectedCells(ByVal SelectedCells As Range, ByVal Des
         .IsAnyCellOfLastCol = IsAnyCommonCell(SelectedCells, .SpillingRange.Columns(.SpillingRange.Columns.Count))
         .IsAnyCellOfLastRow = IsAnyCommonCell(SelectedCells, .SpillingRange.Rows(.SpillingRange.Rows.Count))
         
-        This.RowCount = SelectedCells.Rows.Count
-        This.ColCount = SelectedCells.Columns.Count
-        This.TopCellRowDiff = SelectedCells.Row - .SpillParentCell.Row
-        This.TopCellColDiff = SelectedCells.Column - .SpillParentCell.Column
+        this.RowCount = SelectedCells.Rows.Count
+        this.ColCount = SelectedCells.Columns.Count
+        this.TopCellRowDiff = SelectedCells.Row - .SpillParentCell.Row
+        this.TopCellColDiff = SelectedCells.Column - .SpillParentCell.Column
         
     End With
     

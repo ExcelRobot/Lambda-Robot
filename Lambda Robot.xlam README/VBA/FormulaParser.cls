@@ -20,7 +20,7 @@ End Enum
 
 Private Type TFormulaParser
     PrecedencyExtractor As FormulaPrecedencyExtractor
-    CurrentLambdaInfo As LambdaInfo
+    CurrentLambdaInfo As LetOrLambdaInfo
     LambdaInvocationArgument As String
     DependencySearchInRegion As Range
     AFEScriptCode As Variant
@@ -34,58 +34,58 @@ Private Type TFormulaParser
     IsLetNeededInLetFormula As Boolean
 End Type
 
-Private This  As TFormulaParser
+Private this  As TFormulaParser
 
 Public Property Get IsLetNeededInLetFormula() As Boolean
-    IsLetNeededInLetFormula = This.FormulaGen.IsLetNeededInLetFormula
+    IsLetNeededInLetFormula = this.FormulaGen.IsLetNeededInLetFormula
 End Property
 
 Public Property Get PrecedencyExtractor() As FormulaPrecedencyExtractor
-    Set PrecedencyExtractor = This.PrecedencyExtractor
+    Set PrecedencyExtractor = this.PrecedencyExtractor
 End Property
 
 Public Function DependencyDataForReset(TypeOfOperation As OperationType) As Collection
-    Set DependencyDataForReset = This.PrecedencyExtractor.GetDependencyObjectsFromData(This.InitialDependencyDataForReset, TypeOfOperation)
+    Set DependencyDataForReset = this.PrecedencyExtractor.GetDependencyObjectsFromData(this.InitialDependencyDataForReset, TypeOfOperation)
 End Function
 
 Public Property Get IsLetNeededInLambda() As Boolean
-    IsLetNeededInLambda = This.FormulaGen.IsLetNeededInLambda
+    IsLetNeededInLambda = this.FormulaGen.IsLetNeededInLambda
 End Property
 
 Public Property Let IsProcessTerminatedByUser(RHS As Boolean)
-    This.IsProcessTerminatedByUser = RHS
+    this.IsProcessTerminatedByUser = RHS
 End Property
 
 Public Property Get IsProcessTerminatedByUser() As Boolean
-    IsProcessTerminatedByUser = This.IsProcessTerminatedByUser
+    IsProcessTerminatedByUser = this.IsProcessTerminatedByUser
 End Property
 
 Public Property Get PutDependencyOnTable() As ListObject
-    Set PutDependencyOnTable = This.PutDependencyOnTable
+    Set PutDependencyOnTable = this.PutDependencyOnTable
 End Property
 
 Public Property Set PutDependencyOnTable(ByVal RHS As ListObject)
-    Set This.PutDependencyOnTable = RHS
+    Set this.PutDependencyOnTable = RHS
 End Property
 
 Public Property Get IsExportable() As Boolean
-    IsExportable = This.IsExportable
+    IsExportable = this.IsExportable
 End Property
 
 Public Property Let IsExportable(ByVal RHS As Boolean)
-    This.IsExportable = RHS
+    this.IsExportable = RHS
 End Property
 
 Public Property Get IsAddToNameManager() As Boolean
-    IsAddToNameManager = This.IsAddToNameManager
+    IsAddToNameManager = this.IsAddToNameManager
 End Property
 
 Public Property Let IsAddToNameManager(ByVal RHS As Boolean)
-    This.IsAddToNameManager = RHS
+    this.IsAddToNameManager = RHS
 End Property
 
-Public Property Get GetLambdaInfo() As LambdaInfo
-    Set GetLambdaInfo = This.CurrentLambdaInfo
+Public Property Get GetLambdaInfo() As LetOrLambdaInfo
+    Set GetLambdaInfo = this.CurrentLambdaInfo
 End Property
 
 '@EntryPoint
@@ -113,7 +113,7 @@ Public Sub CreateLambdaDetails(ByVal FormulaStartCell As Range _
     End If
 
     ' Set the DependencySearchInRegion property to the provided DependencySearchInRegion range
-    Set This.DependencySearchInRegion = DependencySearchInRegion
+    Set this.DependencySearchInRegion = DependencySearchInRegion
 
     ' Clear any previous catches (if any)
     ClearCatches
@@ -133,11 +133,11 @@ Private Sub ClearCatches()
     ' This sub clears any previously set catch variables and objects.
 
     ' Set the PrecedencyExtractor and CurrentLambdaInfo objects to nothing, releasing any references.
-    Set This.PrecedencyExtractor = Nothing
-    Set This.CurrentLambdaInfo = Nothing
+    Set this.PrecedencyExtractor = Nothing
+    Set this.CurrentLambdaInfo = Nothing
 
     ' Set the LambdaInvocationArgument to an empty string (vbNullString).
-    This.LambdaInvocationArgument = vbNullString
+    this.LambdaInvocationArgument = vbNullString
 
     Logger.Log TRACE_LOG, "Exit FormulaParser.ClearCatches"
     
@@ -149,10 +149,10 @@ Private Sub CreateBasicInfoFromFormulaStartCell()
     ' This sub creates basic information from the FormulaStartCell.
 
     ' Create a new FormulaPrecedencyExtractor and assign it to This.PrecedencyExtractor.
-    Set This.PrecedencyExtractor = New FormulaPrecedencyExtractor
-    Set This.FormulaGen = New LETORLAMBDAGenerator
+    Set this.PrecedencyExtractor = New FormulaPrecedencyExtractor
+    Set this.FormulaGen = New LETORLAMBDAGenerator
     ' Create a new LambdaInfo and assign it to This.CurrentLambdaInfo.
-    Set This.CurrentLambdaInfo = New LambdaInfo
+    Set this.CurrentLambdaInfo = New LetOrLambdaInfo
     Logger.Log TRACE_LOG, "Exit FormulaParser.CreateBasicInfoFromFormulaStartCell"
 
 End Sub
@@ -166,11 +166,11 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
 
     On Error GoTo ResetCalculation
     
-    With This.PrecedencyExtractor
+    With this.PrecedencyExtractor
         ' Extract all precedence information using the FormulaPrecedencyExtractor.
-        .ExtractAllPrecedencyInfo FormulaStartCell, This.DependencySearchInRegion, Nothing
+        .ExtractAllPrecedencyInfo FormulaStartCell, this.DependencySearchInRegion, Nothing
         If .IsProcessEnded Then
-            This.IsProcessTerminatedByUser = True
+            this.IsProcessTerminatedByUser = True
             Exit Sub
         End If
         
@@ -183,22 +183,22 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
     ' Check the type of operation requested.
     If TypeOfOperation = DEPENDENCY_INFO_GENERATION Then
         ' If it's a dependency info generation, send the dependency data to the sheet.
-        SendDependencyDataToSheet This.PrecedencyExtractor.AllDependency, PutDependencyInfoOnRange
+        SendDependencyDataToSheet this.PrecedencyExtractor.AllDependency, PutDependencyInfoOnRange
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaParser.GenerateDependencyInfo"
         Exit Sub
     End If
     
     ' Get the dependency data and sort it.
-    This.PrecedencyExtractor.DependencyData = GetAllDependencyToArrayAndSort(This.PrecedencyExtractor.AllDependency)
+    this.PrecedencyExtractor.DependencyData = GetAllDependencyToArrayAndSort(this.PrecedencyExtractor.AllDependency)
 
     ' Store the initial dependency data for resetting purposes.
-    This.InitialDependencyDataForReset = This.PrecedencyExtractor.DependencyData
+    this.InitialDependencyDataForReset = this.PrecedencyExtractor.DependencyData
 
     ' Create Let and Lambda statements based on the dependency data.
-    CreateLetAndLambdaStatements This.PrecedencyExtractor.DependencyData, FormulaStartCell, TypeOfOperation
+    CreateLetAndLambdaStatements this.PrecedencyExtractor.DependencyData, FormulaStartCell, TypeOfOperation
 
     ' If the process is terminated by the user, exit the sub.
-    If This.IsProcessTerminatedByUser Then Exit Sub
+    If this.IsProcessTerminatedByUser Then Exit Sub
 
     ' Log the generated lambda details.
     LogGeneratedLambdaDetails
@@ -206,8 +206,8 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range _
     ' Convert the full Let formula to AFEScript code.
     ' If the type of operation is AFE script generation, put the AFE code to the sheet.
     If TypeOfOperation = AFE_SCRIPT_GENERATION Then
-        This.CurrentLambdaInfo.AFEScriptCode = ConvertFullLetToAFEScript(This.CurrentLambdaInfo.LetFormula)
-        PutAFECodeToSheet PutDependencyInfoOnRange, This.CurrentLambdaInfo.AFEScriptCode
+        this.CurrentLambdaInfo.AFEScriptCode = ConvertFullLetToAFEScript(this.CurrentLambdaInfo.LetFormula)
+        PutAFECodeToSheet PutDependencyInfoOnRange, this.CurrentLambdaInfo.AFEScriptCode
     End If
 
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaParser.GenerateDependencyInfo"
@@ -240,10 +240,10 @@ Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection
     Logger.Log TRACE_LOG, "Enter FormulaParser.RecalculatePrecedencyAgain"
     ' This sub recalculates the precedence again after user modification of dependencies.
     
-    With This.PrecedencyExtractor
+    With this.PrecedencyExtractor
         ' Extract all precedence information again, considering the user-modified dependencies.
         .ExtractAllPrecedencyInfo .FormulaStartCell, _
-                                  This.DependencySearchInRegion, _
+                                  this.DependencySearchInRegion, _
                                   UserModifiedDependency
                                   
         ' Add an underscore on valid variable names for non-input cells.
@@ -398,11 +398,11 @@ Private Sub LogGeneratedLambdaDetails()
 
     ' Log the generated Let formula.
     Logger.Log DEBUG_LOG, THREE_NEW_LINE
-    Logger.Log DEBUG_LOG, This.CurrentLambdaInfo.LetFormula
+    Logger.Log DEBUG_LOG, this.CurrentLambdaInfo.LetFormula
     Logger.Log DEBUG_LOG, THREE_NEW_LINE
 
     ' Log the generated Lambda formula.
-    Logger.Log DEBUG_LOG, This.CurrentLambdaInfo.LambdaFormula
+    Logger.Log DEBUG_LOG, this.CurrentLambdaInfo.LambdaFormula
     Logger.Log TRACE_LOG, "Exit FormulaParser.LogGeneratedLambdaDetails"
 
 End Sub
@@ -440,7 +440,7 @@ Private Sub SendDependencyDataToSheet(ByVal AllDependency As Collection, ByVal F
     ' Sort the dependency data and convert it back to an object collection.
     Dim DependencyData As Variant
     DependencyData = GetAllDependencyToArrayAndSort(AllDependency)
-    Set AllDependency = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyData, DEPENDENCY_INFO_GENERATION)
+    Set AllDependency = this.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyData, DEPENDENCY_INFO_GENERATION)
     DependencyData = GetAllDependencyToArrayAndSort(AllDependency)
 
     ' Resize the target range to fit the dependency data.
@@ -465,21 +465,21 @@ Private Sub SendDependencyDataToSheet(ByVal AllDependency As Collection, ByVal F
     PutDependencyDataOnRange.Value = DependencyData
 
     ' Create a ListObject (Excel Table) from the target range to enable filtering and sorting.
-    Set This.PutDependencyOnTable = This.PrecedencyExtractor.FormulaStartCellInSheet.ListObjects.Add(xlSrcRange _
+    Set this.PutDependencyOnTable = this.PrecedencyExtractor.FormulaStartCellInSheet.ListObjects.Add(xlSrcRange _
                                                                                                      , PutDependencyDataOnRange, , xlYes)
 
     ' Set the column width of the FORMULATEXT_COLUMN (4th column) to make the formulas visible.
     Const FORMULATEXT_COLUMN As Long = 4
-    This.PutDependencyOnTable.ListColumns(FORMULATEXT_COLUMN).Range.ColumnWidth = 50
+    this.PutDependencyOnTable.ListColumns(FORMULATEXT_COLUMN).Range.ColumnWidth = 50
 
     ' Disable text wrapping in the table range to display long formulas without truncation.
-    This.PutDependencyOnTable.Range.WrapText = False
+    this.PutDependencyOnTable.Range.WrapText = False
 
     ' Scroll to the table range to make it visible to the user.
-    ScrollToDependencyDataRange This.PutDependencyOnTable
+    ScrollToDependencyDataRange this.PutDependencyOnTable
 
     ' Store the table reference in the CurrentLambdaInfo object for future use.
-    Set This.CurrentLambdaInfo.PutDependencyOnTable = This.PutDependencyOnTable
+    Set this.CurrentLambdaInfo.PutDependencyOnTable = this.PutDependencyOnTable
     Logger.Log TRACE_LOG, "Exit FormulaParser.SendDependencyDataToSheet"
 
 End Sub
@@ -521,7 +521,7 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
 
     ' Get the collection of DependencyInfo objects from the DependencyOrderData.
     Dim DependencyObjects As Collection
-    Set DependencyObjects = This.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyOrderData, TypeOfOperation)
+    Set DependencyObjects = this.PrecedencyExtractor.GetDependencyObjectsFromData(DependencyOrderData, TypeOfOperation)
     
     If TypeOfOperation = LET_STATEMENT_GENERATION Then
         PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
@@ -529,20 +529,40 @@ Private Sub CreateLetAndLambdaStatements(ByVal DependencyOrderData As Variant _
     
     ' Update input cells from the user's choice depending on the TypeOfOperation.
     UpdateInputCellsFromUserChoice DependencyObjects, TypeOfOperation
-    ActivateFormulaStartCell This.PrecedencyExtractor
-    If This.IsProcessTerminatedByUser Then Exit Sub
+    ActivateFormulaStartCell this.PrecedencyExtractor
+    If this.IsProcessTerminatedByUser Then Exit Sub
     
     Dim FormulaGen As LETORLAMBDAGenerator
     Set FormulaGen = New LETORLAMBDAGenerator
-    FormulaGen.CreateLetOrLambdaStatement DependencyObjects, FormulaStartCell, TypeOfOperation, This.PrecedencyExtractor
+    FormulaGen.CreateLetOrLambdaStatement DependencyObjects, FormulaStartCell, TypeOfOperation, this.PrecedencyExtractor
     
     AddLambdaToNameManagerIfRequested FormulaGen.LambdaDef
-    This.CurrentLambdaInfo.InvocationArgument = FormulaGen.LambdaInvocation
+    this.CurrentLambdaInfo.InvocationArgument = FormulaGen.LambdaInvocation
 
-    This.CurrentLambdaInfo.LetFormula = FormatFormula(FormulaGen.LetFormula)
-
+    this.CurrentLambdaInfo.LetFormula = FormatFormula(FormulaGen.LetFormula)
+    Set this.CurrentLambdaInfo.RangeReqFXList = FormulaGen.RangeReqFXList
+    
+    UpdateInputCellsCollection DependencyObjects
     Logger.Log TRACE_LOG, "Exit FormulaParser.CreateLetAndLambdaStatements"
     
+End Sub
+
+Private Sub UpdateInputCellsCollection(ByVal DependencyObjects As Collection)
+    
+    Set this.CurrentLambdaInfo.UserMarkedInputCells = New Collection
+    Dim CurrentDep As DependencyInfo
+    For Each CurrentDep In DependencyObjects
+            
+        If CurrentDep.IsLabelAsInputCell Then
+            Dim TempCell As Range
+            Set TempCell = RangeResolver.GetRangeForDependency(CurrentDep.RangeReference, this.PrecedencyExtractor.ActualFormulaStartCell)
+            If IsInputCell(TempCell, Nothing) Then
+                this.CurrentLambdaInfo.UserMarkedInputCells.Add TempCell
+            End If
+        End If
+            
+    Next CurrentDep
+       
 End Sub
 
 Private Sub ActivateFormulaStartCell(ByVal PrecedencyExtractor As FormulaPrecedencyExtractor)
@@ -567,30 +587,30 @@ Private Sub AddLambdaToNameManagerIfRequested(ByVal FullLambda As String)
     
     FullLambda = FormatFormula(FullLambda)
     ' If no need to add in the Named Range, then Exit Sub.
-    If Not This.IsAddToNameManager Then
+    If Not this.IsAddToNameManager Then
         ' Update the LambdaFormula property and exit the subroutine.
-        This.CurrentLambdaInfo.LambdaFormula = FullLambda
+        this.CurrentLambdaInfo.LambdaFormula = FullLambda
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaParser.AddLambdaToNameManagerIfRequested"
         Exit Sub
     End If
 
     ' If need to add in the Named Range, then add and update LambdaFormula.
     Dim LambdaFormulaName As String
-    LambdaFormulaName = This.PrecedencyExtractor.PossibleLambdaName
+    LambdaFormulaName = this.PrecedencyExtractor.PossibleLambdaName
     If LambdaFormulaName = vbNullString Then
         ' If no valid name found, display a message and set the LambdaFormula property to the FullLambda.
         MsgBox "Unable to add Lambda formula to Name Manager. No valid name found." _
                , vbExclamation + vbOKOnly, APP_NAME
-        This.CurrentLambdaInfo.LambdaFormula = FullLambda
+        this.CurrentLambdaInfo.LambdaFormula = FullLambda
     Else
         ' Add the Lambda formula to the Name Manager using the found LambdaFormulaName.
         Dim FormulaText As String
         FormulaText = ConvertDependencisToFullyQualifiedRef(ReplaceNewlineWithChar10(FullLambda) _
-                                                            , This.PrecedencyExtractor.FormulaStartCellInSheet)
-        This.PrecedencyExtractor.FormulaInWorkbook.Names.Add LambdaFormulaName, FormulaText
+                                                            , this.PrecedencyExtractor.FormulaStartCellInSheet)
+        this.PrecedencyExtractor.FormulaInWorkbook.Names.Add LambdaFormulaName, FormulaText
 
         ' Update the LambdaFormula property with the Lambda formula reference.
-        This.CurrentLambdaInfo.LambdaFormula = EQUAL_SIGN & LambdaFormulaName
+        this.CurrentLambdaInfo.LambdaFormula = EQUAL_SIGN & LambdaFormulaName
     End If
     Logger.Log TRACE_LOG, "Exit FormulaParser.AddLambdaToNameManagerIfRequested"
 
@@ -602,8 +622,8 @@ Public Function GetLambdaPreview(ByVal DependencyObjects As Collection) As Strin
     ' Returns the preview of the Lambda formula by creating the Let statements and the full Lambda expression.
     
     Dim Result As String
-    With This.FormulaGen
-        .CreateLetOrLambdaStatement DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LAMBDA_STATEMENT_GENERATION, This.PrecedencyExtractor
+    With this.FormulaGen
+        .CreateLetOrLambdaStatement DependencyObjects, this.PrecedencyExtractor.FormulaStartCell, LAMBDA_STATEMENT_GENERATION, this.PrecedencyExtractor
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LambdaDef & .LambdaInvocation)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)
@@ -620,8 +640,8 @@ Public Function GetLetPreview(ByVal DependencyObjects As Collection) As String
     ' Returns the preview of the LET formula.
     
     Dim Result As String
-    With This.FormulaGen
-        .CreateLetOrLambdaStatement DependencyObjects, This.PrecedencyExtractor.FormulaStartCell, LET_STATEMENT_GENERATION, This.PrecedencyExtractor
+    With this.FormulaGen
+        .CreateLetOrLambdaStatement DependencyObjects, this.PrecedencyExtractor.FormulaStartCell, LET_STATEMENT_GENERATION, this.PrecedencyExtractor
         ' Return the full Lambda expression along with the Lambda invocation argument.
         Result = FormatFormula(.LetFormula)
         Result = TranslateEnUSFormulaToApplicationLanguage(Result)
@@ -645,13 +665,13 @@ Private Sub UpdateInputCellsFromUserChoice(ByRef DependencyObjects As Collection
     Set DependencyObjects = UpdateFromUserChooseForRenameOrReorderOrDemote(DependencyObjects, TypeOfOperation)
 
     ' Get the number of non-input dependencies from the updated DependencyObjects.
-    This.PrecedencyExtractor.NumberOfNonInputDependency = GetNumberOfNonInputDependency(DependencyObjects)
+    this.PrecedencyExtractor.NumberOfNonInputDependency = GetNumberOfNonInputDependency(DependencyObjects)
     Logger.Log TRACE_LOG, "Exit FormulaParser.UpdateInputCellsFromUserChoice"
 
 End Sub
 
 Private Function UpdateFromUserChooseForRenameOrReorderOrDemote(ByVal DependencyObjects As Collection _
-, ByVal TypeOfOperation As OperationType) As Collection
+                                                                , ByVal TypeOfOperation As OperationType) As Collection
     
     Logger.Log TRACE_LOG, "Enter FormulaParser.UpdateFromUserChooseForRenameOrReorderOrDemote"
     ' Updates the DependencyObjects based on the user's choice for renaming, reordering, or demoting input cells.

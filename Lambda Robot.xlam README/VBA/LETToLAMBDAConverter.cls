@@ -11,42 +11,48 @@ Attribute VB_Exposed = False
 
 Option Explicit
 
-Private LetParts As Variant
-Private FirstColIndex As Long
-Private LambdaArgumentPart As String
-Private LambdaInvocationPart As String
-Private LetOfFinalLambda As String
-Private AppFunction As WorksheetFunction
-Private CountOfNonInputStep As Long
-Private IsFirstLetVarIsInputCell As Boolean
+Private Type TLETToLAMBDAConverter
+    LetParts As Variant
+    FirstColIndex As Long
+    LambdaArgumentPart As String
+    LambdaInvocationPart As String
+    LetOfFinalLambda As String
+    AppFunction As WorksheetFunction
+    CountOfNonInputStep As Long
+    IsFirstLetVarIsInputCell As Boolean
+End Type
+
+Private this As TLETToLAMBDAConverter
 
 Private Sub Initialize(ByVal LetFormula As String)
     
-    LetParts = GetDependencyFunctionResult(LetFormula, LET_PARTS)
+    this.LetParts = GetDependencyFunctionResult(LetFormula, LET_PARTS)
     
-    If Not IsArray(LetParts) Then Exit Sub
+    If Not IsArray(this.LetParts) Then Exit Sub
     
-    ' Retrieve the index of the first column of the "LetParts" array
-    FirstColIndex = LBound(LetParts, 2)
+    ' Retrieve the index of the first column of the "this.LetParts" array
+    this.FirstColIndex = LBound(this.LetParts, 2)
     
     ' Initialize the lambda argument part of the final string to be built
-    LambdaArgumentPart = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+    this.LambdaArgumentPart = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
     
     ' Initialize the lambda invocation part of the final string to be built
-    LambdaInvocationPart = FIRST_PARENTHESIS_OPEN
+    this.LambdaInvocationPart = FIRST_PARENTHESIS_OPEN
     ' Initialize the LET statement of the final lambda to be built
     
-    LetOfFinalLambda = LET_AND_OPEN_PAREN
+    this.LetOfFinalLambda = LET_AND_OPEN_PAREN
     
     ' Create a WorksheetFunction object to be able to use Excel worksheet functions in VBA
-    Set AppFunction = Application.WorksheetFunction
+    Set this.AppFunction = Application.WorksheetFunction
     
     Dim Temp As String
-    Temp = LetParts(FirstColIndex, FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1)
-    IsFirstLetVarIsInputCell = IsRangeAddress(Temp)
+    Temp = this.LetParts(this.FirstColIndex, this.FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1)
+    this.IsFirstLetVarIsInputCell = IsRangeAddress(Temp)
     
     ' If the first LET variable is a reference to a cell, determine if it's an input cell
-    If IsFirstLetVarIsInputCell Then IsFirstLetVarIsInputCell = IsInputCell(RangeResolver.GetRange(Temp), Nothing)
+    If this.IsFirstLetVarIsInputCell Then
+        this.IsFirstLetVarIsInputCell = IsInputCell(RangeResolver.GetRange(Temp), Nothing)
+    End If
     
 End Sub
 
@@ -62,7 +68,7 @@ Public Function ConvertLetToLambda(ByVal LetFormula As String) As String
     Initialize LetFormula
     
     ' If the returned result is not an array, that means no LET function was found in the cell, hence a message box pops up to notify the user
-    If Not IsArray(LetParts) Then
+    If Not IsArray(this.LetParts) Then
         MsgBox "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
                & ".  No " & LET_FX_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
         Exit Function
@@ -71,33 +77,34 @@ Public Function ConvertLetToLambda(ByVal LetFormula As String) As String
     ' Extract the address of the first LET variable and check if it is an input cell
     Dim CurrentRowIndex As Long
     
-    ' Iterate through the "LetParts" array
-    For CurrentRowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
+    ' Iterate through the "this.LetParts" array
+    For CurrentRowIndex = LBound(this.LetParts, 1) To UBound(this.LetParts, 1) - 1
         UpdateForCurrentRow CurrentRowIndex, LetFormula
     Next CurrentRowIndex
     
-    LetOfFinalLambda = LetOfFinalLambda _
-                       & AppFunction.Clean(AppFunction.Trim(LetParts(UBound(LetParts, 1), FirstColIndex)))
+    this.LetOfFinalLambda = this.LetOfFinalLambda _
+                       & this.LetParts(UBound(this.LetParts, 1), this.FirstColIndex)
 
-    ' Remove trailing comma from the LambdaInvocationPart
-    LambdaInvocationPart = modUtility.RemoveEndingText(LambdaInvocationPart, LIST_SEPARATOR)
+    ' Remove trailing comma from the this.LambdaInvocationPart
+    this.LambdaInvocationPart = modUtility.RemoveEndingText(this.LambdaInvocationPart, LIST_SEPARATOR)
     
     ' If only one non-input step was encountered, remove the opening parenthesis from LetOfFinalLambda
-    If CountOfNonInputStep = 0 Then
-        LetOfFinalLambda = VBA.Mid$(LetOfFinalLambda, Len(LET_AND_OPEN_PAREN) + 1)
+    If this.CountOfNonInputStep = 0 Then
+        this.LetOfFinalLambda = VBA.Mid$(this.LetOfFinalLambda, Len(LET_AND_OPEN_PAREN) + 1)
         ' Otherwise, append closing parenthesis to LetOfFinalLambda
     Else
-        LetOfFinalLambda = LetOfFinalLambda & FIRST_PARENTHESIS_CLOSE
+        this.LetOfFinalLambda = this.LetOfFinalLambda & FIRST_PARENTHESIS_CLOSE
     End If
 
-    LambdaInvocationPart = LambdaInvocationPart & FIRST_PARENTHESIS_CLOSE
+    this.LambdaInvocationPart = this.LambdaInvocationPart & FIRST_PARENTHESIS_CLOSE
 
-    ' Form the final lambda function by concatenating LambdaArgumentPart, LetOfFinalLambda and LambdaInvocationPart
-    ConvertLetToLambda = LambdaArgumentPart & LetOfFinalLambda & Chr$(10) _
-                         & FIRST_PARENTHESIS_CLOSE & LambdaInvocationPart
+    ' Form the final lambda function by concatenating this.LambdaArgumentPart, LetOfFinalLambda and this.LambdaInvocationPart
+    Dim Result As String
+    Result = this.LambdaArgumentPart & this.LetOfFinalLambda & Chr$(10) _
+                         & FIRST_PARENTHESIS_CLOSE & this.LambdaInvocationPart
 
     ' Replace new line character with line feed in the final lambda function so that we can use in cell.
-    ConvertLetToLambda = FormatFormula(ReplaceNewlineWithChar10(ConvertLetToLambda))
+    ConvertLetToLambda = FormatFormula(ReplaceNewlineWithChar10(Result))
 
     Logger.Log DEBUG_LOG, "Result Lambda : " & ConvertLetToLambda
     
@@ -108,40 +115,43 @@ Private Sub UpdateForCurrentRow(ByVal CurrentRowIndex As Long, ByVal LetFormula 
     Dim VarName As String
     Dim CellAddress As String
     ' Clean and trim the current variable name
-    VarName = VBA.LTrim$(AppFunction.Clean(AppFunction.Trim(LetParts(CurrentRowIndex, FirstColIndex))))
-
+    VarName = VBA.LTrim$(this.AppFunction.Clean(this.AppFunction.Trim(this.LetParts(CurrentRowIndex, this.FirstColIndex))))
+    
+    Dim CalcStep As String
+    CalcStep = this.LetParts(CurrentRowIndex, this.FirstColIndex + LET_PARTS_VALUE_COL_INDEX - 1)
+    
     ' Trim the current cell address
-    CellAddress = Trim$(LetParts(CurrentRowIndex _
-                                 , FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1))
+    CellAddress = Trim$(CalcStep)
         
     ' Check if the cell address is a range address
     If modUtility.IsRangeAddress(CellAddress) Then
             
-        If IsFirstLetVarIsInputCell Then
+        If this.IsFirstLetVarIsInputCell Then
             ' If the current cell is an input cell, add it to the lambda argument and invocation part
             If IsInputCell(RangeResolver.GetRange(CellAddress), Nothing) Then
-                LambdaArgumentPart = LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
-                LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
+                this.LambdaArgumentPart = this.LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
+                this.LambdaInvocationPart = this.LambdaInvocationPart & CellAddress & LIST_SEPARATOR
                 ' If it's not an input cell, increment the non-input step counter and add the LET variable to the final lambda
             Else
-                CountOfNonInputStep = CountOfNonInputStep + 1
-                LetOfFinalLambda = LetOfFinalLambda & VarName & LIST_SEPARATOR & CellAddress & LIST_SEPARATOR
+                this.CountOfNonInputStep = this.CountOfNonInputStep + 1
+                this.LetOfFinalLambda = this.LetOfFinalLambda & VarName _
+                                        & LIST_SEPARATOR & CellAddress & LIST_SEPARATOR
             End If
             
         Else
             ' If the first LET variable was not an input cell
             ' then consider all cell address as input cell. And add it to the lambda argument and invocation part
-            LambdaArgumentPart = LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
-            LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
+            this.LambdaArgumentPart = this.LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
+            this.LambdaInvocationPart = this.LambdaInvocationPart & CellAddress & LIST_SEPARATOR
         End If
     ElseIf modUtility.IsOptionalArgument(LetFormula, VarName) Then
         ' If the variable is an optional argument, create it and add it to the lambda argument and invocation part
-        LambdaArgumentPart = LambdaArgumentPart & CreateOptionalArgument(VarName)
-        LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
+        this.LambdaArgumentPart = this.LambdaArgumentPart & CreateOptionalArgument(VarName)
+        this.LambdaInvocationPart = this.LambdaInvocationPart & CalcStep & LIST_SEPARATOR
     Else
         ' If it's not an optional argument or a range address, increment the non-input step counter and add the LET variable to the final lambda
-        CountOfNonInputStep = CountOfNonInputStep + 1
-        LetOfFinalLambda = LetOfFinalLambda & VarName & LIST_SEPARATOR & CellAddress & LIST_SEPARATOR
+        this.CountOfNonInputStep = this.CountOfNonInputStep + 1
+        this.LetOfFinalLambda = this.LetOfFinalLambda & VarName & LIST_SEPARATOR & CalcStep & LIST_SEPARATOR
     End If
     
 End Sub
@@ -154,7 +164,7 @@ Private Function UpdateForOptionalArgument(ByVal LetFormula As String, ByVal Var
         UpdateForOptionalArgument = CreateOptionalArgument(VarName)
     Else
         ' If not, return a cleaned and trimmed VarName, followed by a comma and a space
-        UpdateForOptionalArgument = AppFunction.Trim(AppFunction.Clean(VarName)) _
+        UpdateForOptionalArgument = this.AppFunction.Trim(this.AppFunction.Clean(VarName)) _
                                     & LIST_SEPARATOR
     End If
 
@@ -167,15 +177,15 @@ Private Function CreateOptionalArgument(ByVal VarName As String) As String
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.CreateOptionalArgument"
     
     ' Establish a reference to Application.WorksheetFunction
-    Dim AppFunction As WorksheetFunction
-    Set AppFunction = Application.WorksheetFunction
+    Set this.AppFunction = Application.WorksheetFunction
 
     ' Create an optional argument by adding parentheses around a cleaned and trimmed VarName,
     ' followed by a comma and a space
     CreateOptionalArgument = LEFT_BRACKET & _
-                             AppFunction.Trim(AppFunction.Clean(VarName)) & _
+                             this.AppFunction.Trim(this.AppFunction.Clean(VarName)) & _
                              RIGHT_BRACKET & LIST_SEPARATOR
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.CreateOptionalArgument"
                              
 End Function
+
 

@@ -16,12 +16,6 @@ Attribute VB_Exposed = False
 '@IgnoreModule UndeclaredVariable, ImplicitActiveSheetReference
 
 Option Explicit
-Private Enum CloseBy
-    User = 0
-    Code = 1
-    WindowsOS = 2
-    TaskManager = 3
-End Enum
 
 Private Type TParamSelector
     Parser As FormulaParser
@@ -30,27 +24,27 @@ Private Type TParamSelector
     LastActiveListBox As MSForms.ListBox
 End Type
 
-Private This As TParamSelector
+Private this As TParamSelector
 
 Public Property Get DependencyObjects() As Collection
-    Set DependencyObjects = This.DependencyObjects
+    Set DependencyObjects = this.DependencyObjects
 End Property
 
 Public Property Set DependencyObjects(ByVal RHS As Collection)
-    Set This.DependencyObjects = RHS
+    Set this.DependencyObjects = RHS
 End Property
 
 Public Property Get Parser() As FormulaParser
-    Set Parser = This.Parser
+    Set Parser = this.Parser
 End Property
 
 Public Property Set Parser(ByVal RHS As FormulaParser)
-    Set This.Parser = RHS
+    Set this.Parser = RHS
 End Property
 
 Private Sub CancelButton_Click()
     Logger.Log TRACE_LOG, "Enter ParamSelector.CancelButton_Click"
-    This.Parser.IsProcessTerminatedByUser = True
+    this.Parser.IsProcessTerminatedByUser = True
     Me.Hide
     Logger.Log TRACE_LOG, "Exit ParamSelector.CancelButton_Click"
 End Sub
@@ -68,7 +62,7 @@ Private Sub MakeOptionalButton_Click()
         ' Get the DependencyInfo object that matches the selected variable name
         Dim SelectedDependency As DependencyInfo
         Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                              , This.DependencyObjects)
+                                                              , this.DependencyObjects)
         SelectedDependency.IsOptional = (Index >= Me.ParametersListBox.ListIndex)
     Next Index
     
@@ -89,12 +83,13 @@ Private Sub MakeStepButton_Click()
     ' Get the DependencyInfo object that matches the selected variable name
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     ' Exclude the selected dependency from being treated as a parameter
     With SelectedDependency
         .IsLabelAsInputCell = False
         .IsDemotedFromParameterCellToLetStep = True
+        .IsUserMarkAsParameterCell = False
     End With
     
     ' Update the ParametersListBox after the exclusion
@@ -158,7 +153,7 @@ Private Sub ExcludeStepButton_Click()
             ' Get the DependencyInfo object that matches the selected variable name
             Dim SelectedDependency As DependencyInfo
             Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                                  , This.DependencyObjects)
+                                                                  , this.DependencyObjects)
     
             ' Mark the selected dependency as not being a Let statement by the user
             SelectedDependency.IsMarkAsNotLetStatementByUser = True
@@ -190,8 +185,8 @@ Private Sub RecalculateAndUpdateDependencyCollection()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.RecalculateAndUpdateDependencyCollection"
     ' Recalculate the precedence and update the DependencyObjects
-    This.Parser.RecalculatePrecedencyAgain This.DependencyObjects, LAMBDA_STATEMENT_GENERATION
-    Set This.DependencyObjects = This.Parser.PrecedencyExtractor.AllDependency
+    this.Parser.RecalculatePrecedencyAgain this.DependencyObjects, LAMBDA_STATEMENT_GENERATION
+    Set this.DependencyObjects = this.Parser.PrecedencyExtractor.AllDependency
     Logger.Log TRACE_LOG, "Exit ParamSelector.RecalculateAndUpdateDependencyCollection"
     
 End Sub
@@ -207,7 +202,7 @@ Private Sub ExpandButton_Click()
     ' Get the DependencyInfo object that matches the selected variable name
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     ' Mark the selected dependency as expanded by the user
     With SelectedDependency
@@ -234,7 +229,7 @@ Private Sub MakeParamButton_Click()
     ' Get the DependencyInfo object that matches the selected variable name
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     ' Mark the selected dependency as a parameter cell
     With SelectedDependency
@@ -260,7 +255,7 @@ Public Sub UpdateListBoxFromCollection()
     Logger.Log TRACE_LOG, "Enter ParamSelector.UpdateListBoxFromCollection"
     
     ' Update the ListBox with the Lambda preview based on the DependencyObjects
-    Me.Preview.Value = This.Parser.GetLambdaPreview(This.DependencyObjects)
+    Me.Preview.Value = this.Parser.GetLambdaPreview(this.DependencyObjects)
     
     ' Update the ParametersListBox
     UpdateParametersListBox
@@ -279,7 +274,7 @@ Private Sub UpdateSelectionIfForTheFirstTime()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.UpdateSelectionIfForTheFirstTime"
     ' If it's the first time, disable certain buttons and select the first item in a ListBox if available
-    If This.Counter = 0 Then
+    If this.Counter = 0 Then
         Me.ResetButton.Enabled = False
         Me.RenameParamButton.Enabled = False
         Me.MakeStepButton.Enabled = False
@@ -302,7 +297,7 @@ Private Sub UpdateSelectionIfForTheFirstTime()
         ' Enable the ResetButton after the first time
         Me.ResetButton.Enabled = True
     End If
-    This.Counter = This.Counter + 1
+    this.Counter = this.Counter + 1
     Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateSelectionIfForTheFirstTime"
     
 End Sub
@@ -312,8 +307,8 @@ Private Sub UpdateLetStepsListBox()
     Logger.Log TRACE_LOG, "Enter ParamSelector.UpdateLetStepsListBox"
     ' Update the LetStepsListBox with non-input Let steps' variable names and range references
     Dim VarsName As Variant
-    If This.Parser.IsLetNeededInLambda Then
-        VarsName = GetNonInputLetStepsVarNameAndRangeReference(This.DependencyObjects)
+    If this.Parser.IsLetNeededInLambda Then
+        VarsName = GetNonInputLetStepsVarNameAndRangeReference(this.DependencyObjects)
     End If
     
     ' Clear the ListBox if VarsName is not an array
@@ -335,7 +330,7 @@ Private Sub UpdateParametersListBox()
     
     ' Update the ParametersListBox with input cells' variable names and range references
     Dim VarsName As Variant
-    VarsName = GetInputCellsVarNameAndRangeReference(This.DependencyObjects)
+    VarsName = GetInputCellsVarNameAndRangeReference(this.DependencyObjects)
     
     ' Clear the ListBox if VarsName is not an array
     If Not IsArray(VarsName) Then
@@ -384,7 +379,11 @@ Private Sub SelectLastFocusRange(ByVal ForListBox As MSForms.ListBox)
     Dim FocusAbleRange As Range
     
     On Error Resume Next
-    Set FocusAbleRange = RangeResolver.GetRange(RangeReference)
+    If Is3DReference(RangeReference) Then
+        Set FocusAbleRange = RangeResolver.GetRange(GetStartSheetRangeRefIf3DRef(RangeReference))
+    Else
+        Set FocusAbleRange = RangeResolver.GetRange(RangeReference)
+    End If
     If FocusAbleRange.Address <> Selection.Address Then
         FocusAbleRange.Worksheet.Activate
         FocusAbleRange.Cells(1).Select
@@ -451,7 +450,7 @@ Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String)
     ' Get the DependencyInfo for the selected item
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     ' Prompt the user to enter a new name for the variable
     Dim NewName As String
@@ -482,8 +481,8 @@ Private Sub ResetButton_Click()
     Logger.Log TRACE_LOG, "Enter ParamSelector.ResetButton_Click"
     
     ' Reset the DependencyObjects to the initial state
-    Set This.DependencyObjects = This.Parser.DependencyDataForReset(LAMBDA_STATEMENT_GENERATION)
-    This.Counter = 0
+    Set this.DependencyObjects = this.Parser.DependencyDataForReset(LAMBDA_STATEMENT_GENERATION)
+    this.Counter = 0
     
     ' Recalculate and update the DependencyObjects
     RecalculateAndUpdateDependencyCollection
@@ -533,9 +532,16 @@ Private Sub StepsListBox_Change()
     SelectLastFocusRange Me.StepsListBox
     
     ' Disable the ValueButton and MakeParamButton if the last item is selected in the ListBox
-    If SelectedItemCount = 1 And Me.StepsListBox.ListIndex = Me.StepsListBox.ListCount - 1 Then
-        Me.ValueButton.Enabled = False
-        Me.MakeParamButton.Enabled = False
+    If SelectedItemCount = 1 Then
+        If Me.StepsListBox.ListIndex = Me.StepsListBox.ListCount - 1 Then
+            Me.ValueButton.Enabled = False
+            Me.MakeParamButton.Enabled = False
+        Else
+            Dim SelectedDependency As DependencyInfo
+            Set SelectedDependency = GetMatchingVarNameDependency(GetSelectedItemVarName(Me.StepsListBox) _
+                                                                  , this.DependencyObjects)
+            Me.ValueButton.Enabled = (Not SelectedDependency.Is3DRangeRef)
+        End If
     End If
     
     Logger.Log TRACE_LOG, "Exit ParamSelector.StepsListBox_Change"
@@ -582,22 +588,18 @@ Private Sub EnableOrDisableExpandButton(SelectedItemCount As Long)
     ' Get the DependencyInfo for the selected item
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     With SelectedDependency
         
         ' Check if the ExpandButton should be enabled or disabled based on the selected item's properties
-        If .IsUserMarkAsValue Then
+        If .IsUserMarkAsValue Or .Is3DRangeRef Then
             Me.ExpandButton.Enabled = False
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword ParamSelector.EnableOrDisableExpandButton"
-            Exit Sub
         ElseIf Not .IsInsideNamedRangeOrTable And Not .IsDemotedFromParameterCellToLetStep Then
             Me.ExpandButton.Enabled = False
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword ParamSelector.EnableOrDisableExpandButton"
-            Exit Sub
+        Else
+            Me.ExpandButton.Enabled = IsExpandAble(RangeResolver.GetRange(.RangeReference))
         End If
-        
-        Me.ExpandButton.Enabled = IsExpandAble(RangeResolver.GetRange(.RangeReference))
         
     End With
     
@@ -609,17 +611,17 @@ Private Sub UpButton_Click()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.UpButton_Click"
     ' In valid cases
-    If This.Counter = 0 Then Exit Sub
+    If this.Counter = 0 Then Exit Sub
     If Me.ParametersListBox.ListIndex <= 0 Then Exit Sub
     
     ' Get the selected and previous DependencyInfo items
     Dim SelectedItem As DependencyInfo
     Set SelectedItem = GetMatchingVarNameDependency(GetItemVarName(Me.ParametersListBox _
-    , Me.ParametersListBox.ListIndex), This.DependencyObjects)
+                                                                   , Me.ParametersListBox.ListIndex), this.DependencyObjects)
     
     Dim PreviousItem As DependencyInfo
     Set PreviousItem = GetMatchingVarNameDependency(GetItemVarName(Me.ParametersListBox _
-    , Me.ParametersListBox.ListIndex - 1), This.DependencyObjects)
+                                                                   , Me.ParametersListBox.ListIndex - 1), this.DependencyObjects)
     
     ' Check if the move is valid, and if not, show a message box
     If (SelectedItem.IsOptional And Not PreviousItem.IsOptional) Then
@@ -627,8 +629,8 @@ Private Sub UpButton_Click()
     End If
     
     ' Move the selected item up in the DependencyObjects
-    This.DependencyObjects.Remove SelectedItem.RangeReference
-    This.DependencyObjects.Add SelectedItem, SelectedItem.RangeReference, PreviousItem.RangeReference
+    this.DependencyObjects.Remove SelectedItem.RangeReference
+    this.DependencyObjects.Add SelectedItem, SelectedItem.RangeReference, PreviousItem.RangeReference
     
     ' Recalculate and update the DependencyObjects
     RecalculateAndUpdateDependencyCollection
@@ -643,18 +645,18 @@ Private Sub DownButton_Click()
 
     Logger.Log TRACE_LOG, "Enter ParamSelector.DownButton_Click"
     ' In valid cases
-    If This.Counter = 0 Then Exit Sub
+    If this.Counter = 0 Then Exit Sub
     If Me.ParametersListBox.ListIndex = -1 Then Exit Sub
     If Me.ParametersListBox.ListIndex = Me.ParametersListBox.ListCount - 1 Then Exit Sub
     
     ' Get the selected and next DependencyInfo items
     Dim SelectedItem As DependencyInfo
     Set SelectedItem = GetMatchingVarNameDependency(GetItemVarName(Me.ParametersListBox _
-    , Me.ParametersListBox.ListIndex), This.DependencyObjects)
+                                                                   , Me.ParametersListBox.ListIndex), this.DependencyObjects)
     
     Dim NextItem As DependencyInfo
     Set NextItem = GetMatchingVarNameDependency(GetItemVarName(Me.ParametersListBox _
-    , Me.ParametersListBox.ListIndex + 1), This.DependencyObjects)
+                                                               , Me.ParametersListBox.ListIndex + 1), this.DependencyObjects)
     
     ' If next item is option and we are moving down then make the SelectedItem optional as well.
     If (Not SelectedItem.IsOptional And NextItem.IsOptional) Then
@@ -662,8 +664,8 @@ Private Sub DownButton_Click()
     End If
     
     ' Move the selected item down in the DependencyObjects
-    This.DependencyObjects.Remove NextItem.RangeReference
-    This.DependencyObjects.Add NextItem, NextItem.RangeReference, SelectedItem.RangeReference
+    this.DependencyObjects.Remove NextItem.RangeReference
+    this.DependencyObjects.Add NextItem, NextItem.RangeReference, SelectedItem.RangeReference
     
     ' Update the ListBoxes based on the updated collection
     UpdateListBoxFromCollection
@@ -689,7 +691,7 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     Logger.Log TRACE_LOG, "Enter ParamSelector.UserForm_QueryClose"
     ' Hide the UserForm and set IsProcessTerminatedByUser to True on close by user
     If CloseMode = CloseBy.User Then
-        This.Parser.IsProcessTerminatedByUser = True
+        this.Parser.IsProcessTerminatedByUser = True
         Me.Hide
         Cancel = True
     End If
@@ -709,7 +711,7 @@ Private Sub ValueButton_Click()
     
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
     
     ' Check if the item is already marked as a "Value" step, if yes, exit the sub.
     If SelectedDependency.IsUserMarkAsValue Then Exit Sub
@@ -750,4 +752,5 @@ Private Sub ValueButton_Click()
     Logger.Log TRACE_LOG, "Exit ParamSelector.ValueButton_Click"
     
 End Sub
+
 

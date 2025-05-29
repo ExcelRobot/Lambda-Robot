@@ -121,7 +121,7 @@ End Sub
 Private Function GetLogFilePath() As String
     Dim LogFolder As String
     LogFolder = ThisWorkbook.Path & Application.PathSeparator _
-                & ThisWorkbook.name & ONE_SPACE & "Logs" & Application.PathSeparator
+                & ThisWorkbook.Name & ONE_SPACE & "Logs" & Application.PathSeparator
     CreateFolderIfNotExist LogFolder
     Dim LogFileName As String
     LogFileName = VBA.Format$(Date, "DD MMMM YYYY") & ".log"

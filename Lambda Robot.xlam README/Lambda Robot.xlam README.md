@@ -2,7 +2,7 @@
 
 \*\*Lambda Robot.xlam\*\* contains definitions for:
 
-[23 Robot Commands](#command-definitions)<BR>[13 Robot Parameters](#parameter-definitions)<BR>
+[27 Robot Commands](#command-definitions)<BR>[15 Robot Parameters](#parameter-definitions)<BR>
 
 <BR>
 
@@ -16,8 +16,11 @@
 | --- | --- |
 | [Audit Formula Steps](#audit-formula-steps) | Generate steps for each of the let variable calculation and place all LAMBDA parameters and mark them as input cell. |
 | [Cancel Lambda Edit](#cancel-lambda-edit) | Cancel any edits to Lambda definition in active cell and revert back to custom Lambda call. |
+| [Clear Input Cell Formatting](#clear-input-cell-formatting) | Sets background color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command. |
 | [Cycle LET Steps](#cycle-let-steps) | Cyclically change last steps of the let so that we can see different steps calculated value. |
-| [Edit Lambda](#edit-lambda) | Converts a custom Lambda function to it's definition for editing. |
+| [Disable Bo Mode](#disable-bo-mode) | Restores standard formatting rules for generated LET and LAMBDA statements. |
+| [Edit Lambda](#edit-lambda) | Converts a custom Lambda function to its definition for editing. |
+| [Enable Bo Mode](#enable-bo-mode) | Ensures generated LET and LAMBDA statements are as short as possible. |
 | [Generate Formula Dependency Info](#generate-formula-dependency-info) | Generates a table of formula dependency info for the active cell. The table is placed in first unused space to the right. |
 | [Generate Lambda Dependency List](#generate-lambda-dependency-list) | Generate list of Lambdas the ActiveCell formula is dependent on. |
 | [Generate Lambda Statement](#generate-lambda-statement) | Generate a Lambda statement based on formula precedents for the active cell and replace ActiveCell formula with generated one. |
@@ -26,6 +29,7 @@
 | [Lambda Properties](#lambda-properties) | Edit Lambda properties like Name, Author, Metadata, etc. |
 | [LAMBDA To LET](#lambda-to-let) | Convert ActiveCell Lambda formula to LET formula. |
 | [LET To LAMBDA](#let-to-lambda) | Convert ActiveCell LET formula to LAMBDA formula. |
+| [List Available Lambdas](#list-available-lambdas) | Create an Excel table for lambda parameters, comment, command name and command description. |
 | [Mark As Input Cells](#mark-as-input-cells) | Change selected cells background and font color to mark as input cells. |
 | [Mark Lambda As LET Step](#mark-lambda-as-let-step) | Create LETStep\_FX and LETStepRef\_FX named range for activecell formula so that we can use them for further calculation for generating lambda statement. |
 | [Paste Lambda Statement](#paste-lambda-statement) | Generate a Lambda statement in the active cell based on formula present in copied cell. |
@@ -41,7 +45,10 @@
 | Name | Description |
 | --- | --- |
 | [Audit Formula Steps](#audit-formula-steps) | Generate steps for each of the let variable calculation and place all LAMBDA parameters and mark them as input cell. |
+| [Clear Input Cell Formatting](#clear-input-cell-formatting) | Sets background color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command. |
 | [Cycle LET Steps](#cycle-let-steps) | Cyclically change last steps of the let so that we can see different steps calculated value. |
+| [Disable Bo Mode](#disable-bo-mode) | Restores standard formatting rules for generated LET and LAMBDA statements. |
+| [Enable Bo Mode](#enable-bo-mode) | Ensures generated LET and LAMBDA statements are as short as possible. |
 | [Generate Let Statement](#generate-let-statement) | Generate a Let statement based on formula precedents for the active cell and replace ActiveCell formula with generated LET. |
 | [LAMBDA To LET](#lambda-to-let) | Convert ActiveCell Lambda formula to LET formula. |
 | [LET To LAMBDA](#let-to-lambda) | Convert ActiveCell LET formula to LAMBDA formula. |
@@ -64,6 +71,8 @@
 | --- | --- |
 | [FormulaFormat\_AddPrefixOnParam](#formulaformat_addprefixonparam) | Add Let Var Prefix in the parameter as well or not. |
 | [FormulaFormat\_BoMode](#formulaformat_bomode) | Set formula formatting option as Bo does. |
+| [FormulaFormat\_ClearInputFormatting](#formulaformat_clearinputformatting) | Clear Input Cells formatting automatically on LAMBDA or LET generation |
+| [FormulaFormat\_IncludeResultStep](#formulaformat_includeresultstep) | Control creating step for final result of LAMBDA\/LET statement or not. |
 | [FormulaFormat\_IndentChar](#formulaformat_indentchar) | Indent Char option for Format Formula. |
 | [FormulaFormat\_IndentSize](#formulaformat_indentsize) | Indent Size option for Format Formula. |
 | [FormulaFormat\_LambdaParamStyle](#formulaformat_lambdaparamstyle) | Lambda Parameter naming convention. Allowed values are "Pascal", "Camel" or "Snake\_Case". |
@@ -90,7 +99,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modAuditLambdaSteps.GenerateLambdaSteps](./VBA/modAuditLambdaSteps.bas#L15)([[ActiveCell]],[[NewTableTargetToRight]])</code> |
+| Macro Expression | <code>[modAuditLambdaSteps.GenerateLambdaSteps](./VBA/modAuditLambdaSteps.bas#L15)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>afs</code> |
 
@@ -106,9 +115,24 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L610)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L678)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell AND ExcelActiveCellHasComment |
 | Launch Codes | <code>cle</code> |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### Clear Input Cell Formatting
+
+*Sets background color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA` `#LET`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modLambdaBuilder.ClearInputFormatting](./VBA/modLambdaBuilder.bas#L538)([Selection])</code> |
+| Launch Codes | <code>ci</code> |
 
 [^Top](#oa-robot-definitions)
 
@@ -130,9 +154,24 @@
 
 <BR>
 
+### Disable Bo Mode
+
+*Restores standard formatting rules for generated LET and LAMBDA statements.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA` `#LET`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modBOMode.DisableBoMode](./VBA/modBOMode.bas#L21)()</code> |
+| Launch Codes | <code>dbo</code> |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
 ### Edit Lambda
 
-*Converts a custom Lambda function to it's definition for editing.*
+*Converts a custom Lambda function to its definition for editing.*
 
 <sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA`</sup>
 
@@ -146,6 +185,21 @@
 
 <BR>
 
+### Enable Bo Mode
+
+*Ensures generated LET and LAMBDA statements are as short as possible.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA` `#LET`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modBOMode.EnableBoMode](./VBA/modBOMode.bas#L11)()</code> |
+| Launch Codes | <code>ebo</code> |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
 ### Generate Formula Dependency Info
 
 *Generates a table of formula dependency info for the active cell. The table is placed in first unused space to the right.*
@@ -154,7 +208,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateDependencyInfo](./VBA/modLambdaBuilder.bas#L18)([[ActiveCell]],[[NewTableTargetToRight]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateDependencyInfo](./VBA/modLambdaBuilder.bas#L21)([[ActiveCell]],[[NewTableTargetToRight]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -169,7 +223,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modDependencyFormulaReplacer.GenerateLambdaFormulaDependency](./VBA/modDependencyFormulaReplacer.bas#L58)([[ActiveCell]],[[NewTableTargetToRight]])</code> |
+| Macro Expression | <code>[modDependencyFormulaReplacer.GenerateLambdaFormulaDependency](./VBA/modDependencyFormulaReplacer.bas#L64)([[ActiveCell]],[[NewTableTargetToRight]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -184,7 +238,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L115)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L152)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>gl</code> |
 
@@ -200,7 +254,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateLetStatement](./VBA/modLambdaBuilder.bas#L59)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateLetStatement](./VBA/modLambdaBuilder.bas#L69)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>let</code> |
 
@@ -260,7 +314,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modAuditLambdaSteps.LambdaToLet](./VBA/modAuditLambdaSteps.bas#L48)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modAuditLambdaSteps.LambdaToLet](./VBA/modAuditLambdaSteps.bas#L58)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -275,8 +329,24 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.LetToLambda](./VBA/modLambdaBuilder.bas#L284)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.LetToLambda](./VBA/modLambdaBuilder.bas#L372)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### List Available Lambdas
+
+*Create an Excel table for lambda parameters, comment, command name and command description.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modListAvailableLambdas.ListAvailableLambdas](./VBA/modListAvailableLambdas.bas#L4)([ActiveCell])</code> |
+| User Context Filter | ExcelActiveCellIsEmpty AND ExcelSelectionIsSingleCell |
+| Launch Codes | <code>lal</code> |
 
 [^Top](#oa-robot-definitions)
 
@@ -290,7 +360,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.MarkAsInputCells](./VBA/modLambdaBuilder.bas#L590)([[Selection]],False)</code> |
+| Macro Expression | <code>[modLambdaBuilder.MarkAsInputCells](./VBA/modLambdaBuilder.bas#L521)([[Selection]],False)</code> |
 | Launch Codes | <code>i</code> |
 
 [^Top](#oa-robot-definitions)
@@ -305,7 +375,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.MarkLambdaAsLETStep](./VBA/modLambdaBuilder.bas#L607)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.MarkLambdaAsLETStep](./VBA/modLambdaBuilder.bas#L564)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula OR ExcelActiveCellIsSpillParent |
 
 [^Top](#oa-robot-definitions)
@@ -336,7 +406,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L115)([[Clipboard]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L152)([[Clipboard]],[[ActiveCell]])</code> |
 | User Context Filter | ClipboardHasExcelData AND ExcelCopiedRangeIsNotEmpty AND ExcelCopiedRangeIsSingleCell |
 | Launch Codes | <code>pl</code> |
 
@@ -352,7 +422,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L567)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L627)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -411,7 +481,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.SaveLambda](./VBA/modLambdaEditor.bas#L173)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.SaveLambda](./VBA/modLambdaEditor.bas#L181)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>sl</code> |
 
@@ -427,7 +497,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L462)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L479)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>sla</code> |
 
@@ -463,6 +533,36 @@
 | Property | Value |
 | --- | --- |
 | Default Value | <code>false</code> |
+| Data Type | Boolean |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### FormulaFormat\_ClearInputFormatting
+
+*Clear Input Cells formatting automatically on LAMBDA or LET generation*
+
+<sup>`@Lambda Robot.xlam` `!Default Parameter` </sup>
+
+| Property | Value |
+| --- | --- |
+| Default Value | <code>false</code> |
+| Data Type | Boolean |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### FormulaFormat\_IncludeResultStep
+
+*Control creating step for final result of LAMBDA\/LET statement or not.*
+
+<sup>`@Lambda Robot.xlam` `!Default Parameter` </sup>
+
+| Property | Value |
+| --- | --- |
+| Default Value | <code>true</code> |
 | Data Type | Boolean |
 
 [^Top](#oa-robot-definitions)

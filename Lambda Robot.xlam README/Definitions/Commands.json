@@ -8,7 +8,7 @@
       "LaunchCodes": [
         "afs"
       ],
-      "MacroExpression": "modAuditLambdaSteps.GenerateLambdaSteps([[ActiveCell]],[[NewTableTargetToRight]])",
+      "MacroExpression": "modAuditLambdaSteps.GenerateLambdaSteps([[ActiveCell]])",
       "Tags": [
         "LAMBDA",
         "LET"
@@ -28,6 +28,19 @@
       ]
     },
     {
+      "Name": "Clear Input Cell Formatting",
+      "Description": "Sets background color to no fill and font color to automatic. It does reverse of \"Mark As Input Cells\" command.",
+      "Type": "VBAMacroCommand",
+      "LaunchCodes": [
+        "ci"
+      ],
+      "MacroExpression": "modLambdaBuilder.ClearInputFormatting([Selection])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
       "Name": "Cycle LET Steps",
       "Description": "Cyclically change last steps of the let so that we can see different steps calculated value.",
       "Type": "VBAMacroCommand",
@@ -42,8 +55,21 @@
       ]
     },
     {
+      "Name": "Disable Bo Mode",
+      "Description": "Restores standard formatting rules for generated LET and LAMBDA statements.",
+      "Type": "VBAMacroCommand",
+      "LaunchCodes": [
+        "dbo"
+      ],
+      "MacroExpression": "modBOMode.DisableBoMode()",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
       "Name": "Edit Lambda",
-      "Description": "Converts a custom Lambda function to it's definition for editing.",
+      "Description": "Converts a custom Lambda function to its definition for editing.",
       "Type": "VBAMacroCommand",
       "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
       "LaunchCodes": [
@@ -52,6 +78,19 @@
       "MacroExpression": "modLambdaEditor.EditLambda([[ActiveCell]])",
       "Tags": [
         "LAMBDA"
+      ]
+    },
+    {
+      "Name": "Enable Bo Mode",
+      "Description": "Ensures generated LET and LAMBDA statements are as short as possible.",
+      "Type": "VBAMacroCommand",
+      "LaunchCodes": [
+        "ebo"
+      ],
+      "MacroExpression": "modBOMode.EnableBoMode()",
+      "Tags": [
+        "LAMBDA",
+        "LET"
       ]
     },
     {
@@ -149,6 +188,19 @@
       "Tags": [
         "LAMBDA",
         "LET"
+      ]
+    },
+    {
+      "Name": "List Available Lambdas",
+      "Description": "Create an Excel table for lambda parameters, comment, command name and command description.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellIsEmpty;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "lal"
+      ],
+      "MacroExpression": "modListAvailableLambdas.ListAvailableLambdas([ActiveCell])",
+      "Tags": [
+        "LAMBDA"
       ]
     },
     {

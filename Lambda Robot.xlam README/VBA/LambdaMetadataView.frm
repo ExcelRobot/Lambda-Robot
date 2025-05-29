@@ -27,54 +27,48 @@ Private Const METADATA_PAGE_LIST_BOX_NAME_PREFIX As String = "KeyValueMapHolderF
 Private Const METADATA_PAGE_UP_BUTTON_NAME_PREFIX As String = "UpButtonFor"
 Private Const METADATA_PAGE_DOWN_BUTTON_NAME_PREFIX As String = "DownButtonFor"
 
-Private Enum CloseBy
-    User = 0
-    Code = 1
-    WindowsOS = 2
-    TaskManager = 3
-End Enum
-
 Private Type TLambdaMetadata
     CrudOperator As ICRUD
     GivenPresenter As IPresenter
     IsChangeByCode As Boolean
+    NameTextBoxDefaultBackColor As Long
 End Type
 
-Private This  As TLambdaMetadata
+Private this  As TLambdaMetadata
 
 Public EventHandler As Collection
 
 Public Property Get CrudOperator() As ICRUD
-    Set CrudOperator = This.CrudOperator
+    Set CrudOperator = this.CrudOperator
 End Property
 
 Public Property Set CrudOperator(ByVal RHS As ICRUD)
-    Set This.CrudOperator = RHS
+    Set this.CrudOperator = RHS
 End Property
 
 Public Property Get CurrentPresenter() As IPresenter
-    Set CurrentPresenter = This.GivenPresenter
+    Set CurrentPresenter = this.GivenPresenter
 End Property
 
 Public Property Set CurrentPresenter(ByVal RHS As IPresenter)
-    Set This.GivenPresenter = RHS
+    Set this.GivenPresenter = RHS
 End Property
 
 Private Sub CancelButton_Click()
     Me.Hide
-    This.GivenPresenter.IsCancelled = True
+    this.GivenPresenter.IsCancelled = True
     Set EventHandler = Nothing
 End Sub
 
 Private Sub CommandNameTextBox_Change()
     
-    This.GivenPresenter.CommandName = Me.CommandNameTextBox.Value
+    this.GivenPresenter.CommandName = Me.CommandNameTextBox.Value
     
 End Sub
 
 Private Sub DescriptionTextBox_Change()
     
-    This.GivenPresenter.Description = Me.DescriptionTextBox.Value
+    this.GivenPresenter.Description = Me.DescriptionTextBox.Value
     
 End Sub
 
@@ -93,19 +87,19 @@ Private Sub DynamicDataHolder_Change()
         
         Case 2
             ' Apply CRUD operation on the Lambda Parameters group
-            This.CrudOperator.ApplyOperationOnGroup LAMBDA_PARAMETERS
+            this.CrudOperator.ApplyOperationOnGroup LAMBDA_PARAMETERS
         
         Case 3
             ' Apply CRUD operation on the Lambda Dependencies group
-            This.CrudOperator.ApplyOperationOnGroup LAMBDA_Dependencies
+            this.CrudOperator.ApplyOperationOnGroup LAMBDA_Dependencies
             
         Case 4
             ' Apply CRUD operation on the Custom Properties group
-            This.CrudOperator.ApplyOperationOnGroup CUSTOM_PROPERTIES
+            this.CrudOperator.ApplyOperationOnGroup CUSTOM_PROPERTIES
         
         Case 5
             ' Show the export preview in the PreviewViewer TextBox
-            Me.PreviewViewer.Value = This.GivenPresenter.GetExportPreview()
+            Me.PreviewViewer.Value = this.GivenPresenter.GetExportPreview()
             Me.PreviewViewer.SelStart = 0
             Me.PreviewViewer.SetFocus
     End Select
@@ -164,7 +158,7 @@ Private Sub AddAllEventHandler()
         Set CurrentPageHandler.UpArrowButton = Me.Controls(METADATA_PAGE_UP_BUTTON_NAME_PREFIX & CurrentSuffix)
         Set CurrentPageHandler.DownArrowButton = Me.Controls(METADATA_PAGE_DOWN_BUTTON_NAME_PREFIX & CurrentSuffix)
                 
-        Set CurrentPageHandler.CrudOperator = This.CrudOperator
+        Set CurrentPageHandler.CrudOperator = this.CrudOperator
         
         ' Add the PageHandler to the EventHandler collection with a unique key
         EventHandler.Add CurrentPageHandler, METADATA_PAGE_NEW_BUTTON_NAME_PREFIX & CurrentSuffix
@@ -183,11 +177,11 @@ Public Sub UpdateView()
     If IsNothing(EventHandler) Then AddAllEventHandler
     
     ' Set values in text boxes with the current metadata information
-    Me.NameTextBox.Value = This.GivenPresenter.LambdaName
-    Me.CommandNameTextBox.Value = This.GivenPresenter.CommandName
-    Me.DescriptionTextBox.Value = This.GivenPresenter.Description
-    Me.SourceNameTextBox.Value = This.GivenPresenter.SourceName
-    Me.GistURLTextBox.Value = This.GivenPresenter.GistURL
+    Me.NameTextBox.Value = this.GivenPresenter.LambdaName
+    Me.CommandNameTextBox.Value = this.GivenPresenter.CommandName
+    Me.DescriptionTextBox.Value = this.GivenPresenter.Description
+    Me.SourceNameTextBox.Value = this.GivenPresenter.SourceName
+    Me.GistURLTextBox.Value = this.GivenPresenter.GistURL
     
     ' Update the overview and all list boxes in the view
     UpdateOverView
@@ -211,14 +205,14 @@ Private Sub UpdateAllListBox()
         
         CurrentGroup = Groups(Counter)
         ' Apply CRUD operation on the current metadata group
-        This.CrudOperator.ApplyOperationOnGroup CurrentGroup
+        this.CrudOperator.ApplyOperationOnGroup CurrentGroup
         
         ' Clear the list box to avoid duplicate entries
         Me.Controls(METADATA_PAGE_LIST_BOX_NAME_PREFIX & CurrentSuffix).Clear
         
         ' Read all the data for the current group and populate the list box
         Dim AllData As Variant
-        AllData = This.CrudOperator.ReadAll
+        AllData = this.CrudOperator.ReadAll
         If IsArray(AllData) Then
             Me.Controls(METADATA_PAGE_LIST_BOX_NAME_PREFIX & CurrentSuffix).List = AllData
             TryAdaptingScrollBarHeight Me.Controls(METADATA_PAGE_LIST_BOX_NAME_PREFIX & CurrentSuffix)
@@ -230,7 +224,7 @@ Private Sub UpdateAllListBox()
 End Sub
 
 Private Sub UpdateOverView()
-    Me.OverViewTextBox.Value = This.GivenPresenter.GetOverview
+    Me.OverViewTextBox.Value = this.GivenPresenter.GetOverview
 End Sub
 
 Private Sub ExpandCollapseToggle_Click()
@@ -284,7 +278,7 @@ Private Sub GistButton_Click()
     
     ' Generate the Gist for the given presenter
     Logger.Log TRACE_LOG, "Enter LambdaMetadataView.GistButton_Click"
-    This.GivenPresenter.GenerateGist
+    this.GivenPresenter.GenerateGist
     
     ' Display a message indicating that the Gist has been copied to clipboard
     Me.ExportProgressLabel.Caption = "Gist has been copied to clipboard"
@@ -300,27 +294,27 @@ Private Sub GistButton_Click()
 End Sub
 
 Private Sub GistURLTextBox_Change()
-    This.GivenPresenter.GistURL = Me.GistURLTextBox.Value
+    this.GivenPresenter.GistURL = Me.GistURLTextBox.Value
 End Sub
 
 Private Sub NameTextBox_Change()
     
-    If This.IsChangeByCode Then Exit Sub
-    This.IsChangeByCode = True
-    This.GivenPresenter.LambdaName = Me.NameTextBox.Value
-    This.IsChangeByCode = False
+    If this.IsChangeByCode Then Exit Sub
+    this.IsChangeByCode = True
+    this.GivenPresenter.LambdaName = Me.NameTextBox.Value
+    this.IsChangeByCode = False
     
 End Sub
 
 Private Sub OkButton_Click()
 
     Logger.Log TRACE_LOG, "Inside LambdaMetadataView.OkButton_Click"
-    This.GivenPresenter.UpdateMetadataInFormula
+    this.GivenPresenter.UpdateMetadataInFormula
     
 End Sub
 
 Private Sub SourceNameTextBox_Change()
-    This.GivenPresenter.SourceName = Me.SourceNameTextBox.Value
+    this.GivenPresenter.SourceName = Me.SourceNameTextBox.Value
 End Sub
 
 Private Sub InitializeView(ByVal View As LambdaMetadataView)
@@ -357,6 +351,7 @@ End Sub
 Private Sub UserForm_Initialize()
     Me.NewKeyValuePairButtonForParameters.Visible = False
     Me.DeleteKeyValuPairButtonForParameters.Visible = False
+    this.NameTextBoxDefaultBackColor = Me.NameTextBox.BackColor
 End Sub
 
 Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)

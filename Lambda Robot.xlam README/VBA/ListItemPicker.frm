@@ -17,54 +17,48 @@ Attribute VB_Exposed = False
 
 
 Option Explicit
-Private Enum CloseBy
-    User = 0
-    Code = 1
-    WindowsOS = 2
-    TaskManager = 3
-End Enum
 
 Private Type TListItemPicker
     SelectedItem As Variant
     UnSelectedItems As Variant
 End Type
 
-Private This As TListItemPicker
+Private this As TListItemPicker
 
 Public Property Get UnSelectedItems() As Variant
     
-    If IsObject(This.UnSelectedItems) Then
-        Set UnSelectedItems = This.UnSelectedItems
+    If IsObject(this.UnSelectedItems) Then
+        Set UnSelectedItems = this.UnSelectedItems
     Else
-        UnSelectedItems = This.UnSelectedItems
+        UnSelectedItems = this.UnSelectedItems
     End If
     
 End Property
 
 Public Property Let UnSelectedItems(ByVal RHS As Variant)
-    This.UnSelectedItems = RHS
+    this.UnSelectedItems = RHS
 End Property
 
 Public Property Set UnSelectedItems(ByVal RHS As Variant)
-    Set This.UnSelectedItems = RHS
+    Set this.UnSelectedItems = RHS
 End Property
 
 Public Property Get SelectedItem() As Variant
     
-    If IsObject(This.SelectedItem) Then
-        Set SelectedItem = This.SelectedItem
+    If IsObject(this.SelectedItem) Then
+        Set SelectedItem = this.SelectedItem
     Else
-        SelectedItem = This.SelectedItem
+        SelectedItem = this.SelectedItem
     End If
     
 End Property
 
 Public Property Let SelectedItem(ByVal RHS As Variant)
-    This.SelectedItem = RHS
+    this.SelectedItem = RHS
 End Property
 
 Public Property Set SelectedItem(ByVal RHS As Variant)
-    Set This.SelectedItem = RHS
+    Set this.SelectedItem = RHS
 End Property
 
 Private Sub CancelButton_Click()

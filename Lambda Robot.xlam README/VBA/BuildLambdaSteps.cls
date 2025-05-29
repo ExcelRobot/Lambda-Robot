@@ -31,22 +31,34 @@ Private Type TBuildLambdaSteps
     LambdaName As String
     LambdaCalculationPart As String
     FormulaToAudit As String
+    ResultBeforeCommand As Variant
+    ResultAfterCommand As Variant
+    UsedRangeRequiredFXsName As Collection
+    InvocationCellTableName As String
 End Type
+Private this As TBuildLambdaSteps
 
-Private This As TBuildLambdaSteps
+Public Property Get InvocationCellTableName() As String
+    InvocationCellTableName = this.InvocationCellTableName
+End Property
+
+Public Property Let InvocationCellTableName(ByVal RHS As String)
+    this.InvocationCellTableName = RHS
+End Property
 
 Public Property Get ReasonToBeNotValid() As String
-    ReasonToBeNotValid = This.ReasonToBeNotValid
+    ReasonToBeNotValid = this.ReasonToBeNotValid
 End Property
 
 Public Property Get LambdaInvocationCell() As Range
-    Set LambdaInvocationCell = This.LambdaInvocationCell
+    Set LambdaInvocationCell = this.LambdaInvocationCell
 End Property
 
 Public Property Set LambdaInvocationCell(ByVal RHS As Range)
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.LambdaInvocationCell"
-    Set This.LambdaInvocationCell = RHS
+    Set this.LambdaInvocationCell = RHS
+    this.ResultBeforeCommand = GetFormulaResult(RHS)
     UpdateBasicStats RHS
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.LambdaInvocationCell"
     
@@ -56,12 +68,14 @@ Private Sub UpdateBasicStats(ByRef LambdaInvocationCell As Range)
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.UpdateBasicStats"
     Dim FormulaText As String
-    FormulaText = LambdaInvocationCell.Formula2
+    FormulaText = GetCellFormula(LambdaInvocationCell)
     If Not IsStartingFormulaIsTheEntireFormula(FormulaText) Then
-        This.CellFunctionType = OTHER_FUNCTION_OR_BLANK
+        this.CellFunctionType = OTHER_FUNCTION_OR_BLANK
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword BuildLambdaSteps.UpdateBasicStats"
         Exit Sub
     End If
+    
+    Set this.UsedRangeRequiredFXsName = GetUsedRangeRequiredFXsName(FormulaText)
     
     Dim FunctionName As String
     FunctionName = modUtility.ExtractStartFormulaName(FormulaText)
@@ -69,21 +83,21 @@ Private Sub UpdateBasicStats(ByRef LambdaInvocationCell As Range)
     ' Identifying the function type and setting up the function definition
     Select Case FunctionName
         Case LET_FX_NAME
-            This.CellFunctionType = LET_IN_CELL
+            this.CellFunctionType = LET_IN_CELL
             FunctionDef = FormulaText
         Case LAMBDA_FX_NAME
-            This.CellFunctionType = LAMBDA_IN_CELL
+            this.CellFunctionType = LAMBDA_IN_CELL
             FunctionDef = FormulaText
-            This.LambdaName = modUtility.GetOldNameFromComment(LambdaInvocationCell, LAMBDA_NAME_NOTE_PREFIX)
+            this.LambdaName = modUtility.GetOldNameFromComment(LambdaInvocationCell, LAMBDA_NAME_NOTE_PREFIX)
         Case Else
             FunctionDef = GetFunctionDefFromNamedRange(FunctionName, FormulaText)
             
     End Select
     
-    If This.CellFunctionType = OTHER_FUNCTION_OR_BLANK Then Exit Sub
-    This.FormulaToAudit = FunctionDef
-    If This.CellFunctionType = LAMBDA_FROM_NAME_MANAGER _
-       Or This.CellFunctionType = LAMBDA_IN_CELL Then
+    If this.CellFunctionType = OTHER_FUNCTION_OR_BLANK Then Exit Sub
+    this.FormulaToAudit = FunctionDef
+    If this.CellFunctionType = LAMBDA_FROM_NAME_MANAGER _
+       Or this.CellFunctionType = LAMBDA_IN_CELL Then
         UpdateLambdaArgumentsName FunctionDef
     End If
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.UpdateBasicStats"
@@ -96,28 +110,33 @@ Private Function GetFunctionDefFromNamedRange(ByVal FunctionName As String _
      
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.GetFunctionDefFromNamedRange"
     Dim FunctionDef As String
-    Dim CurrentName As name
+    Dim CurrentName As Name
     On Error Resume Next
     Set CurrentName = LambdaInvocationCell.Worksheet.Parent.Names.Item(FunctionName)
     On Error GoTo 0
     ' Checking if the function type is neither Lambda nor Let
     If IsNothing(CurrentName) Then
-        This.CellFunctionType = OTHER_FUNCTION_OR_BLANK
-        This.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
+        this.CellFunctionType = OTHER_FUNCTION_OR_BLANK
+        this.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
     Else
         Dim RefersTo As String
         RefersTo = CurrentName.RefersTo
         '                WriteStringToTextFile RefersTo, ActiveWorkbook.Path & "\temp.txt"
         FunctionName = ExtractStartFormulaName(RefersTo)
         If IsLambdaFunction(RefersTo) Or IsLetFunction(RefersTo) Then
-            This.LambdaName = CurrentName.name
-            This.CellFunctionType = LAMBDA_FROM_NAME_MANAGER
-            FunctionDef = Replace(FormulaText _
-                                  , CurrentName.name _
-                                   , Text.RemoveFromStartIfPresent(RefersTo, EQUAL_SIGN))
+            
+            this.LambdaName = CurrentName.Name
+            this.CellFunctionType = LAMBDA_FROM_NAME_MANAGER
+            RefersTo = Text.RemoveFromStartIfPresent(RefersTo, EQUAL_SIGN)
+            If IsLocalScopeNamedRange(CurrentName.Name) Then
+                FunctionDef = Replace(FormulaText, CurrentName.Name, RefersTo)
+                FunctionDef = Replace(FunctionDef, ExtractNameFromLocalNameRange(CurrentName.Name), RefersTo)
+            Else
+                FunctionDef = Replace(FormulaText, CurrentName.NameLocal, RefersTo)
+            End If
         Else
-            This.CellFunctionType = OTHER_FUNCTION_OR_BLANK
-            This.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
+            this.CellFunctionType = OTHER_FUNCTION_OR_BLANK
+            this.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
         End If
     End If
     GetFunctionDefFromNamedRange = FunctionDef
@@ -134,7 +153,7 @@ Private Sub UpdateLambdaArgumentsName(ByVal FormulaText As String)
     Dim FirstColumnIndex  As Long
     FirstColumnIndex = LBound(LambdaParts, 2)
     
-    This.LambdaCalculationPart = LambdaParts(UBound(LambdaParts, 1), FirstColumnIndex)
+    this.LambdaCalculationPart = LambdaParts(UBound(LambdaParts, 1), FirstColumnIndex)
 
     Dim CurrentRowIndex As Long
     Dim CurrentArgumentName As String
@@ -151,7 +170,7 @@ Private Sub UpdateLambdaArgumentsName(ByVal FormulaText As String)
         ArgumentInvocation = LambdaParts(CurrentRowIndex, FirstColumnIndex + LAMBDA_PARTS_VALUE_COL_INDEX - 1)
         
         ' Store the cleaned argument name
-        This.LambdaArgumentsName.Add Mapper.Create(CurrentArgumentName, ArgumentInvocation), CurrentArgumentName
+        this.LambdaArgumentsName.Add Mapper.Create(CurrentArgumentName, ArgumentInvocation), CurrentArgumentName
         
     Next CurrentRowIndex
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.UpdateLambdaArgumentsName"
@@ -159,11 +178,11 @@ Private Sub UpdateLambdaArgumentsName(ByVal FormulaText As String)
 End Sub
 
 Public Property Get StepStartCell() As Range
-    Set StepStartCell = This.StepStartCell
+    Set StepStartCell = this.StepStartCell
 End Property
 
 Public Property Set StepStartCell(ByVal RHS As Range)
-    Set This.StepStartCell = RHS
+    Set this.StepStartCell = RHS
 End Property
 
 ' @EntryPoint
@@ -178,6 +197,13 @@ Public Function Create(ByRef GivenLambdaInvocationCell As Range _
     ' Initialize instance with given inputs
     With CurrentBuildLambdaSteps
         Set .LambdaInvocationCell = GivenLambdaInvocationCell
+        
+        If IsInsideTable(GivenLambdaInvocationCell) Then
+            .InvocationCellTableName = GivenLambdaInvocationCell.ListObject.Name
+        Else
+            .InvocationCellTableName = vbNullString
+        End If
+        
         Set .StepStartCell = GivenStepStartCell
     End With
     
@@ -193,9 +219,9 @@ Public Sub ConstructSteps()
     ' Start of ConstructSteps procedure
 
     ' Checking if the cell function type is other or blank
-    If This.CellFunctionType = OTHER_FUNCTION_OR_BLANK Then
+    If this.CellFunctionType = OTHER_FUNCTION_OR_BLANK Then
         ' Displaying a message box if there's no LET or LAMBDA functions
-        MsgBox "Unable to deconstruct formula steps. " & This.LambdaInvocationCell.Address(False, False) _
+        MsgBox "Unable to deconstruct formula steps. " & this.LambdaInvocationCell.Address(False, False) _
                & " has no " & LET_FX_NAME & " or " & LAMBDA_FX_NAME _
                & " functions or formula has extra part.", vbExclamation + vbOKOnly, APP_NAME
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword BuildLambdaSteps.ConstructSteps"
@@ -203,52 +229,54 @@ Public Sub ConstructSteps()
     End If
     
     ' Deleting LET step named ranges having error
-    DeleteLETStepNamedRangesHavingError This.StepStartCell.Worksheet.Parent
+    DeleteLETStepNamedRangesHavingError this.StepStartCell.Worksheet.Parent
     Dim PutOnCell As Range
-    Set PutOnCell = This.StepStartCell.Offset(1, 0)
+    Set PutOnCell = this.StepStartCell
     
     Dim HeadersRange As Range
     ' If it is lambda either in cell or in name manager.
-    If This.CellFunctionType = LAMBDA_FROM_NAME_MANAGER Or This.CellFunctionType = LAMBDA_IN_CELL Then
+    If this.CellFunctionType = LAMBDA_FROM_NAME_MANAGER Or this.CellFunctionType = LAMBDA_IN_CELL Then
         AuditLambdaParameters PutOnCell, HeadersRange
         ' update formula part that we need to audit
-        This.FormulaToAudit = EQUAL_SIGN & This.LambdaCalculationPart
+        this.FormulaToAudit = EQUAL_SIGN & this.LambdaCalculationPart
     End If
     
     Dim CellReference As String
     
-    This.LetParts = GetDependencyFunctionResult(This.FormulaToAudit, LET_PARTS, True)
+    this.LetParts = GetDependencyFunctionResult(this.FormulaToAudit, LET_PARTS, True)
     
-    If Not IsArrayAllocated(This.LetParts) Then
+    If Not IsArrayAllocated(this.LetParts) Then
         PlaceStepFormula PutOnCell, HeadersRange, CellReference _
-                                                 , EQUAL_SIGN & This.LambdaCalculationPart _
+                                                 , EQUAL_SIGN & this.LambdaCalculationPart _
                                                   , LAST_STEP_NAME, False
         Dim LetVarName As String
-        This.VarNameVsCalculationAreaMap.Add Mapper.Create(LetVarName, CellReference), LetVarName
-        FormatAndMoveWindowToLastCell This.StepStartCell, PutOnCell.Address
+        this.VarNameVsCalculationAreaMap.Add Mapper.Create(LetVarName, CellReference), LetVarName
+        FormatAndMoveWindowToLastCell this.StepStartCell, PutOnCell.Address
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword BuildLambdaSteps.ConstructSteps"
         Exit Sub
     End If
     
     ' Iterating through the LetParts array
     Dim CurrentRowIndex As Long
-    For CurrentRowIndex = LBound(This.LetParts, 1) To UBound(This.LetParts, 1)
+    For CurrentRowIndex = LBound(this.LetParts, 1) To UBound(this.LetParts, 1)
         
         Dim CalculationFunction As String
         UpdateLetVarNameAndCalculation LetVarName, CalculationFunction, CurrentRowIndex
-        PlaceStepFormula PutOnCell, HeadersRange, CellReference, CalculationFunction, LetVarName
-
-        ' If we have same LET Step name like param for sanitization purpose or for default value then use updated cell ref.
-        ' Check if the collection contains LetVarName
-        If IsExistInCollection(This.VarNameVsCalculationAreaMap, LetVarName) Then
-            ' If it does, remove it
-            This.VarNameVsCalculationAreaMap.Remove LetVarName
-        ElseIf IsExistInCollection(This.LambdaArgumentsName, LetVarName) Then
-            ' If LetVarName is found in LambdaArgumentsName, add it to LambdaArgumentsRefCell
-            This.LambdaArgumentsRefCell.Add CellReference, LetVarName
+        If Not IsMetadataLetVarName(LetVarName) Then
+            PlaceStepFormula PutOnCell, HeadersRange, CellReference, CalculationFunction, LetVarName
+    
+            ' If we have same LET Step name like param for sanitization purpose or for default value then use updated cell ref.
+            ' Check if the collection contains LetVarName
+            If IsExistInCollection(this.VarNameVsCalculationAreaMap, LetVarName) Then
+                ' If it does, remove it
+                this.VarNameVsCalculationAreaMap.Remove LetVarName
+            ElseIf IsExistInCollection(this.LambdaArgumentsName, LetVarName) Then
+                ' If LetVarName is found in LambdaArgumentsName, add it to LambdaArgumentsRefCell
+                this.LambdaArgumentsRefCell.Add CellReference, LetVarName
+            End If
+            ' Add LetVarName to VarNameVsCalculationAreaMap regardless of the above conditions
+            this.VarNameVsCalculationAreaMap.Add Mapper.Create(LetVarName, CellReference), LetVarName
         End If
-        ' Add LetVarName to VarNameVsCalculationAreaMap regardless of the above conditions
-        This.VarNameVsCalculationAreaMap.Add Mapper.Create(LetVarName, CellReference), LetVarName
         
     Next CurrentRowIndex
     FormatAndMoveWindowToLastCell HeadersRange, CellReference
@@ -262,20 +290,21 @@ Private Sub AuditLambdaParameters(ByRef PutOnCell As Range, ByRef HeadersRange A
     Dim CurrentParam As Mapper
     Dim CalculationFunction As String
     Dim CellReference As String
-    For Each CurrentParam In This.LambdaArgumentsName
+    For Each CurrentParam In this.LambdaArgumentsName
         PlaceStepFormula PutOnCell, HeadersRange, CellReference, CurrentParam.Value, CurrentParam.Key
-        This.LambdaArgumentsRefCell.Add CellReference, CurrentParam.Key
-        This.VarNameVsCalculationAreaMap.Add Mapper.Create(CurrentParam.Key, CellReference), CurrentParam.Key
+        this.LambdaArgumentsRefCell.Add CellReference, CurrentParam.Key
+        this.VarNameVsCalculationAreaMap.Add Mapper.Create(CurrentParam.Key, CellReference), CurrentParam.Key
     Next CurrentParam
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.AuditLambdaParameters"
     
 End Sub
 
-Private Sub PlaceStepFormula(ByRef PutOnCell, ByRef HeadersRange As Range _
-                                             , ByRef CellReference As String _
-                                              , ByVal CalculationFunction As String _
-                                               , ByVal VarName As String _
-                                                , Optional UpdatePutOnCellRef As Boolean = True)
+Private Sub PlaceStepFormula(ByRef PutOnCell As Range _
+                             , ByRef HeadersRange As Range _
+                              , ByRef CellReference As String _
+                               , ByVal CalculationFunction As String _
+                                , ByVal VarName As String _
+                                 , Optional UpdatePutOnCellRef As Boolean = True)
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.PlaceStepFormula"
     ' Setting the cell value
@@ -306,14 +335,16 @@ Private Sub PlaceStepFormula(ByRef PutOnCell, ByRef HeadersRange As Range _
         ' Checking if the calculation function is a formula
     Else
         Dim Formula As String
-        Formula = UpdateForPreviousLetVar(CalculationFunction, This.VarNameVsCalculationAreaMap)
+        Formula = UpdateForPreviousLetVar(CalculationFunction, this.VarNameVsCalculationAreaMap)
         ' Updating the formula of the cell
-        PutOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(UpdateForIsOmitted(Formula))
-'        Debug.Assert PutOnCell.Offset(-1, 0).Value <> "AllPaths"
+        Formula = ReplaceInvalidCharFromFormulaWithValid(UpdateForIsOmitted(Formula))
+        Formula = QualifyImplicitColRef(Formula, this.InvocationCellTableName)
+        '        Debug.Assert PutOnCell.Offset(-1, 0).Value <> "AllPaths"
+        PutOnCell.Formula2 = Formula
         PutOnCell.Calculate
         ' Handling cases where the formula is a lambda
         If PutOnCell.Text = CALC_ERR_KEYWORD And IsLambdaFunction(EQUAL_SIGN & CalculationFunction) Then
-            Formula = UpdateForPreviousLetVar(CalculationFunction, This.VarNameVsCalculationAreaMap, True)
+            Formula = UpdateForPreviousLetVar(CalculationFunction, this.VarNameVsCalculationAreaMap, True)
             Formula = UpdateForIsOmitted(Formula)
             Dim Prefix As String
             Prefix = LETSTEP_PREFIX & IIf(Text.IsStartsWith(VarName, UNDER_SCORE), vbNullString, UNDER_SCORE)
@@ -339,17 +370,51 @@ Private Sub PlaceStepFormula(ByRef PutOnCell, ByRef HeadersRange As Range _
     
 End Sub
 
+Private Function QualifyImplicitColRef(ByVal Formula As String, ByVal DefaultTableName As String) As String
+    
+    Dim Result As String
+    Result = Formula
+    If DefaultTableName <> vbNullString Then
+        
+        Dim DirectPrecedents As Variant
+        DirectPrecedents = modDependencyLambdaResult.GetDirectPrecedents(Formula, this.LambdaInvocationCell.Worksheet)
+            
+        Dim CurrentPrecedent As Variant
+        For Each CurrentPrecedent In DirectPrecedents
+            If Text.IsStartsWith(CurrentPrecedent, "[@") And Text.IsEndsWith(CurrentPrecedent, "]") Then
+                Result = ReplaceTokenWithNewToken(Result, CurrentPrecedent, DefaultTableName & CurrentPrecedent)
+            End If
+        Next CurrentPrecedent
+        
+    End If
+    
+    QualifyImplicitColRef = Result
+
+End Function
+
 Private Sub FormatAndMoveWindowToLastCell(ByVal HeadersRange As Range, CellReference As String)
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.FormatAndMoveWindowToLastCell"
     MarkAllInputCells
     HeadersRange.Font.Bold = True
-    modUtility.AutoFitRange HeadersRange, 50, 8
-    MoveColumnToRightOfScreen LambdaInvocationCell.Worksheet.Range(CellReference).Cells(1)
+    modUtility.AutoFitRange HeadersRange, MaximumColumnWidth:=50, MinimumColumnWidth:=8
+    
+    Dim EndCalcCell As Range
+    Set EndCalcCell = LambdaInvocationCell.Worksheet.Range(CellReference).Cells(1)
+    
+
+    this.ResultAfterCommand = GetFormulaResult(EndCalcCell)
+    
+    ShowAlertIfBeforeAndAfterCommandResultIsDifferent this.ResultBeforeCommand _
+                                                      , this.ResultAfterCommand _
+                                                       , "Audit Formula Steps" _
+                                                        , GetAFSCommandRangeRequiredFXAlertMessage(this.UsedRangeRequiredFXsName)
+    
+    MoveColumnToRightOfScreen EndCalcCell
     If Not Application.ScreenUpdating Then Application.ScreenUpdating = True
-    If This.LambdaName <> vbNullString Then
+    If this.LambdaName <> vbNullString Then
         UpdateOrAddLambdaNameNote LambdaInvocationCell.Worksheet.Range(CellReference).Cells(1) _
-                                  , This.LambdaName, LAMBDA_NAME_AUDIT_PREFIX
+                                  , this.LambdaName, LAMBDA_NAME_AUDIT_PREFIX
     End If
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.FormatAndMoveWindowToLastCell"
     
@@ -361,20 +426,20 @@ Private Sub UpdateLetVarNameAndCalculation(ByRef LetVarName As String, ByRef Cal
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.UpdateLetVarNameAndCalculation"
     Dim FirstColIndex As Long
-    FirstColIndex = LBound(This.LetParts, 2)
+    FirstColIndex = LBound(this.LetParts, 2)
     ' Cleaning the variable name
-    LetVarName = modUtility.CleanVarName(CStr(This.LetParts(CurrentRowIndex, FirstColIndex)))
-    CalculationFunction = This.LetParts(CurrentRowIndex _
+    LetVarName = modUtility.CleanVarName(CStr(this.LetParts(CurrentRowIndex, FirstColIndex)))
+    CalculationFunction = this.LetParts(CurrentRowIndex _
                                         , FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1)
         
     ' Checking for the last step
-    If CurrentRowIndex = UBound(This.LetParts, 1) Then
+    If CurrentRowIndex = UBound(this.LetParts, 1) Then
         ' Making changes to variable name and calculation function for the last step
         CalculationFunction = LetVarName
-        If LetVarName = modUtility.CleanVarName(CStr(This.LetParts(CurrentRowIndex - 1, FirstColIndex))) Then
+        If LetVarName = modUtility.CleanVarName(CStr(this.LetParts(CurrentRowIndex - 1, FirstColIndex))) Then
             LetVarName = vbNullString
         Else
-            LetVarName = modUtility.FindUniqueNameByIncrementingNumber(This.VarNameVsCalculationAreaMap, LAST_STEP_NAME)
+            LetVarName = modUtility.FindUniqueNameByIncrementingNumber(this.VarNameVsCalculationAreaMap, LAST_STEP_NAME)
         End If
     End If
     
@@ -393,12 +458,12 @@ Private Sub CreateLETStepNames(ByVal PutOnCell As Range, ByVal Prefix As String 
     Set AddToSheet = PutOnCell.Worksheet
     
     Dim QualifiedSheetName As String
-    QualifiedSheetName = GetSheetRefForRangeReference(AddToSheet.name, False)
+    QualifiedSheetName = GetSheetRefForRangeReference(AddToSheet.Name, False)
     
     Dim LetStepFXName As String
     LetStepFXName = Prefix & LetVarName
     ' Check if a named range exists with the same name as LetStepFxName
-    If IsLocalScopedNamedRangeExist(AddToSheet, LetStepFXName) Then
+    If Context.IsLocalScopedNamedRangeExist(AddToSheet, LetStepFXName) Then
         ' If it does exist, delete it
         AddToSheet.Names(QualifiedSheetName & LetStepFXName).Delete
     End If
@@ -410,7 +475,7 @@ Private Sub CreateLETStepNames(ByVal PutOnCell As Range, ByVal Prefix As String 
     Dim LetStepRefName As String
     LetStepRefName = VBA.Replace(LetStepFXName, LETSTEP_UNDERSCORE_PREFIX, LETSTEPREF_UNDERSCORE_PREFIX)
     ' Check if a named range exists with the same name as LetStepRefName
-    If IsLocalScopedNamedRangeExist(AddToSheet, LetStepRefName) Then
+    If Context.IsLocalScopedNamedRangeExist(AddToSheet, LetStepRefName) Then
         ' If it does exist, delete it
         AddToSheet.Names(QualifiedSheetName & LetStepRefName).Delete
     End If
@@ -427,14 +492,14 @@ Private Sub MarkAllInputCells()
     Dim CellReference As Variant
     Dim CurrentInputCells As Range
     ' Iterate over all references in the LambdaArgumentsRefCell collection
-    For Each CellReference In This.LambdaArgumentsRefCell
+    For Each CellReference In this.LambdaArgumentsRefCell
         'If it is a lambda cell then use that.
         If Text.IsStartsWith(CStr(CellReference), LETSTEP_PREFIX) Then
             CellReference = Replace(CellReference, LETSTEP_PREFIX, LETSTEPREF_PREFIX, , 1)
         End If
         
         ' Get the range for the current cell reference
-        Set CurrentInputCells = This.LambdaInvocationCell.Worksheet.Range(CStr(CellReference))
+        Set CurrentInputCells = this.LambdaInvocationCell.Worksheet.Range(CStr(CellReference))
         ' Set the font color for the cells in the current range
         CurrentInputCells.Font.Color = FONT_COLOR_INDEX
         ' Mark the current range as input cells
@@ -461,7 +526,7 @@ Private Function UpdateForPreviousLetVar(ByVal CalculationFunction As String _
         ' If it is LETStep_FUNCTION then value will hold the named range name. So no need to check for range.
         If Not IsStartsWithLetStepPrefix(CurrentMapper.Value) Then
             CellRef = ConvertFormulaToRef(CellRef, UseAbsoluteRangeRef _
-                                                  , This.StepStartCell.Worksheet.name)
+                                                  , this.StepStartCell.Worksheet.Name)
         End If
         
         UpdatedFormula = modDependencyLambdaResult.ReplaceTokenWithNewToken(UpdatedFormula, CurrentMapper.Key, CellRef)
@@ -505,9 +570,9 @@ Private Sub Class_Initialize()
 
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.Class_Initialize"
     ' Initialize collections to track LET variable names, lambda argument names, and reference cells
-    Set This.VarNameVsCalculationAreaMap = New Collection
-    Set This.LambdaArgumentsName = New Collection
-    Set This.LambdaArgumentsRefCell = New Collection
+    Set this.VarNameVsCalculationAreaMap = New Collection
+    Set this.LambdaArgumentsName = New Collection
+    Set this.LambdaArgumentsRefCell = New Collection
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.Class_Initialize"
 
 End Sub
@@ -516,9 +581,9 @@ Private Sub Class_Terminate()
 
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.Class_Terminate"
     ' Clean up by setting the collections to Nothing when the class instance is terminated
-    Set This.VarNameVsCalculationAreaMap = Nothing
-    Set This.LambdaArgumentsName = Nothing
-    Set This.LambdaArgumentsRefCell = Nothing
+    Set this.VarNameVsCalculationAreaMap = Nothing
+    Set this.LambdaArgumentsName = Nothing
+    Set this.LambdaArgumentsRefCell = Nothing
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.Class_Terminate"
 
 End Sub

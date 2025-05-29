@@ -11,6 +11,13 @@ Attribute VB_Exposed = False
 '@Folder "Lambda.Editor.Metadata.Presenter.Impl"
 Option Explicit
 
+Public Enum InvokedFrom
+    SAVE_LAMBDA
+    SAVE_LAMBDA_AS
+    EDIT_METADATA
+    OTHER
+End Enum
+
 Implements IPresenter
 
 Private Type TPresenter
@@ -20,73 +27,76 @@ Private Type TPresenter
     View As LambdaMetadataView
     MetaParser As MetadataParser
     DefaultName As String
-    IsCallFromSaveAs As Boolean
     IsProcessCancelled As Boolean
     GistText As String
+    CallFrom As InvokedFrom
+    IsLambdaSaveOperation As Boolean
 End Type
 
-Private This  As TPresenter
+Private this  As TPresenter
 
 Public Property Get GistText() As String
-    GistText = This.GistText
+    GistText = this.GistText
 End Property
 
 Public Property Get LambdaMetadata() As Metadata
-    Set LambdaMetadata = This.LambdaMetadata
-End Property
-
-Public Property Get IsCallFromSaveAs() As Boolean
-    IsCallFromSaveAs = This.IsCallFromSaveAs
+    Set LambdaMetadata = this.LambdaMetadata
 End Property
 
 Public Property Get IsProcessCancelled() As Boolean
-    IsProcessCancelled = This.IsProcessCancelled
+    IsProcessCancelled = this.IsProcessCancelled
 End Property
 
 '@EntryPoint
-Public Sub ShowView(ByVal LambdaFormulaCell As Range, ByVal IsCallFromSaveAs As Boolean _
-                                                     , ByVal DefaultName As String _
-                                                      , Optional ByVal IsShowUI As Boolean = True)
+Public Sub ShowView(ByVal LambdaFormulaCell As Range _
+                    , ByVal CallFrom As InvokedFrom _
+                     , ByVal DefaultName As String _
+                      , Optional ByVal IsShowUI As Boolean = True)
     
     Logger.Log TRACE_LOG, "Enter Presenter.ShowView"
     ' Create MetaParser and check if the cell contains a LAMBDA formula
-    Set This.MetaParser = MetadataParser.Create(LambdaFormulaCell)
-    If Not This.MetaParser.IsCellHasLambdaFormula Then
+    Set this.MetaParser = MetadataParser.Create(LambdaFormulaCell)
+    If Not this.MetaParser.IsCellHasLambdaFormula Then
         MsgBox "Cell doesn't contain a LAMBDA formula.", vbExclamation + vbOKOnly, APP_NAME
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.ShowView"
         Exit Sub
     End If
     
     ' Initialize properties and set LambdaMetadata
-    Set This.LambdaFormulaCell = LambdaFormulaCell
-    This.DefaultName = DefaultName
-    Set This.LambdaMetadata = Metadata.CreateLambdaMetadata(This.MetaParser.LambdaParts _
-                                                            , This.MetaParser.LetParts _
-                                                             , This.DefaultName _
-                                                              , This.MetaParser.OldLambdaName)
-    This.IsCallFromSaveAs = IsCallFromSaveAs
-    
+    Set this.LambdaFormulaCell = LambdaFormulaCell
+    this.DefaultName = DefaultName
+    Set this.LambdaMetadata = Metadata.CreateLambdaMetadata(this.MetaParser.LambdaParts _
+                                                            , this.MetaParser.LetParts _
+                                                             , this.DefaultName _
+                                                              , this.MetaParser.OldLambdaName)
+    this.CallFrom = CallFrom
+    this.IsLambdaSaveOperation = (CallFrom = SAVE_LAMBDA Or CallFrom = SAVE_LAMBDA_AS)
     ' Check if any metadata is found and if not, exit the sub (unless it's called from Save As)
-    If Not IsAnyMetadataFound(This.LambdaMetadata) And Not IsCallFromSaveAs Then Exit Sub
+    If Not IsAnyMetadataFound(this.LambdaMetadata) _
+       And Not this.IsLambdaSaveOperation _
+       And Not (CallFrom = EDIT_METADATA And DefaultName = vbNullString) Then
+        Exit Sub
+    End If
     
     ' Show the LambdaMetadataView (if IsShowUI is True)
     If IsShowUI Then
-        Set This.View = LambdaMetadataView.Create(This.LambdaMetadata, Me)
-        This.View.UpdateView
-        This.View.ExpandOrCollapse IsPropertyBelongToMoreInTheUIPresent(LambdaMetadata)
+        Set this.View = LambdaMetadataView.Create(this.LambdaMetadata, Me)
+        this.View.UpdateView
+        this.View.ExpandOrCollapse IsPropertyBelongToMoreInTheUIPresent(LambdaMetadata)
         
-        If IsCallFromSaveAs Then UpdateUIForSaveAs This.View
+        If this.View.NameTextBox.Value = vbNullString Then this.View.NameTextBox.Enabled = True
+        If this.IsLambdaSaveOperation Then UpdateUIForSaveAs this.View
         
-        If This.View.NameTextBox.Enabled Then
-            This.View.NameTextBox.SetFocus
+        If this.View.NameTextBox.Enabled Then
+            this.View.NameTextBox.SetFocus
         Else
-            This.View.CommandNameTextBox.SetFocus
+            this.View.CommandNameTextBox.SetFocus
         End If
         
-        This.View.Show
+        this.View.Show
         On Error Resume Next
-        Unload This.View
-        Set This.View = Nothing
+        Unload this.View
+        Set this.View = Nothing
         On Error GoTo 0
     End If
     
@@ -95,14 +105,19 @@ Public Sub ShowView(ByVal LambdaFormulaCell As Range, ByVal IsCallFromSaveAs As 
     
 End Sub
 
-
 Private Sub UpdateUIForSaveAs(ByVal View As LambdaMetadataView)
     
     Logger.Log TRACE_LOG, "Enter Presenter.UpdateUIForSaveAs"
     ' Enable the NameTextBox and change button caption and caption text for Save As operation
     View.NameTextBox.Enabled = True
     View.OkButton.Caption = "Save"
-    View.Caption = " Save Lambda As"
+    
+    If this.CallFrom = SAVE_LAMBDA Then
+        View.Caption = " Save Lambda"
+    ElseIf this.CallFrom = SAVE_LAMBDA_AS Then
+        View.Caption = " Save Lambda As"
+    End If
+    
     Logger.Log TRACE_LOG, "Exit Presenter.UpdateUIForSaveAs"
     
 End Sub
@@ -118,7 +133,7 @@ Private Function IsAnyMetadataFound(ByVal LambdaMetadata As Metadata) As Boolean
     For Each PropertyName In PropertiesName
         If CallByName(LambdaMetadata, CStr(PropertyName), VbGet) <> vbNullString Then
             IsAnyMetadataFound = True
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsAnyMetadataFound"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsAnyMetadataFound"
             Exit Function
         End If
     Next PropertyName
@@ -139,7 +154,7 @@ Private Function IsPropertyBelongToMoreInTheUIPresent(ByVal LambdaMetadata As Me
     For Each PropertyName In PropertiesName
         If CallByName(LambdaMetadata, CStr(PropertyName), VbGet) <> vbNullString Then
             IsPropertyBelongToMoreInTheUIPresent = True
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsPropertyBelongToMoreInTheUIPresent"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsPropertyBelongToMoreInTheUIPresent"
             Exit Function
         End If
     Next PropertyName
@@ -156,7 +171,7 @@ Private Function IsPropertyBelongToMoreInTheUIPresent(ByVal LambdaMetadata As Me
     For Each PropertyName In PropertiesName
         If CallByName(LambdaMetadata, CStr(PropertyName), VbMethod) <> vbNullString Then
             IsPropertyBelongToMoreInTheUIPresent = True
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsPropertyBelongToMoreInTheUIPresent"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IsPropertyBelongToMoreInTheUIPresent"
             Exit Function
         End If
     Next PropertyName
@@ -175,23 +190,23 @@ End Sub
 Public Sub ClearCatches()
     
     Logger.Log TRACE_LOG, "Enter Presenter.ClearCatches"
-    Set This.MetaParser = Nothing
-    Set This.LambdaMetadata = Nothing
-    Set This.View = Nothing
+    Set this.MetaParser = Nothing
+    Set this.LambdaMetadata = Nothing
+    Set this.View = Nothing
     Logger.Log TRACE_LOG, "Exit Presenter.ClearCatches"
     
 End Sub
 
 Private Property Get IPresenter_CommandName() As String
-    IPresenter_CommandName = This.LambdaMetadata.CommandName
+    IPresenter_CommandName = this.LambdaMetadata.CommandName
 End Property
 
 Private Property Let IPresenter_CommandName(ByVal RHS As String)
-    This.LambdaMetadata.CommandName = RHS
+    this.LambdaMetadata.CommandName = RHS
 End Property
 
 Private Property Get IPresenter_Description() As String
-    IPresenter_Description = This.LambdaMetadata.Description
+    IPresenter_Description = this.LambdaMetadata.Description
 End Property
 
 Private Sub IPresenter_ExpandCollapse(ByVal IsExpand As Boolean)
@@ -204,12 +219,12 @@ Private Sub IPresenter_GenerateGist()
         
     Logger.Log TRACE_LOG, "Enter Presenter.IPresenter_GenerateGist"
     ' Make the LambdaName a valid defined name by removing invalid characters
-    This.LambdaMetadata.LambdaName = MakeValidDefinedName(This.LambdaMetadata.LambdaName, False)
+    this.LambdaMetadata.LambdaName = MakeValidDefinedName(this.LambdaMetadata.LambdaName, False)
     
     ' Get the Gist text from the exported Lambda formula
     Dim GistText As String
     GistText = ReplaceNewlineWithChar10(GetExportText())
-    This.GistText = GistText
+    this.GistText = GistText
     
     ' Log the generated Gist text
     Logger.Log DEBUG_LOG, "Gist Text : " & NEW_LINE & GistText
@@ -227,17 +242,17 @@ Private Function GetExportText() As String
     Logger.Log TRACE_LOG, "Enter Presenter.GetExportText"
     ' Generate the new Lambda formula based on LambdaMetadata and MetaParser
     Dim NewLambdaFormula As String
-    NewLambdaFormula = GenerateNewLambda(This.LambdaMetadata, This.MetaParser)
+    NewLambdaFormula = GenerateNewLambda(this.LambdaMetadata, this.MetaParser)
     
     NewLambdaFormula = GetLambdaDefPart(NewLambdaFormula) & ";"
     
     ' Get the comments to append to the Lambda formula based on LambdaMetadata
     Dim Comments As String
-    Comments = GetComments(This.LambdaMetadata)
+    Comments = GetComments(this.LambdaMetadata)
     
     ' Concatenate the comments with the LambdaName and NewLambdaFormula
     GetExportText = IIf(Comments = vbNullString, vbNullString, Comments & NEW_LINE) & _
-                    This.LambdaMetadata.LambdaName & ONE_SPACE & NewLambdaFormula
+                    this.LambdaMetadata.LambdaName & ONE_SPACE & NewLambdaFormula
     Logger.Log TRACE_LOG, "Exit Presenter.GetExportText"
                 
 End Function
@@ -248,7 +263,7 @@ Private Function GetComments(ByVal LambdaMetadata As Metadata) As String
     Logger.Log TRACE_LOG, "Enter Presenter.GetComments"
     ' Generate the comments block based on LambdaMetadata properties
     GetComments = "/*" & NEW_LINE & _
-                  GetNameCommentBlock(This.LambdaMetadata.LambdaName, This.LambdaMetadata.CommandName) & NEW_LINE & _
+                  GetNameCommentBlock(this.LambdaMetadata.LambdaName, this.LambdaMetadata.CommandName) & NEW_LINE & _
                   GetCommentToAppend("Description", LambdaMetadata.Description, NEW_LINE) & _
                   GetCommentToAppend("Parameters:", LambdaMetadata.GetParameters(, False), NEW_LINE, NEW_LINE) & _
                   GetCommentToAppend("Source", LambdaMetadata.SourceName, NEW_LINE) & _
@@ -290,8 +305,8 @@ End Function
 
 Private Function GetCommentToAppend(ByVal CommentKey As String _
                                     , ByVal CommentValue As String _
-                                    , ByVal Suffix As String _
-                                    , Optional ByVal KeyValueSeparator As String = ":  ") As String
+                                     , ByVal Suffix As String _
+                                      , Optional ByVal KeyValueSeparator As String = ":  ") As String
     
     Logger.Log TRACE_LOG, "Enter Presenter.GetCommentToAppend"
     ' Check if CommentValue is not empty, and append the CommentKey, KeyValueSeparator, and CommentValue with the Suffix
@@ -310,7 +325,7 @@ Private Function IPresenter_GetExportPreview() As String
     
     Logger.Log TRACE_LOG, "Enter Presenter.IPresenter_GetExportPreview"
     ' Make the LambdaName a valid defined name by removing invalid characters
-    This.LambdaMetadata.LambdaName = MakeValidDefinedName(This.LambdaMetadata.LambdaName, False)
+    this.LambdaMetadata.LambdaName = MakeValidDefinedName(this.LambdaMetadata.LambdaName, False)
     
     ' Get the export preview text by calling GetExportText function
     IPresenter_GetExportPreview = GetExportText()
@@ -323,10 +338,10 @@ Private Function IPresenter_GetOverview() As String
     Logger.Log TRACE_LOG, "Enter Presenter.IPresenter_GetOverview"
     ' Concatenate the overview text with information about Sources, Parameters, Dependencies, and CustomProperties from LambdaMetadata
     IPresenter_GetOverview = "Source:" & NEW_LINE & _
-                             This.LambdaMetadata.GetSources() & NEW_LINE & NEW_LINE & _
-                             "Parameters:" & NEW_LINE & This.LambdaMetadata.GetParameters & NEW_LINE & _
-                             NEW_LINE & "Dependencies: " & NEW_LINE & This.LambdaMetadata.GetDependencies & NEW_LINE & _
-                             NEW_LINE & This.LambdaMetadata.GetCustomProperties
+                             this.LambdaMetadata.GetSources() & NEW_LINE & NEW_LINE & _
+                             "Parameters:" & NEW_LINE & this.LambdaMetadata.GetParameters & NEW_LINE & _
+                             NEW_LINE & "Dependencies: " & NEW_LINE & this.LambdaMetadata.GetDependencies & NEW_LINE & _
+                             NEW_LINE & this.LambdaMetadata.GetCustomProperties
     
     ' Log function exit
     Logger.Log TRACE_LOG, "Exit Presenter.IPresenter_GetOverview"
@@ -334,88 +349,92 @@ Private Function IPresenter_GetOverview() As String
 End Function
 
 Private Property Let IPresenter_IsCancelled(ByVal RHS As Boolean)
-    This.IsProcessCancelled = RHS
+    this.IsProcessCancelled = RHS
 End Property
 
 Private Property Get IPresenter_IsCancelled() As Boolean
-    IPresenter_IsCancelled = This.IsProcessCancelled
+    IPresenter_IsCancelled = this.IsProcessCancelled
 End Property
 
 Private Property Let IPresenter_SourceName(ByVal RHS As String)
-    This.LambdaMetadata.SourceName = RHS
+    this.LambdaMetadata.SourceName = RHS
 End Property
 
 Private Property Get IPresenter_SourceName() As String
-    IPresenter_SourceName = This.LambdaMetadata.SourceName
+    IPresenter_SourceName = this.LambdaMetadata.SourceName
 End Property
 
 Private Property Let IPresenter_GistURL(ByVal RHS As String)
-    This.LambdaMetadata.GistURL = RHS
+    this.LambdaMetadata.GistURL = RHS
 End Property
 
 Private Property Get IPresenter_GistURL() As String
-    IPresenter_GistURL = This.LambdaMetadata.GistURL
+    IPresenter_GistURL = this.LambdaMetadata.GistURL
 End Property
 
 Private Property Get IPresenter_LambdaName() As String
-    IPresenter_LambdaName = This.LambdaMetadata.LambdaName
+    IPresenter_LambdaName = this.LambdaMetadata.LambdaName
 End Property
 
 Private Property Let IPresenter_LambdaName(ByVal RHS As String)
-    This.LambdaMetadata.LambdaName = RHS
+    this.LambdaMetadata.LambdaName = RHS
 End Property
 
 Private Property Let IPresenter_Description(ByVal RHS As String)
-    This.LambdaMetadata.Description = RHS
+    this.LambdaMetadata.Description = RHS
 End Property
 
 Private Sub IPresenter_UpdateMetadataInFormula()
     
-    Logger.Log TRACE_LOG, "Enter Presenter.IPresenter_UpdateMetadataInFormula"
-    ' Make the LambdaName a valid defined name by removing invalid characters
-    If Not IsValidDefinedName(This.LambdaMetadata.LambdaName) Then
-        This.LambdaMetadata.LambdaName = MakeValidDefinedName(This.LambdaMetadata.LambdaName, False)
-    End If
-    
     ' Check if the LambdaName already exists and if it's a SaveAs operation, prompt for overwriting
-    If modUtility.IsExistInCollection(This.MetaParser.AllNameInNameManager, This.LambdaMetadata.LambdaName) _
-       And This.LambdaMetadata.LambdaName <> vbNullString And This.IsCallFromSaveAs Then
+    
+    If Not IsValidDefinedName(this.LambdaMetadata.LambdaName) And this.IsLambdaSaveOperation Then
         
-        If IsLambdaCreatedInExcelLabs(This.LambdaFormulaCell.Worksheet.Parent, This.LambdaMetadata.LambdaName) Then
+        Dim Message As String
+        If Trim$(this.LambdaMetadata.LambdaName) = vbNullString Then
+            Message = "Lambda Name is blank. Please provide a valid name."
+        ElseIf IsA1C1RangeAddress(this.LambdaMetadata.LambdaName) Then
+            Message = """" & this.LambdaMetadata.LambdaName & """ is not a valid LAMBDA name as it is a valid cell address. Please provide a valid name."
+        Else
+            Message = """" & this.LambdaMetadata.LambdaName & """ is not a valid LAMBDA name. Please provide a valid name."
+        End If
+        
+        MsgBox Message, vbExclamation + vbOKOnly, APP_NAME
+        this.View.NameTextBox.SetFocus
+        Exit Sub
+    
+    ElseIf IsExistInCollection(this.MetaParser.AllNameInNameManager, this.LambdaMetadata.LambdaName) And this.IsLambdaSaveOperation Then
+        
+        If IsLambdaCreatedInExcelLabs(this.LambdaFormulaCell.Worksheet.Parent, this.LambdaMetadata.LambdaName) Then
             MsgBox "A lambda by this name already exists in Excel Labs' Advanced Formula Editor. Please choose a different name.", vbOKOnly + vbExclamation
-            This.View.NameTextBox.SetFocus
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
+            this.View.NameTextBox.SetFocus
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
             Exit Sub
         End If
         
         Dim Answer As VbMsgBoxResult
-        Answer = MsgBox("The name " & This.LambdaMetadata.LambdaName & " already exists. Do you want to over-write it?" _
+        Answer = MsgBox("The name " & this.LambdaMetadata.LambdaName & " already exists. Do you want to over-write it?" _
                         , vbYesNo + vbQuestion, APP_NAME)
         If Answer = vbNo Then
-            This.View.NameTextBox.SetFocus
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
+            this.View.NameTextBox.SetFocus
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
             Exit Sub
         End If
         
-    ElseIf This.LambdaMetadata.LambdaName = vbNullString And IsCallFromSaveAs Then
-        MsgBox "Lambda Name is blank. Please provide a valid name.", vbExclamation + vbOKOnly, APP_NAME
-        This.View.NameTextBox.SetFocus
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
-        Exit Sub
     End If
     
     ' Generate the new lambda formula and update the cell or name manager accordingly
     Dim NewLambdaFormula As String
-    NewLambdaFormula = GenerateNewLambda(This.LambdaMetadata, This.MetaParser)
-    If This.MetaParser.IsNeedToUpdateNameManager Then
-        Dim OldName As name
-        Set OldName = This.LambdaFormulaCell.Worksheet.Parent.Names(This.MetaParser.OldLambdaName)
+    NewLambdaFormula = GenerateNewLambda(this.LambdaMetadata, this.MetaParser)
+    If this.MetaParser.IsNeedToUpdateNameManager Then
+        Dim OldName As Name
+        Set OldName = this.LambdaFormulaCell.Worksheet.Parent.Names(this.MetaParser.OldLambdaName)
         Logger.Log DEBUG_LOG, "Final Lambda to update in name manager : " & NEW_LINE & NewLambdaFormula
         OldName.RefersTo = ReplaceNewlineWithChar10(NewLambdaFormula)
-        modUtility.UpdateNameComment OldName, This.LambdaMetadata.NameManagerComment
+        modUtility.UpdateNameComment OldName, this.LambdaMetadata.NameManagerComment
     Else
-        AssignFormulaIfErrorPrintIntoDebugWindow This.LambdaFormulaCell, NewLambdaFormula, "Updated Formula : "
-        This.LambdaFormulaCell.Calculate
+        AssignFormulaIfErrorPrintIntoDebugWindow this.LambdaFormulaCell, NewLambdaFormula, "Updated Formula : "
+        this.LambdaFormulaCell.Calculate
     End If
     Logger.Log DEBUG_LOG, "New Lambda Formula : " & NewLambdaFormula
     Logger.Log DEBUG_LOG, THREE_NEW_LINE
@@ -425,8 +444,8 @@ Private Sub IPresenter_UpdateMetadataInFormula()
     Logger.Log TRACE_LOG, "Exit Presenter.IPresenter_UpdateMetadataInFormula"
     
     ' Hide the view and release the event handler
-    This.View.Hide
-    Set This.View.EventHandler = Nothing
+    this.View.Hide
+    Set this.View.EventHandler = Nothing
     Logger.Log TRACE_LOG, "Exit Presenter.IPresenter_UpdateMetadataInFormula"
     
 End Sub
@@ -473,9 +492,9 @@ Private Function AddNewMetadata(ByVal FormulaText As String, ByVal LambdaMetadat
 End Function
 
 Private Function AddMetadataIfNotBlank(ByVal FormulaText As String, ByVal StepName As String _
-                                                             , ByVal StepValue As String _
-                                                              , Optional ByVal ValuePrefix As String = vbNullString _
-                                                               , Optional ByVal ValueSuffix As String = vbNullString) As String
+                                                                   , ByVal StepValue As String _
+                                                                    , Optional ByVal ValuePrefix As String = vbNullString _
+                                                                     , Optional ByVal ValueSuffix As String = vbNullString) As String
     
     Logger.Log TRACE_LOG, "Enter Presenter.AddMetadataIfNotBlank"
     If StepValue <> vbNullString Then
@@ -486,3 +505,5 @@ Private Function AddMetadataIfNotBlank(ByVal FormulaText As String, ByVal StepNa
     Logger.Log TRACE_LOG, "Exit Presenter.AddMetadataIfNotBlank"
     
 End Function
+
+

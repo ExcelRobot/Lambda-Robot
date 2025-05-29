@@ -34,7 +34,7 @@ Public Function CopyFormulaToEnglish(ByVal FormulaCell As Range) As String
     If FormulaCell.Cells.Count > 1 Then Exit Function
     If Not FormulaCell.HasFormula Then Exit Function
 
-    CopyFormulaToEnglish = FormulaCell.Formula2
+    CopyFormulaToEnglish = GetCellFormula(FormulaCell)
 
 End Function
 
@@ -136,7 +136,7 @@ Sub TranslateUsingExcelSettings()
     Dim s As String
     Dim X As OARobot.FormulaParseResult
     s = Sheet1.Cells(1, 1).Value
-    Set X = tx.TranslateFormula(s) ' Translates to Application settings
+    Set X = tx.TranslateFormula(s)               ' Translates to Application settings
     Debug.Print X.ParseSuccess & ":" & X.Formula
 
     'Translates as specified
@@ -160,13 +160,15 @@ Public Function GetNames(Optional ByVal ForBook As Workbook) As OARobot.XLDefine
 Public Function GetNames(Optional ByVal ForBook As Workbook) As Object
 #End If
 
-    If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
+If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
 
-    #If DEVELOPMENT_MODE Then
-        Dim NamesFactory As New OARobot.DefinedNamesFactory
-        Set GetNames = NamesFactory.Create(ForBook)
-    #Else
-        Set GetNames = CreateObject("OARobot.DefinedNamesFactory").Create(ForBook)
-    #End If
+#If DEVELOPMENT_MODE Then
+    Dim NamesFactory As New OARobot.DefinedNamesFactory
+    Set GetNames = NamesFactory.Create(ForBook)
+#Else
+    Set GetNames = CreateObject("OARobot.DefinedNamesFactory").Create(ForBook)
+#End If
 
 End Function
+
+

@@ -16,12 +16,6 @@ Attribute VB_Exposed = False
 '@IgnoreModule UndeclaredVariable, ImplicitActiveSheetReference
 
 Option Explicit
-Private Enum CloseBy
-    User = 0
-    Code = 1
-    WindowsOS = 2
-    TaskManager = 3
-End Enum
 
 Private Type TLETManagerUI
     Parser As FormulaParser
@@ -29,27 +23,27 @@ Private Type TLETManagerUI
     Counter As Long
 End Type
 
-Private This As TLETManagerUI
+Private this As TLETManagerUI
 
 Public Property Get DependencyObjects() As Collection
-    Set DependencyObjects = This.DependencyObjects
+    Set DependencyObjects = this.DependencyObjects
 End Property
 
 Public Property Set DependencyObjects(ByVal RHS As Collection)
-    Set This.DependencyObjects = RHS
+    Set this.DependencyObjects = RHS
 End Property
 
 Public Property Get Parser() As FormulaParser
-    Set Parser = This.Parser
+    Set Parser = this.Parser
 End Property
 
 Public Property Set Parser(ByVal RHS As FormulaParser)
-    Set This.Parser = RHS
+    Set this.Parser = RHS
 End Property
 
 Private Sub CancelButton_Click()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.CancelButton_Click"
-    This.Parser.IsProcessTerminatedByUser = True
+    this.Parser.IsProcessTerminatedByUser = True
     Me.Hide
     Logger.Log TRACE_LOG, "Exit LETManagerUI.CancelButton_Click"
 End Sub
@@ -110,7 +104,7 @@ Private Sub ExcludeStepButton_Click()
             ' Get the DependencyInfo object that matches the selected variable name
             Dim SelectedDependency As DependencyInfo
             Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                                  , This.DependencyObjects)
+                                                                  , this.DependencyObjects)
 
             ' Mark the selected dependency as not being a Let statement by the user
             SelectedDependency.IsMarkAsNotLetStatementByUser = True
@@ -142,8 +136,8 @@ Private Sub RecalculateAndUpdateDependencyCollection()
 
     Logger.Log TRACE_LOG, "Enter LETManagerUI.RecalculateAndUpdateDependencyCollection"
     ' Recalculate the precedence and update the DependencyObjects
-    This.Parser.RecalculatePrecedencyAgain This.DependencyObjects, LET_STATEMENT_GENERATION
-    Set This.DependencyObjects = This.Parser.PrecedencyExtractor.AllDependency
+    this.Parser.RecalculatePrecedencyAgain this.DependencyObjects, LET_STATEMENT_GENERATION
+    Set this.DependencyObjects = this.Parser.PrecedencyExtractor.AllDependency
     Logger.Log TRACE_LOG, "Exit LETManagerUI.RecalculateAndUpdateDependencyCollection"
 
 End Sub
@@ -159,7 +153,7 @@ Private Sub ExpandButton_Click()
     ' Get the DependencyInfo object that matches the selected variable name
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
 
     ' Mark the selected dependency as expanded by the user
     With SelectedDependency
@@ -185,7 +179,7 @@ Public Sub UpdateListBoxFromCollection()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.UpdateListBoxFromCollection"
 
     ' Update the ListBox with the Lambda preview based on the DependencyObjects
-    Me.Preview.Value = This.Parser.GetLetPreview(This.DependencyObjects)
+    Me.Preview.Value = this.Parser.GetLetPreview(this.DependencyObjects)
 
     ' Update the LetStepsListBox
     UpdateLetStepsListBox
@@ -201,7 +195,7 @@ Private Sub UpdateSelectionIfForTheFirstTime()
 
     Logger.Log TRACE_LOG, "Enter LETManagerUI.UpdateSelectionIfForTheFirstTime"
     ' If it's the first time, disable certain buttons and select the first item in a ListBox if available
-    If This.Counter = 0 Then
+    If this.Counter = 0 Then
         Me.ResetButton.Enabled = False
         Me.RenameStepButton.Enabled = False
         Me.ExcludeStepButton.Enabled = False
@@ -215,7 +209,7 @@ Private Sub UpdateSelectionIfForTheFirstTime()
         ' Enable the ResetButton after the first time
         Me.ResetButton.Enabled = True
     End If
-    This.Counter = This.Counter + 1
+    this.Counter = this.Counter + 1
     Logger.Log TRACE_LOG, "Exit LETManagerUI.UpdateSelectionIfForTheFirstTime"
 
 End Sub
@@ -225,8 +219,8 @@ Private Sub UpdateLetStepsListBox()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.UpdateLetStepsListBox"
     ' Update the LetStepsListBox with non-input Let steps' variable names and range references
     Dim VarsName As Variant
-    If This.Parser.IsLetNeededInLetFormula Then
-        VarsName = GetLetStepsVarNameAndRangeReference(This.DependencyObjects)
+    If this.Parser.IsLetNeededInLetFormula Then
+        VarsName = GetLetStepsVarNameAndRangeReference(this.DependencyObjects)
     End If
     
     ' Clear the ListBox if VarsName is not an array
@@ -257,7 +251,11 @@ Private Sub SelectLastFocusRange(ByVal ForListBox As MSForms.ListBox)
     Dim FocusAbleRange As Range
 
     On Error Resume Next
-    Set FocusAbleRange = RangeResolver.GetRange(RangeReference)
+    If Is3DReference(RangeReference) Then
+        Set FocusAbleRange = RangeResolver.GetRange(GetStartSheetRangeRefIf3DRef(RangeReference))
+    Else
+        Set FocusAbleRange = RangeResolver.GetRange(RangeReference)
+    End If
     If FocusAbleRange.Address <> Selection.Address Then
         FocusAbleRange.Worksheet.Activate
         FocusAbleRange.Cells(1).Select
@@ -322,7 +320,7 @@ Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String)
     ' Get the DependencyInfo for the selected item
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
 
     ' Prompt the user to enter a new name for the variable
     Dim NewName As String
@@ -355,8 +353,8 @@ Private Sub ResetButton_Click()
     Logger.Log TRACE_LOG, "Enter LETManagerUI.ResetButton_Click"
 
     ' Reset the DependencyObjects to the initial state
-    Set This.DependencyObjects = This.Parser.DependencyDataForReset(LET_STATEMENT_GENERATION)
-    This.Counter = 0
+    Set this.DependencyObjects = this.Parser.DependencyDataForReset(LET_STATEMENT_GENERATION)
+    this.Counter = 0
 
     ' Recalculate and update the DependencyObjects
     RecalculateAndUpdateDependencyCollection
@@ -402,8 +400,10 @@ Private Sub StepsListBox_Change()
         SelectedDependencyVarName = GetSelectedItemVarName(Me.StepsListBox)
         Dim SelectedDependency As DependencyInfo
         Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                              , This.DependencyObjects)
-        Me.ValueButton.Enabled = (Not SelectedDependency.IsUserMarkAsValue And Me.StepsListBox.ListIndex <> Me.StepsListBox.ListCount - 1)
+                                                              , this.DependencyObjects)
+        Me.ValueButton.Enabled = (Not SelectedDependency.IsUserMarkAsValue _
+                                  And Me.StepsListBox.ListIndex <> Me.StepsListBox.ListCount - 1 _
+                                  And Not SelectedDependency.Is3DRangeRef)
     Else
         Me.ValueButton.Enabled = False
     End If
@@ -459,23 +459,19 @@ Private Sub EnableOrDisableExpandButton(SelectedItemCount As Long)
     ' Get the DependencyInfo for the selected item
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
 
     With SelectedDependency
 
         ' Check if the ExpandButton should be enabled or disabled based on the selected item's properties
-        If .IsUserMarkAsValue Then
+       If .IsUserMarkAsValue Then
             Me.ExpandButton.Enabled = False
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword ParamSelector.EnableOrDisableExpandButton"
-            Exit Sub
         ElseIf Not .IsInsideNamedRangeOrTable And Not .IsDemotedFromParameterCellToLetStep Then
             Me.ExpandButton.Enabled = False
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword ParamSelector.EnableOrDisableExpandButton"
-            Exit Sub
+        Else
+            Me.ExpandButton.Enabled = IsExpandAble(RangeResolver.GetRange(.RangeReference))
         End If
-
-        Me.ExpandButton.Enabled = IsExpandAble(RangeResolver.GetRange(.RangeReference))
-
+        
     End With
 
     Logger.Log TRACE_LOG, "Exit LETManagerUI.EnableOrDisableExpandButton"
@@ -500,7 +496,7 @@ Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
     Logger.Log TRACE_LOG, "Enter LETManagerUI.UserForm_QueryClose"
     ' Hide the UserForm and set IsProcessTerminatedByUser to True on close by user
     If CloseMode = CloseBy.User Then
-        This.Parser.IsProcessTerminatedByUser = True
+        this.Parser.IsProcessTerminatedByUser = True
         Me.Hide
         Cancel = True
     End If
@@ -520,7 +516,7 @@ Private Sub ValueButton_Click()
 
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
-                                                          , This.DependencyObjects)
+                                                          , this.DependencyObjects)
 
     ' Check if the item is already marked as a "Value" step, if yes, exit the sub.
     If SelectedDependency.IsUserMarkAsValue Then Exit Sub
@@ -561,4 +557,5 @@ Private Sub ValueButton_Click()
     Logger.Log TRACE_LOG, "Exit LETManagerUI.ValueButton_Click"
 
 End Sub
+
 

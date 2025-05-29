@@ -13,6 +13,8 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
                                       , Optional ByVal IsOnlyLetStepOnes As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modDependencyFormulaReplacer.IncludeLambdaDependencies"
+    Const METHOD_NAME As String = "IncludeLambdaDependencies"
+    Context.ExtractContextFromCell LambdaInCell, METHOD_NAME
     ' Static variables to hold Undo information
     Static PutFormulaOnUndo As Range
     Static OldFormula As String
@@ -24,7 +26,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
             AutofitFormulaBar PutFormulaOnUndo
         End If
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modDependencyFormulaReplacer.IncludeLambdaDependencies"
-        Exit Sub
+        GoTo ExitMethod
     Else
         ' Otherwise, store the current formula to be used for undo operation in future
         Set PutFormulaOnUndo = LambdaInCell
@@ -32,7 +34,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
     End If
 
     ' If the current command is invalid, exit subroutine
-    If IsInvalidToRunCommand(LambdaInCell, "Include Lambda Dependencies") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(LambdaInCell, "Include Lambda Dependencies") Then GoTo ExitMethod
 
     ' Create a new DependencyFormulaReplacer and include Lambda dependencies
     Dim DependencyReplacer As DependencyFormulaReplacer
@@ -42,6 +44,10 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
     
     If Not IsUndo Then AssingOnUndo "IncludeLambdaDependencies"
     Logger.Log TRACE_LOG, "Exit modDependencyFormulaReplacer.IncludeLambdaDependencies"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
     
 End Sub
 
@@ -60,6 +66,8 @@ Public Sub GenerateLambdaFormulaDependency(ByVal LambdaInCell As Range _
                                             , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modDependencyFormulaReplacer.GenerateLambdaFormulaDependency"
+    Const METHOD_NAME As String = "GenerateLambdaFormulaDependency"
+    Context.ExtractContextFromCell LambdaInCell, METHOD_NAME
     ' Static variables to handle undo operations
     Static Table As ListObject
     Static PutFormulaOnUndo As Range
@@ -69,11 +77,11 @@ Public Sub GenerateLambdaFormulaDependency(ByVal LambdaInCell As Range _
         If IsNotNothing(Table) Then Table.Delete
         If IsNotNothing(Table) Then PutFormulaOnUndo.Select
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modDependencyFormulaReplacer.GenerateLambdaFormulaDependency"
-        Exit Sub
+        GoTo ExitMethod
     End If
 
     ' Check for command validity, exit if invalid
-    If IsInvalidToRunCommand(LambdaInCell, "Generate Lambda Formula Dependency") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(LambdaInCell, "Generate Lambda Formula Dependency") Then GoTo ExitMethod
 
     ' Create DependencyFormulaReplacer and include Lambda dependencies
     Dim DependencyReplacer As DependencyFormulaReplacer
@@ -88,9 +96,14 @@ Public Sub GenerateLambdaFormulaDependency(ByVal LambdaInCell As Range _
     End If
     Logger.Log TRACE_LOG, "Exit modDependencyFormulaReplacer.GenerateLambdaFormulaDependency"
    
+ExitMethod:
+   Context.ClearContext METHOD_NAME
+   Exit Sub
+   
 End Sub
 
 Private Sub GenerateLambdaFormulaDependency_Undo()
     GenerateLambdaFormulaDependency Nothing, Nothing, True
 End Sub
+
 

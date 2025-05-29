@@ -9,7 +9,7 @@ Private Sub Test()
 End Sub
 
 Public Function IsLambdaCreatedInExcelLabs(ByVal FromBook As Workbook _
-                                            , ByVal LambdaName As String) As Boolean
+                                           , ByVal LambdaName As String) As Boolean
     
     Dim ExcelLabsLambdas As Collection
     Set ExcelLabsLambdas = GetExcelLabsLambdas(FromBook)
@@ -37,3 +37,5 @@ Public Sub WriteStringToTextFile(Content As String, ToFilePath As String)
     Close #FileNo
         
 End Sub
+
+

@@ -24,25 +24,25 @@ Private Type TDependencyFormulaReplacer
     PutDependencyOnTable As ListObject
 End Type
 
-Private This As TDependencyFormulaReplacer
+Private this As TDependencyFormulaReplacer
 
 Public Property Get PutDependencyOnTable() As ListObject
-    Set PutDependencyOnTable = This.PutDependencyOnTable
+    Set PutDependencyOnTable = this.PutDependencyOnTable
 End Property
 
 Public Property Set PutDependencyOnTable(ByVal RHS As ListObject)
-    Set This.PutDependencyOnTable = RHS
+    Set this.PutDependencyOnTable = RHS
 End Property
 
 Private Sub RetriveBasicStat(ByVal LambdaInCell As Range)
     
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.RetriveBasicStat"
     ' Set LambdaInSheet property with the parent sheet of the lambda cell
-    Set This.LambdaInSheet = LambdaInCell.Worksheet
+    Set this.LambdaInSheet = LambdaInCell.Worksheet
     ' Set LambdaInBook property with the parent workbook of the lambda cell
-    Set This.LambdaInBook = LambdaInCell.Worksheet.Parent
+    Set this.LambdaInBook = LambdaInCell.Worksheet.Parent
     ' Set AllLambdas property with all the lambdas in the lambda workbook
-    Set This.AllLambdas = modUtility.FindLambdas(This.LambdaInBook)
+    Set this.AllLambdas = Context.Lambdas
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.RetriveBasicStat"
         
 End Sub
@@ -56,19 +56,19 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.IncludeLambdaDependencies"
     RetriveBasicStat LambdaInCell
     ' Find the dependent Lambdas of the given formula
-    FindDependentLambdas LambdaInCell.Formula2, 1
+    FindDependentLambdas GetCellFormula(LambdaInCell), 1
     RemoveOtherIfOnlyLetStep IsOnlyLetStepOnes
     ' Check if there are any dependencies, if none then exit the subroutine
-    If This.AllDependency.Count = 0 Then Exit Sub
+    If this.AllDependency.Count = 0 Then Exit Sub
     ' Check the type of operation to be performed
     If TypeOfOperation = SEND_RESULT_TO_SHEET Then
         ' If the type of operation is to send the result to the sheet, then execute the SendDependencyDataToSheet method
-        SendDependencyDataToSheet This.AllDependency, PutDependencyInfoOnRange
+        SendDependencyDataToSheet this.AllDependency, PutDependencyInfoOnRange
     Else
         ' Find the parameters and the LET variables in the given formula
         Dim ParametersAndLetVars As Collection
         Dim ParamAndStepNames As Variant
-        ParamAndStepNames = GetParametersAndStepsName(LambdaInCell.Formula2)
+        ParamAndStepNames = GetParametersAndStepsName(GetCellFormula(LambdaInCell))
         If Not IsArray(ParamAndStepNames) Then
             Set ParametersAndLetVars = New Collection
         Else
@@ -76,12 +76,12 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
         End If
         
         ' Delete the named ranges for the LET step
-        DeleteLetStepNamedRanges This.AllDependency, IsOnlyLetStepOnes
+        DeleteLetStepNamedRanges this.AllDependency, IsOnlyLetStepOnes
         ' Sort and retrieve the dependency data
-        Set This.AllDependency = SortAndRetriveDependencyData(This.AllDependency)
+        Set this.AllDependency = SortAndRetriveDependencyData(this.AllDependency)
         ' For each DependencyInfo in the AllDependency collection
         Dim CurrentDependencyInfo As DependencyInfo
-        For Each CurrentDependencyInfo In This.AllDependency
+        For Each CurrentDependencyInfo In this.AllDependency
             Dim CurrentValidVarName As String
             ' Check if only the LET step ones are required
             CurrentValidVarName = CurrentDependencyInfo.ValidVarName
@@ -90,7 +90,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
             ' Join the parameters, LET variables and dependent Lambdas
             Dim Temp As Collection
             Set Temp = JoinParametersLetVarsAndDependencyLambdas(ParametersAndLetVars _
-                                                                 , This.AllDependency, CurrentValidVarName)
+                                                                 , this.AllDependency, CurrentValidVarName)
             ' Find a unique name by incrementing a number
             CurrentValidVarName = FindUniqueNameByIncrementingNumber(Temp, CurrentValidVarName)
             CurrentDependencyInfo.NewValidVarName = CurrentValidVarName
@@ -98,8 +98,8 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
         Next CurrentDependencyInfo
         ' Get the new formula text
         Dim NewFormulaText As String
-        NewFormulaText = InsertAllDependents(This.AllDependency, LambdaInCell.Formula2)
-        NewFormulaText = ReplaceAllDependentsWithNewVarName(NewFormulaText, This.AllDependency)
+        NewFormulaText = InsertAllDependents(this.AllDependency, GetCellFormula(LambdaInCell))
+        NewFormulaText = ReplaceAllDependentsWithNewVarName(NewFormulaText, this.AllDependency)
         NewFormulaText = FormatFormula(NewFormulaText)
         ' Assign the new formula, if there is an error, print into the debug window
         AssignFormulaIfErrorPrintIntoDebugWindow LambdaInCell, NewFormulaText, "Independent Lambda : "
@@ -112,9 +112,9 @@ Private Sub RemoveOtherIfOnlyLetStep(IsOnlyLetStepOnes As Boolean)
     
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.RemoveOtherIfOnlyLetStep"
     Dim CurrentDependencyInfo As DependencyInfo
-    For Each CurrentDependencyInfo In This.AllDependency
+    For Each CurrentDependencyInfo In this.AllDependency
         If IsOnlyLetStepOnes And Not IsStartsWithLetStepPrefix(CurrentDependencyInfo.ValidVarName) Then
-            This.AllDependency.Remove CurrentDependencyInfo.ValidVarName
+            this.AllDependency.Remove CurrentDependencyInfo.ValidVarName
         End If
     Next CurrentDependencyInfo
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.RemoveOtherIfOnlyLetStep"
@@ -287,13 +287,13 @@ Private Sub SendDependencyDataToSheet(ByVal AllDependency As Collection, ByVal F
     ' Write the dependency data to the sheet
     PutDependencyDataOnRange.Value = DependencyData
     ' Create a table for the dependency data on the sheet
-    Set This.PutDependencyOnTable = This.LambdaInSheet.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
+    Set this.PutDependencyOnTable = this.LambdaInSheet.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
     ' Adjust the width of the second column of the table
-    This.PutDependencyOnTable.ListColumns(2).Range.ColumnWidth = 50
+    this.PutDependencyOnTable.ListColumns(2).Range.ColumnWidth = 50
     ' Ensure that the text in the table doesn't wrap
-    This.PutDependencyOnTable.Range.WrapText = False
+    this.PutDependencyOnTable.Range.WrapText = False
     ' Scroll to the range with dependency data
-    ScrollToDependencyDataRange This.PutDependencyOnTable
+    ScrollToDependencyDataRange this.PutDependencyOnTable
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.SendDependencyDataToSheet"
     
 End Sub
@@ -351,7 +351,7 @@ Private Function GetAllLambdaDependencyData(ByVal AllDependency As Collection, B
 End Function
 
 Private Function RetriveLambdasDependencyData(ByVal AllDependency As Collection _
-                                                           , ByVal IsWithHeader As Boolean) As Variant
+                                              , ByVal IsWithHeader As Boolean) As Variant
     
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.RetriveLambdasDependencyData"
     ' Create a new collection to store property names
@@ -365,7 +365,7 @@ Private Function RetriveLambdasDependencyData(ByVal AllDependency As Collection 
 
     ' Get the property values of the objects in the AllDependency collection
     RetriveLambdasDependencyData = modUtility.GetObjectsPropertyValue(AllDependency _
-                                                                                   , PropertiesName, IsWithHeader)
+                                                                      , PropertiesName, IsWithHeader)
     
     ' Log exit from function
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.RetriveLambdasDependencyData"
@@ -384,7 +384,7 @@ Private Sub FindDependentLambdas(ByVal FormulaText As String, ByVal Level As Lon
     Dim CurrentMapper As Mapper
     For Each CurrentMapper In DirectDependentLambdas
         ' If lambda already exists in dependencies, update its level, else create new dependency and find its dependents
-        If IsExistInCollection(This.AllDependency, CurrentMapper.Key) Then
+        If IsExistInCollection(this.AllDependency, CurrentMapper.Key) Then
             UpdateLevel CurrentMapper.Key, Level
         Else
             CreateNewDependency CurrentMapper, Level
@@ -403,13 +403,13 @@ Private Sub CreateNewDependency(ByVal CurrentMapper As Mapper, ByVal Level As Lo
     With CurrentDependencyInfo
         .FormulaText = CurrentMapper.Value.RefersTo
         .Level = Level
-        .ValidVarName = CurrentMapper.Value.name
+        .ValidVarName = CurrentMapper.Value.Name
         Set .ForName = CurrentMapper.Value
         .HasFormula = True
     End With
 
     ' Add the newly created dependency to the main dependency collection
-    This.AllDependency.Add CurrentDependencyInfo, CurrentDependencyInfo.ValidVarName
+    this.AllDependency.Add CurrentDependencyInfo, CurrentDependencyInfo.ValidVarName
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.CreateNewDependency"
     
 End Sub
@@ -419,7 +419,7 @@ Private Sub UpdateLevel(ByVal NameOfNamedRange As String, ByVal NewLevel As Long
     
     Logger.Log TRACE_LOG, "Enter DependencyFormulaReplacer.UpdateLevel"
     Dim CurrentDependency As DependencyInfo
-    Set CurrentDependency = This.AllDependency.Item(NameOfNamedRange)
+    Set CurrentDependency = this.AllDependency.Item(NameOfNamedRange)
     
     '@BaseCase to exit
     If NewLevel < CurrentDependency.Level Then Exit Sub
@@ -458,9 +458,9 @@ Private Function FindDirectDependentLambdas(ByVal FormulaText As String) As Coll
         LambdaName = CStr(CurrentUsedFunction)
         ' If not added already and if it is a lambda then add in the dependent list.
         If Not IsExistInCollection(DependentLambdas, LambdaName) _
-           And IsExistInCollection(This.AllLambdas, LambdaName) Then
+           And IsExistInCollection(this.AllLambdas, LambdaName) Then
             Dim CurrentMapper As Mapper
-            Set CurrentMapper = Mapper.Create(LambdaName, This.AllLambdas.Item(LambdaName))
+            Set CurrentMapper = Mapper.Create(LambdaName, this.AllLambdas.Item(LambdaName))
             DependentLambdas.Add CurrentMapper, LambdaName
         End If
     Next CurrentUsedFunction
@@ -480,9 +480,9 @@ Private Function GetMapperIfLambdaRef(ByVal TokenName As String, ByVal TokenType
         Exit Function
     End If
     ' If token type is named range but not lambdas ref then no mapper as well.
-    If Not IsExistInCollection(This.AllLambdas, TokenName) Then Exit Function
+    If Not IsExistInCollection(this.AllLambdas, TokenName) Then Exit Function
     
-    Set GetMapperIfLambdaRef = Mapper.Create(TokenName, This.AllLambdas.Item(TokenName))
+    Set GetMapperIfLambdaRef = Mapper.Create(TokenName, this.AllLambdas.Item(TokenName))
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.GetMapperIfLambdaRef"
         
 End Function
@@ -492,9 +492,9 @@ Private Sub Class_Initialize()
     ' This sub is automatically called when a new instance of the class is created.
     
     ' Initialize the AllLambdas, DependentOnLambdas, and AllDependency collections.
-    Set This.AllLambdas = New Collection
-    Set This.DependentOnLambdas = New Collection
-    Set This.AllDependency = New Collection
+    Set this.AllLambdas = New Collection
+    Set this.DependentOnLambdas = New Collection
+    Set this.AllDependency = New Collection
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.Class_Initialize"
     
 End Sub
@@ -504,9 +504,9 @@ Private Sub Class_Terminate()
     ' This sub is automatically called when the class instance is about to be destroyed.
     
     ' Clear the references to the collections to release memory resources.
-    Set This.AllLambdas = Nothing
-    Set This.DependentOnLambdas = Nothing
-    Set This.AllDependency = Nothing
+    Set this.AllLambdas = Nothing
+    Set this.DependentOnLambdas = Nothing
+    Set this.AllDependency = Nothing
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.Class_Terminate"
     
 End Sub

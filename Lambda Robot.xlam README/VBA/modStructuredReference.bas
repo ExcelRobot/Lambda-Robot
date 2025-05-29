@@ -30,9 +30,9 @@ Public Sub ConvertFormulaToStructuredRef(ByVal FromCell As Range)
     Logger.Log TRACE_LOG, "Enter modStructuredReference.ConvertFormulaToStructuredRef"
     If Not FromCell.HasFormula Then Exit Sub
     Dim FinalFormula As String
-    FinalFormula = GetConvertedStructuredFormula(FromCell)
+    FinalFormula = GetConvertedStructuredFormula(FromCell, True)
     'Only assign formula if something is changed.
-    If FinalFormula <> FromCell.Cells(1).Formula2 Then
+    If FinalFormula <> GetCellFormula(FromCell.Cells(1)) Then
         AssignFormulaIfErrorPrintIntoDebugWindow FromCell.Cells(1), FinalFormula _
                                                                    , "Converted Structured Reference : "
     End If
@@ -40,17 +40,18 @@ Public Sub ConvertFormulaToStructuredRef(ByVal FromCell As Range)
     
 End Sub
 
-Public Function GetConvertedStructuredFormula(ByVal FromCell As Range) As String
+Public Function GetConvertedStructuredFormula(ByVal FromCell As Range _
+                                              , Optional ByVal IgnoreIfInputCell As Boolean = False) As String
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetConvertedStructuredFormula"
     If Not FromCell.HasFormula Then Exit Function
     '    Debug.Assert FromCell.Address <> "$B$2"
     'Start the timer for this operation
-    Logger.Log DEBUG_LOG, "Formula To Convert To Structured Ref: " & FromCell.Cells(1).Formula2
+    Logger.Log DEBUG_LOG, "Formula To Convert To Structured Ref: " & GetCellFormula(FromCell.Cells(1))
     Dim StartTime As Double
     StartTime = Timer()
     Dim FinalFormula As String
-    FinalFormula = SplitCombinedCellsOfFormulaDep(FromCell)
+    FinalFormula = SplitCombinedCellsOfFormulaDep(FromCell, IgnoreIfInputCell)
     ' Get necessary information for structured reference conversion
     Dim Dependencies As Variant
     Dependencies = GetDirectPrecedents(FinalFormula, FromCell.Worksheet)
@@ -66,7 +67,7 @@ Public Function GetConvertedStructuredFormula(ByVal FromCell As Range) As String
     Dim CurrentRange As Range
     Dim CurrentDependency As Variant
     For Each CurrentDependency In Dependencies
-        If CurrentDependency <> vbNullString Then
+        If CurrentDependency <> vbNullString And Not Is3DReference(CurrentDependency) Then
             Set CurrentRange = RangeResolver.GetRangeForDependency(CStr(CurrentDependency), FromCell)
             Dim StructuredRef As String
             Dim AreaStartTime As Double
@@ -248,19 +249,19 @@ Private Function GetPrefixForNormalRef(ByVal CopyFrom As Range, ByVal PasteTo As
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetPrefixForNormalRef"
     ' Check if the CopyFrom and PasteTo ranges are in the same workbook and sheet
     Dim IsSameWorkbook As Boolean
-    IsSameWorkbook = (CopyFrom.Worksheet.Parent.name = PasteTo.Worksheet.Parent.name)
+    IsSameWorkbook = (CopyFrom.Worksheet.Parent.Name = PasteTo.Worksheet.Parent.Name)
     Dim IsSameSheet As Boolean
-    IsSameSheet = (IsSameWorkbook And (CopyFrom.Worksheet.name = PasteTo.Worksheet.name))
+    IsSameSheet = (IsSameWorkbook And (CopyFrom.Worksheet.Name = PasteTo.Worksheet.Name))
 
     ' If they're not in the same workbook, include the workbook and sheet name in the prefix
     If Not IsSameWorkbook Then
         GetPrefixForNormalRef = SINGLE_QUOTE & LEFT_BRACKET _
-                                & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) & RIGHT_BRACKET _
-                                & EscapeSingeQuote(CopyFrom.Worksheet.name) & SINGLE_QUOTE & EXCLAMATION_SIGN
+                                & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) & RIGHT_BRACKET _
+                                & EscapeSingeQuote(CopyFrom.Worksheet.Name) & SINGLE_QUOTE & EXCLAMATION_SIGN
                                 
         ' If they're in the same workbook but different sheets, include only the sheet name in the prefix
     ElseIf IsSameWorkbook And Not IsSameSheet Then
-        GetPrefixForNormalRef = GetSheetRefForRangeReference(CopyFrom.Worksheet.name, False)
+        GetPrefixForNormalRef = GetSheetRefForRangeReference(CopyFrom.Worksheet.Name, False)
     End If
     Logger.Log TRACE_LOG, "Exit modStructuredReference.GetPrefixForNormalRef"
     
@@ -281,20 +282,20 @@ Public Function ConvertToStructuredReferenceForTable(ByVal CopyFrom As Range, By
     ' These conditions evaluate the specific part of the table that CopyFrom range is referring to
     ' and return the appropriate structured reference
     If Table.Range.Address = CopyFrom.Address Then
-        ConvertToStructuredReferenceForTable = Table.name & TABLE_ALL_MARKER
+        ConvertToStructuredReferenceForTable = Table.Name & TABLE_ALL_MARKER
     ElseIf Table.DataBodyRange.Address = CopyFrom.Address Then
-        ConvertToStructuredReferenceForTable = Table.name
+        ConvertToStructuredReferenceForTable = Table.Name
     ElseIf IsTwoRangeEqual(Table.HeaderRowRange, CopyFrom) Then
-        ConvertToStructuredReferenceForTable = Table.name & TABLE_HEADERS_MARKER
+        ConvertToStructuredReferenceForTable = Table.Name & TABLE_HEADERS_MARKER
     ElseIf IsTotalRange(Table, CopyFrom) Then
-        ConvertToStructuredReferenceForTable = Table.name & TABLE_TOTALS_MARKER
+        ConvertToStructuredReferenceForTable = Table.Name & TABLE_TOTALS_MARKER
     ElseIf IsOnlyInsideHeader(Table, CopyFrom) Then
-        ConvertToStructuredReferenceForTable = Table.name & ConvertHeaderReference(Table, CopyFrom)
+        ConvertToStructuredReferenceForTable = Table.Name & ConvertHeaderReference(Table, CopyFrom)
     ElseIf IsOnlyInsideTotalRow(Table, CopyFrom) Then
-        ConvertToStructuredReferenceForTable = Table.name & ConvertTotalRowReference(Table, CopyFrom)
+        ConvertToStructuredReferenceForTable = Table.Name & ConvertTotalRowReference(Table, CopyFrom)
     ElseIf IsOnlyInsideDatabody(Table, CopyFrom) Then
         If FindIntersection(Table.DataBodyRange, CopyFrom).Rows.Count = Table.DataBodyRange.Rows.Count Then
-            ConvertToStructuredReferenceForTable = Table.name & ConvertDataBodyReference(Table, CopyFrom)
+            ConvertToStructuredReferenceForTable = Table.Name & ConvertDataBodyReference(Table, CopyFrom)
         Else
             ConvertToStructuredReferenceForTable = ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(CopyFrom _
                                                                                                     , PasteTo)
@@ -310,9 +311,9 @@ Public Function ConvertToStructuredReferenceForTable(ByVal CopyFrom As Range, By
             ColumnsRef = ConvertTableReference(Table, CopyFrom)
             If ColumnsRef = vbNullString Then Prefix = Text.RemoveFromEndIfPresent(Prefix, LIST_SEPARATOR)
             If Prefix <> vbNullString Then
-                ConvertToStructuredReferenceForTable = Table.name & LEFT_BRACKET & Prefix & ColumnsRef & RIGHT_BRACKET
+                ConvertToStructuredReferenceForTable = Table.Name & LEFT_BRACKET & Prefix & ColumnsRef & RIGHT_BRACKET
             Else
-                ConvertToStructuredReferenceForTable = Table.name & ColumnsRef
+                ConvertToStructuredReferenceForTable = Table.Name & ColumnsRef
             End If
         Else
             ConvertToStructuredReferenceForTable = ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(CopyFrom _
@@ -323,10 +324,10 @@ Public Function ConvertToStructuredReferenceForTable(ByVal CopyFrom As Range, By
     End If
     
     ' If the CopyFrom and PasteTo ranges are in different workbooks, add the workbook name to the reference
-    If CopyFrom.Worksheet.Parent.name <> PasteTo.Worksheet.Parent.name Then
-        ConvertToStructuredReferenceForTable = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) _
-                                             & SINGLE_QUOTE & EXCLAMATION_SIGN _
-                                             & ConvertToStructuredReferenceForTable
+    If CopyFrom.Worksheet.Parent.Name <> PasteTo.Worksheet.Parent.Name Then
+        ConvertToStructuredReferenceForTable = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) _
+                                               & SINGLE_QUOTE & EXCLAMATION_SIGN _
+                                               & ConvertToStructuredReferenceForTable
     End If
     
     ' End the logging process
@@ -362,7 +363,7 @@ Private Function ConvertHeaderReference(ByVal Table As ListObject, ByVal CopyFro
         LastColumnName = CopyFrom.Cells(1, CopyFrom.Cells.Count).Value
         
         ' We check if we're referring to the entire header
-        If FirstColumnName = Table.ListColumns(1).name And LastColumnName = Table.ListColumns(Table.ListColumns.Count).name Then
+        If FirstColumnName = Table.ListColumns(1).Name And LastColumnName = Table.ListColumns(Table.ListColumns.Count).Name Then
             Result = LEFT_BRACKET & TABLE_ALL_MARKER & RIGHT_BRACKET
         Else
             Result = LEFT_BRACKET & TABLE_HEADERS_MARKER & LIST_SEPARATOR _
@@ -440,18 +441,18 @@ Private Function ConvertTotalRowReference(ByVal Table As ListObject, ByVal CopyF
     If CopyFrom.Cells.Count = 1 Then
         ' If CopyFrom is a single cell, create a structured reference to that cell in the table's totals row
         Result = LEFT_BRACKET & TABLE_TOTALS_MARKER & LIST_SEPARATOR _
-                 & ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).name) & RIGHT_BRACKET
+                 & ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name) & RIGHT_BRACKET
     Else
         ' If CopyFrom is a range of cells, determine the first and last column names in the table's totals row
         Dim FirstColumnName As String
-        FirstColumnName = Table.ListColumns.Item(ColIndex).name
+        FirstColumnName = Table.ListColumns.Item(ColIndex).Name
         
         Dim LastColumnName As String
         ColIndex = CopyFrom.Cells(1, CopyFrom.Cells.Count).Column - Table.TotalsRowRange.Cells(1).Column + 1
-        LastColumnName = Table.ListColumns.Item(ColIndex).name
+        LastColumnName = Table.ListColumns.Item(ColIndex).Name
         
         ' Check if we're referring to the entire totals row
-        If FirstColumnName = Table.ListColumns(1).name And LastColumnName = Table.ListColumns(Table.ListColumns.Count).name Then
+        If FirstColumnName = Table.ListColumns(1).Name And LastColumnName = Table.ListColumns(Table.ListColumns.Count).Name Then
             Result = LEFT_BRACKET & TABLE_TOTALS_MARKER & RIGHT_BRACKET
         Else
             Result = LEFT_BRACKET & TABLE_TOTALS_MARKER & LIST_SEPARATOR _
@@ -490,19 +491,19 @@ Public Function ConvertDataBodyReference(ByVal Table As ListObject, ByVal CopyFr
     Dim Result As String
     If CopyFrom.Columns.Count = 1 Then
         ' If CopyFrom is a single column, create a structured reference to that column in the table's data body
-        Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).name)
+        Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name)
     Else
         ' If CopyFrom is a range of columns, determine the first and last column names in the table's data body
         Dim FirstColumnName As String
-        FirstColumnName = Table.ListColumns.Item(ColIndex).name
+        FirstColumnName = Table.ListColumns.Item(ColIndex).Name
         
         Dim LastColumnName As String
         ColIndex = CopyFrom.Cells(1, CopyFrom.Columns.Count).Column - Table.DataBodyRange.Cells(1).Column + 1
-        LastColumnName = Table.ListColumns.Item(ColIndex).name
+        LastColumnName = Table.ListColumns.Item(ColIndex).Name
         
         ' Check if we're referring to the entire data body
-        If FirstColumnName = Table.ListColumns(1).name _
-           And LastColumnName = Table.ListColumns(Table.ListColumns.Count).name Then
+        If FirstColumnName = Table.ListColumns(1).Name _
+           And LastColumnName = Table.ListColumns(Table.ListColumns.Count).Name Then
            
             Result = LEFT_BRACKET & TABLE_DATA_MARKER & RIGHT_BRACKET
         Else
@@ -612,19 +613,19 @@ Private Function ConvertTableReference(ByVal Table As ListObject, ByVal CopyFrom
     Dim Result As String
     If CopyFrom.Columns.Count = 1 Then
         ' If CopyFrom is a single column, create a structured reference to that column in the table
-        Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).name)
+        Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name)
     Else
         ' If CopyFrom is a range of columns, determine the first and last column names in the table's header row
         Dim FirstColumnName As String
-        FirstColumnName = Table.ListColumns.Item(ColIndex).name
+        FirstColumnName = Table.ListColumns.Item(ColIndex).Name
         
         Dim LastColumnName As String
         ColIndex = CopyFrom.Cells(1, CopyFrom.Columns.Count).Column - Table.HeaderRowRange.Cells(1).Column + 1
-        LastColumnName = Table.ListColumns.Item(ColIndex).name
+        LastColumnName = Table.ListColumns.Item(ColIndex).Name
         
         ' Check if we're referring to the entire table, if so, return an empty string
-        If FirstColumnName = Table.ListColumns(1).name _
-           And LastColumnName = Table.ListColumns(Table.ListColumns.Count).name Then
+        If FirstColumnName = Table.ListColumns(1).Name _
+           And LastColumnName = Table.ListColumns(Table.ListColumns.Count).Name Then
             Result = vbNullString
         Else
             ' Otherwise, create a structured reference for the range of columns
@@ -649,7 +650,7 @@ Private Function ConvertToStructuredReferenceForNamedRange(ByVal CopyFrom As Ran
     Prefix = GetPrefixForNamedRange(CopyFrom, PasteTo)
     
     ' Find the closest named range to CopyFrom
-    Dim CurrentName As name
+    Dim CurrentName As Name
     Set CurrentName = FindClosestNamedRange(CopyFrom)
     
     ' If no named range is found, combine multiple named ranges if applicable
@@ -668,7 +669,7 @@ Private Function ConvertToStructuredReferenceForNamedRange(ByVal CopyFrom As Ran
 End Function
 
 Private Function GetStructuredRefForNamedRange(ByVal CopyFrom As Range, ByVal PasteTo As Range _
-                                                                       , ByVal CurrentName As name _
+                                                                       , ByVal CurrentName As Name _
                                                                         , ByVal Prefix As String) As String
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetStructuredRefForNamedRange"
@@ -684,19 +685,19 @@ Private Function GetStructuredRefForNamedRange(ByVal CopyFrom As Range, ByVal Pa
     
 End Function
 
-Private Function GetProperNameForNamedRange(ByVal CurrentName As name, ByVal PasteTo As Range) As String
+Private Function GetProperNameForNamedRange(ByVal CurrentName As Name, ByVal PasteTo As Range) As String
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetProperNameForNamedRange"
     ' Check if the named range is local and if it's in the same sheet as the PasteTo range
     If IsLocalScopeNamedRange(CurrentName.NameLocal) _
-       And CurrentName.RefersToRange.Worksheet.name = PasteTo.Worksheet.name Then
+       And CurrentName.RefersToRange.Worksheet.Name = PasteTo.Worksheet.Name Then
         ' Extract the name from the local named range
         GetProperNameForNamedRange = ExtractNameFromLocalNameRange(CurrentName.NameLocal)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modStructuredReference.GetProperNameForNamedRange"
         Exit Function
     End If
     ' Return the original name if it's not a local named range or in a different sheet
-    GetProperNameForNamedRange = CurrentName.name
+    GetProperNameForNamedRange = CurrentName.Name
     Logger.Log TRACE_LOG, "Exit modStructuredReference.GetProperNameForNamedRange"
     
 End Function
@@ -705,10 +706,10 @@ Private Function GetPrefixForNamedRange(ByVal CopyFrom As Range, ByVal PasteTo A
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetPrefixForNamedRange"
     ' Check if CopyFrom and PasteTo are in different workbooks
-    If CopyFrom.Worksheet.Parent.name <> PasteTo.Worksheet.Parent.name Then
+    If CopyFrom.Worksheet.Parent.Name <> PasteTo.Worksheet.Parent.Name Then
         ' Return the workbook prefix
-        GetPrefixForNamedRange = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) _
-                               & SINGLE_QUOTE & EXCLAMATION_SIGN
+        GetPrefixForNamedRange = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) _
+                                 & SINGLE_QUOTE & EXCLAMATION_SIGN
     End If
     Logger.Log TRACE_LOG, "Exit modStructuredReference.GetPrefixForNamedRange"
     
@@ -722,7 +723,7 @@ Private Function CombineMultipleNamedRange(ByVal CopyFrom As Range, ByVal PasteT
     Set AllNamedRangeAddress = New Collection
     
     ' Find the closest named range to CopyFrom
-    Dim Temp  As name
+    Dim Temp  As Name
     Set Temp = FindClosestNamedRange(CopyFrom.Cells(1))
     Dim Index As Long
     
@@ -735,7 +736,7 @@ Private Function CombineMultipleNamedRange(ByVal CopyFrom As Range, ByVal PasteT
     
     ' If CopyFrom and named range refer to the same range, return the structured reference for the named range
     If Temp.RefersToRange.Address = CopyFrom.Address Then
-        CombineMultipleNamedRange = Prefix & Temp.name
+        CombineMultipleNamedRange = Prefix & Temp.Name
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modStructuredReference.CombineMultipleNamedRange"
         Exit Function
     End If
@@ -784,7 +785,7 @@ Private Function CombineMultipleNamedRange(ByVal CopyFrom As Range, ByVal PasteT
     
 End Function
 
-Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As name
+Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As Name
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.FindClosestNamedRange"
     ' Create a collection to store all named ranges intersecting with CopyFrom
@@ -793,10 +794,10 @@ Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As name
     
     Dim Book  As Workbook
     Set Book = CopyFrom.Worksheet.Parent
-    Dim CurrentName As name
-    For Each CurrentName In Book.Names
+    Dim CurrentName As Name
+    For Each CurrentName In Context.GetAllRangeRefNamedRangeFromBook(Book)
         If IsRangeInsideNamedRange(CurrentName, CopyFrom) And CurrentName.Visible Then
-            Logger.Log DEBUG_LOG, "Matched Named Range : " & CurrentName.name
+            Logger.Log DEBUG_LOG, "Matched Named Range : " & CurrentName.Name
             AllMatchNamedRanges.Add CurrentName, CurrentName.NameLocal
         End If
     Next CurrentName
@@ -805,7 +806,7 @@ Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As name
     Dim MinimumCellCount As Long
     MinimumCellCount = LONG_MAX
     Dim Temp  As Long
-    Dim FinalName As name
+    Dim FinalName As Name
     
     ' Find the closest named range to CopyFrom based on the number of cells it covers
     For Each CurrentName In AllMatchNamedRanges
@@ -821,7 +822,7 @@ Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As name
     
 End Function
 
-Public Function IsRangeInsideNamedRange(ByVal CurrentNameRange As name, ByVal CopyFrom As Range) As Boolean
+Public Function IsRangeInsideNamedRange(ByVal CurrentNameRange As Name, ByVal CopyFrom As Range) As Boolean
     
     ' Check if the named range refers to a valid range
     Dim ReferredRange As Range
@@ -830,7 +831,7 @@ Public Function IsRangeInsideNamedRange(ByVal CurrentNameRange As name, ByVal Co
     On Error GoTo 0
     If IsNothing(ReferredRange) Then
         IsRangeInsideNamedRange = False
-    ElseIf CopyFrom.Worksheet.name = ReferredRange.Worksheet.name Then
+    ElseIf CopyFrom.Worksheet.Name = ReferredRange.Worksheet.Name Then
         ' Check if CopyFrom is fully inside the named range
         IsRangeInsideNamedRange = IsTwoRangeEqual(FindIntersection(ReferredRange, CopyFrom), CopyFrom)
         If IsRangeInsideNamedRange Then Exit Function
@@ -838,28 +839,28 @@ Public Function IsRangeInsideNamedRange(ByVal CurrentNameRange As name, ByVal Co
     
 End Function
 
-Private Function IsWholeNamedRangePresent(ByVal CurrentName As name, ByVal CopyFrom As Range) As Boolean
+Private Function IsWholeNamedRangePresent(ByVal CurrentName As Name, ByVal CopyFrom As Range) As Boolean
     IsWholeNamedRangePresent = (CurrentName.RefersToRange.Address = CopyFrom.Address)
 End Function
 
-Private Function ConvertColumnsToFormulaTextForNamedRange(ByVal CurrentName As name _
+Private Function ConvertColumnsToFormulaTextForNamedRange(ByVal CurrentName As Name _
                                                           , ByVal CopyFrom As Range _
                                                            , ByVal PasteTo As Range) As String
     
     Logger.Log TRACE_LOG, "Enter modStructuredReference.ConvertColumnsToFormulaTextForNamedRange"
     ' Check if the named range is in the same workbook as PasteTo
     Dim IsSameWorkbook As Boolean
-    IsSameWorkbook = (CopyFrom.Worksheet.Parent.name = PasteTo.Worksheet.Parent.name)
+    IsSameWorkbook = (CopyFrom.Worksheet.Parent.Name = PasteTo.Worksheet.Parent.Name)
     Dim Prefix As String
     If Not IsSameWorkbook Then
-        Prefix = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) _
-               & SINGLE_QUOTE & EXCLAMATION_SIGN
+        Prefix = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) _
+                 & SINGLE_QUOTE & EXCLAMATION_SIGN
     End If
     ' Convert columns to formula text for the named range
     ConvertColumnsToFormulaTextForNamedRange = ConvertColumnsToFormulaText(CurrentName.RefersToRange _
                                                                            , Prefix _
-                                                                          & GetProperNameForNamedRange(CurrentName _
-                                                                                                       , PasteTo), CopyFrom)
+                                                                            & GetProperNameForNamedRange(CurrentName _
+                                                                                                         , PasteTo), CopyFrom)
     Logger.Log TRACE_LOG, "Exit modStructuredReference.ConvertColumnsToFormulaTextForNamedRange"
 
 End Function
@@ -965,9 +966,9 @@ Private Function ConvertToStructuredReferenceForSpillRange(ByVal CopyFrom As Ran
     Logger.Log TRACE_LOG, "Enter modStructuredReference.ConvertToStructuredReferenceForSpillRange"
     ' Check if CopyFrom and PasteTo are in the same workbook and the same sheet
     Dim IsSameWorkbook As Boolean
-    IsSameWorkbook = (CopyFrom.Worksheet.Parent.name = PasteTo.Worksheet.Parent.name)
+    IsSameWorkbook = (CopyFrom.Worksheet.Parent.Name = PasteTo.Worksheet.Parent.Name)
     Dim IsSameSheet As Boolean
-    IsSameSheet = (IsSameWorkbook And (CopyFrom.Worksheet.name = PasteTo.Worksheet.name))
+    IsSameSheet = (IsSameWorkbook And (CopyFrom.Worksheet.Name = PasteTo.Worksheet.Name))
     
     ' Try to get the spilling range for CopyFrom
     Dim SpillRange As Range
@@ -987,9 +988,9 @@ Private Function ConvertToStructuredReferenceForSpillRange(ByVal CopyFrom As Ran
                 ReferToName = GetRangeRefWithSheetName(SpillRange.Cells(1), False) & HASH_SIGN
             ElseIf Not IsSameWorkbook Then
                 ReferToName = SINGLE_QUOTE & LEFT_BRACKET _
-                            & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) & RIGHT_BRACKET _
-                            & EscapeSingeQuote(CopyFrom.Worksheet.name) & SINGLE_QUOTE & EXCLAMATION_SIGN _
-                            & SpillRange.Cells(1).Address(False, False) & HASH_SIGN
+                              & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) & RIGHT_BRACKET _
+                              & EscapeSingeQuote(CopyFrom.Worksheet.Name) & SINGLE_QUOTE & EXCLAMATION_SIGN _
+                              & SpillRange.Cells(1).Address(False, False) & HASH_SIGN
                               
             End If
             
@@ -1266,16 +1267,16 @@ Private Function GetDatabodyRefName(ByVal CopyFrom As Range _
     
     ' Check if CopyFrom and PasteTo are in the same workbook
     Dim IsSameWorkbook As Boolean
-    IsSameWorkbook = (CopyFrom.Worksheet.Parent.name = PasteTo.Worksheet.Parent.name)
+    IsSameWorkbook = (CopyFrom.Worksheet.Parent.Name = PasteTo.Worksheet.Parent.Name)
 
     ' Get the prefix for the reference name based on the workbook
     If Not IsSameWorkbook Then
-        GetDatabodyRefName = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.name) _
-                           & SINGLE_QUOTE & EXCLAMATION_SIGN
+        GetDatabodyRefName = SINGLE_QUOTE & EscapeSingeQuote(CopyFrom.Worksheet.Parent.Name) _
+                             & SINGLE_QUOTE & EXCLAMATION_SIGN
     End If
     
     ' Return the reference name for the data body
-    GetDatabodyRefName = GetDatabodyRefName & Table.name & TABLE_DATA_MARKER
+    GetDatabodyRefName = GetDatabodyRefName & Table.Name & TABLE_DATA_MARKER
     Logger.Log TRACE_LOG, "Exit modStructuredReference.GetDatabodyRefName"
 End Function
 
@@ -1319,3 +1320,5 @@ Public Function UnionOfNonExistableRange(ByVal FirstRange As Range, ByVal Second
     Logger.Log TRACE_LOG, "Exit modStructuredReference.UnionOfNonExistableRange"
     
 End Function
+
+

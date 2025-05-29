@@ -73,11 +73,14 @@ Public Const LIST_SEPARATOR As String = ","
 
 ' @Defined Independent Const
 
+Public Const CIRCULAR_LAMBDA_COMMAND_NAME As String = "Generate Circular Lambda"
+
 Public Const AFE_BASE_NAME As String = "AFEJSONBlob"
 Public Const APP_NAME As String = "Lambda Robot"
 Public Const DOLLAR_SIGN As String = "$"
 Public Const HASH_SIGN As String = "#"
 Public Const EQUAL_SIGN As String = "="
+Public Const PLUS_SIGN As String = "+"
 Public Const LET_PARTS_VALUE_COL_INDEX As Long = 5
 Public Const LAMBDA_PARTS_VALUE_COL_INDEX As Long = 5
 Public Const INPUT_CELL_BACKGROUND_COLOR As Long = 13434879
@@ -140,6 +143,78 @@ Public Const CUSTOMPROPERTIES_LET_VAR As String = METADATA_IDENTIFIER & "CustomP
 Public Const SOURCE_NAME_LET_VAR As String = METADATA_IDENTIFIER & "Source"
 Public Const GIST_URL_LET_VAR As String = METADATA_IDENTIFIER & "gistURL"
 
+Public Function GetLETStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection) As String
+    
+    Dim Msg As String
+    If FXList.Count = 1 Then
+        Msg = "The generated LET formula is not returning the correct result. " _
+              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
+              
+    ElseIf FXList.Count = 0 Then
+        Msg = "The generated LET formula is not returning the correct result."
+        
+    ElseIf FXList.Count > 1 Then
+        Msg = "The generated LET formula is not returning the correct result. " _
+              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
+              
+    End If
+    
+    GetLETStatementRangeRequiredFXAlertMessage = Msg
+    
+End Function
+
+Public Function GetLAMBDAStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection) As String
+    
+    Dim Msg As String
+    If FXList.Count = 1 Then
+        Msg = "The generated LAMBDA is not returning the correct result. " _
+              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
+              
+    ElseIf FXList.Count = 0 Then
+        Msg = "The generated LAMBDA is not returning the correct result."
+        
+    ElseIf FXList.Count > 1 Then
+        Msg = "The generated LAMBDA is not returning the correct result. " _
+              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
+              
+    End If
+    
+    GetLAMBDAStatementRangeRequiredFXAlertMessage = Msg
+    
+End Function
+
+Public Function GetAFSCommandRangeRequiredFXAlertMessage(ByVal FXList As Collection) As String
+    
+    Dim Msg As String
+    If FXList.Count = 1 Then
+        Msg = "The audited formula is not returning the same result as the original formula. " _
+              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
+              
+    ElseIf FXList.Count = 0 Then
+        Msg = "The audited formula is not returning the same result as the original formula."
+        
+    ElseIf FXList.Count > 1 Then
+        Msg = "The audited formula is not returning the same result as the original formula. " _
+              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+              & vbNewLine & vbNewLine _
+              & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
+              
+    End If
+    
+    GetAFSCommandRangeRequiredFXAlertMessage = Msg
+    
+End Function
+
 ' @Array Constant.
 Public Function GetMetadataGroups() As Variant
     
@@ -155,7 +230,7 @@ End Function
 Public Function DependencyInfoObjectPropertiesName() As Collection
 
     Dim PropertiesNameArray As Variant
-    ReDim PropertiesNameArray(1 To 26)
+    ReDim PropertiesNameArray(1 To 27)
     PropertiesNameArray(1) = "RangeLabel"
     PropertiesNameArray(2) = "RangeReference"
     PropertiesNameArray(3) = "Level"
@@ -182,7 +257,32 @@ Public Function DependencyInfoObjectPropertiesName() As Collection
     PropertiesNameArray(24) = "BookName"
     PropertiesNameArray(25) = "IsTableRef"
     PropertiesNameArray(26) = "IsUserSpecifiedName"
+    PropertiesNameArray(27) = "Is3DRangeRef"
     Set DependencyInfoObjectPropertiesName = modUtility.VectorToCollection(PropertiesNameArray)
 
 End Function
+
+Public Function GetRangeRequiredFXsName() As Collection
+        
+    Dim RangeReqFXsName As Collection
+    Set RangeReqFXsName = New Collection
+    
+    With RangeReqFXsName
+        .Add Item:="AVERAGEIF", Key:="AVERAGEIF"
+        .Add Item:="AVERAGEIFS", Key:="AVERAGEIFS"
+        .Add Item:="COUNTIF", Key:="COUNTIF"
+        .Add Item:="COUNTIFS", Key:="COUNTIFS"
+        .Add Item:="MAXIFS", Key:="MAXIFS"
+        .Add Item:="MINIFS", Key:="MINIFS"
+        .Add Item:="SUMIF", Key:="SUMIF"
+        .Add Item:="SUMIFS", Key:="SUMIFS"
+        .Add Item:="COUNTBLANK", Key:="COUNTBLANK"
+        .Add Item:="OFFSET", Key:="OFFSET"
+        .Add Item:="INDIRECT", Key:="INDIRECT"
+    End With
+    
+    Set GetRangeRequiredFXsName = RangeReqFXsName
+   
+End Function
+
 

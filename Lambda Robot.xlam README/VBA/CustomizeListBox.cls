@@ -30,15 +30,15 @@ Private Type TCustomizeListBox
     PreviousSelectedIndex As Long
 End Type
 
-Private This As TCustomizeListBox
+Private this As TCustomizeListBox
 
 Private Sub Class_Initialize()
-    Set This.SelectedIndexes = New Collection
-    This.PreviousSelectedIndex = -1
+    Set this.SelectedIndexes = New Collection
+    this.PreviousSelectedIndex = -1
 End Sub
 
 Public Property Get SelectedIndexes() As Collection
-    Set SelectedIndexes = This.SelectedIndexes
+    Set SelectedIndexes = this.SelectedIndexes
 End Property
 
 Private Sub GivenListBox_Change()
@@ -54,15 +54,15 @@ Private Sub UpdateSelectionData()
     Dim NewSelectedIndex As Long
     NewSelectedIndex = -1
     Dim PreviouslySelectedItemCount As Long
-    PreviouslySelectedItemCount = This.SelectedIndexes.Count
+    PreviouslySelectedItemCount = this.SelectedIndexes.Count
     'Looping through all list box items to check the selected state
     For Index = 0 To GivenListBox.ListCount - 1
         If GivenListBox.Selected(Index) Then
             'If an item is selected, it's added to the new collection
             NewSelectedItemsIndex.Add Index, CStr(Index)
             'If the same item was previously selected, it's removed from old collection
-            If IsExistInCollection(This.SelectedIndexes, CStr(Index)) Then
-                This.SelectedIndexes.Remove CStr(Index)
+            If IsExistInCollection(this.SelectedIndexes, CStr(Index)) Then
+                this.SelectedIndexes.Remove CStr(Index)
             Else
                 NewSelectedIndex = Index
             End If
@@ -75,14 +75,14 @@ Private Sub UpdateSelectionData()
     End If
     'Handling the case of single selection remaining constant
     If PreviouslySelectedItemCount = 1 And NewSelectedItemsIndex.Count = 1 _
-       And This.SelectedIndexes.Count = 0 Then NewSelectedIndex = NewSelectedItemsIndex.Item(1)
+       And this.SelectedIndexes.Count = 0 Then NewSelectedIndex = NewSelectedItemsIndex.Item(1)
     'Setting the updated selection indexes
-    Set This.SelectedIndexes = NewSelectedItemsIndex
+    Set this.SelectedIndexes = NewSelectedItemsIndex
     'If there is a change in selection, an event is raised
-    If This.PreviousSelectedIndex <> NewSelectedIndex Then RaiseEvent IndexSelectionChange(This.PreviousSelectedIndex _
+    If this.PreviousSelectedIndex <> NewSelectedIndex Then RaiseEvent IndexSelectionChange(this.PreviousSelectedIndex _
                                                                                            , NewSelectedIndex)
     'Updating the previously selected index
-    This.PreviousSelectedIndex = NewSelectedIndex
+    this.PreviousSelectedIndex = NewSelectedIndex
     
 End Sub
 
@@ -481,7 +481,5 @@ Public Sub SelectOrDeselectLastItemOfListbox(ByVal GivenListBox As MSForms.ListB
     End With
     
 End Sub
-
-
 
 

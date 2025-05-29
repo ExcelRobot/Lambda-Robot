@@ -15,3 +15,16 @@ Public Enum VarNamingStyle
     CAMEL_CASE = 2
     SNAKE_CASE = 3
 End Enum
+
+Public Enum Group
+    LAMBDA_PARAMETERS = 0
+    LAMBDA_Dependencies = 1
+    CUSTOM_PROPERTIES = 2
+End Enum
+
+Public Enum CloseBy
+    User = 0
+    Code = 1
+    WindowsOS = 2
+    TaskManager = 3
+End Enum

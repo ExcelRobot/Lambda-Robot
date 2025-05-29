@@ -12,26 +12,36 @@ Option Private Module
 ' Macro Expression:       modAuditLambdaSteps.GenerateLambdaSteps([ActiveCell],[ActiveCell.Offset(0,1)])
 ' Generated:              06/16/2022 11:55 AM
 '----------------------------------------------------------------------------------------------------
-Public Sub GenerateLambdaSteps(ByVal LambdaInvocationCell As Range, ByVal StepStartCell As Range)
+Public Sub GenerateLambdaSteps(ByVal LambdaInvocationCell As Range, Optional ByVal StepStartCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modAuditLambdaSteps.GenerateLambdaSteps"
     On Error GoTo ErrorHandler
+    Const METHOD_NAME As String = "GenerateLambdaSteps"
+    Context.ExtractContextFromCell LambdaInvocationCell, METHOD_NAME
+    
+    If StepStartCell Is Nothing Then
+        With LambdaInvocationCell.Worksheet
+            Set StepStartCell = .UsedRange.Cells(LambdaInvocationCell.Row, .UsedRange.Columns.CountLarge).Offset(0, 2)
+        End With
+    End If
+    
     ' Initialize a builder for constructing steps
     Dim Builder As BuildLambdaSteps
     Set Builder = BuildLambdaSteps.Create(LambdaInvocationCell, StepStartCell)
     Builder.ConstructSteps
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.GenerateLambdaSteps"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.GenerateLambdaSteps"
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
-    
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Context.ClearContext METHOD_NAME
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
     If Err.Number <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         Resume
     End If
     Logger.Log TRACE_LOG, "Exit modAuditLambdaSteps.GenerateLambdaSteps"
@@ -50,6 +60,10 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
                         , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modAuditLambdaSteps.LambdaToLet"
+    
+    Const METHOD_NAME As String = "LambdaToLet"
+    Context.ExtractContextFromCell LambdaFormulaCell, METHOD_NAME
+    
     ' If no target cell specified, set it to the same as the source cell.
     If IsNothing(PutLetOnCell) Then Set PutLetOnCell = LambdaFormulaCell
 
@@ -62,14 +76,14 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
         ' If there's a stored formula from a previous operation, put it back to its original cell.
         If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.LambdaToLet"
-        Exit Sub
+        GoTo ExitMethod
     Else
         
         ' If saved lambda then run Edit lambda first.
         With LambdaFormulaCell
-            If IsSavedLambdaInCellFormula(.Formula2, .Worksheet) Then
-                If IsLambdaCreatedInExcelLabs(.Worksheet.Parent, GetSavedNamedNameFromCellFormula(.Formula2, .Worksheet)) Then
-                    Exit Sub
+            If IsSavedLambdaInCellFormula(GetCellFormula(LambdaFormulaCell), .Worksheet) Then
+                If IsLambdaCreatedInExcelLabs(.Worksheet.Parent, GetSavedNamedNameFromCellFormula(GetCellFormula(LambdaFormulaCell), .Worksheet)) Then
+                    GoTo ExitMethod
                 Else
                     EditLambda LambdaFormulaCell
                 End If
@@ -80,7 +94,7 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
         InvalidOptReason = LambdaToLetOperationInvalidMessage(LambdaFormulaCell, PutLetOnCell)
         If InvalidOptReason <> vbNullString Then
             MsgBox InvalidOptReason, vbExclamation + vbOKOnly, "LAMBDA To LET"
-            Exit Sub
+            GoTo ExitMethod
         Else
             ' If not an undo operation, store the current formula before conversion.
             OldFormula = PutLetOnCell.Formula2
@@ -94,7 +108,7 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
     On Error GoTo ErrorHandler
     ' Convert the formula in the LambdaFormulaCell from LAMBDA to LET.
     Dim FormulaText As String
-    FormulaText = ConvertLambdaToLet(LambdaFormulaCell.Formula2)
+    FormulaText = ConvertLambdaToLet(GetCellFormula(LambdaFormulaCell))
     ' Assign the converted formula to the target cell.
     PutLetOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
     ' If it's not an undo operation, set up for a possible future undo operation.
@@ -110,21 +124,25 @@ Public Sub LambdaToLet(ByVal LambdaFormulaCell As Range _
     End If
     ' Exit the subroutine successfully.
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.LambdaToLet"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
-
+    
+    Context.ClearContext METHOD_NAME
     ' Capture the error number and description, if any
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
 
     ' Print a message to the immediate window to help with debugging
     Debug.Print "Converted Lambda To Let : " & FormulaText
     ' If an error was raised, re-raise it with its original details and resume execution for debugging
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         Resume
     End If
     Logger.Log TRACE_LOG, "Exit modAuditLambdaSteps.LambdaToLet"
@@ -132,27 +150,27 @@ ErrorHandler:
 End Sub
 
 Private Function LambdaToLetOperationInvalidMessage(ByVal LambdaFormulaCell As Range _
-                                                           , ByVal PutLetOnCell As Range) As String
+                                                    , ByVal PutLetOnCell As Range) As String
     
     Dim Result As String
     ' Validation: Ensure only one cell is selected to convert from LAMBDA to LET.
     If LambdaFormulaCell.Cells.Count > 1 Then
         Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
-               & ". Only one cell at a time allowed."
+                 & ". Only one cell at a time allowed."
     ElseIf Not LambdaFormulaCell.HasFormula Then
         Result = "No formula found on " & LambdaFormulaCell.Address & " ."
-    ElseIf Not IsLambdaFunction(LambdaFormulaCell.Formula2) Then
+    ElseIf Not IsLambdaFunction(GetCellFormula(LambdaFormulaCell)) Then
         Result = "The formula is not a LAMBDA formula.  Procedure aborted."
     ElseIf LambdaFormulaCell.Address(, , , True) <> PutLetOnCell.Address(, , , True) Then
         
         ' If target cell is not empty or contains errors, show a message and exit the method.
         If IsError(PutLetOnCell) Then
             Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
-                   & ". Destination cell not empty."
+                     & ". Destination cell not empty."
         
         ElseIf PutLetOnCell.Value <> vbNullString Or PutLetOnCell.HasFormula Then
             Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
-                   & ". Destination cell not empty."
+                     & ". Destination cell not empty."
         End If
         
     End If
@@ -221,4 +239,5 @@ Public Function ConvertLambdaToLet(ByVal FormulaText As String) As String
     Logger.Log TRACE_LOG, "Exit modAuditLambdaSteps.ConvertLambdaToLet"
     
 End Function
+
 

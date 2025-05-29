@@ -8,15 +8,15 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 '@GithubRawURL: https://raw.githubusercontent.com/1504168/Text-Utility-VBA/master/Text%20Utility.xlsm%20Definitions/VBA/Text.cls
-'@IgnoreModule UndeclaredVariable, ParameterNotUsed, AssignmentNotUsed, EmptyMethod, SuperfluousAnnotationArgument, UnrecognizedAnnotation, ProcedureNotUsed, MissingAnnotationArgument
+'@IgnoreModule ParameterNotUsed, AssignmentNotUsed, EmptyMethod, SuperfluousAnnotationArgument, UnrecognizedAnnotation, ProcedureNotUsed, MissingAnnotationArgument
 '@PredeclaredId
-'@Folder "Utility.Text"
+'@Folder("Utilility.Text")
 
 Option Explicit
 
 Public Enum RelativePosition
     FROM_START = 1
-    FROM_END = -1
+    FROM_end = -1
     FROM_BOTH = 2
 End Enum
 
@@ -27,42 +27,85 @@ End Enum
 
 Public Enum Occurrence
     ALL = 0
-    last = 1
+    LAST = 1
     FIRST = 2
 End Enum
 
-Public Function AfterDelimiter(ByVal OperationOnText As String, ByVal Delimiter As String _
-                                                         , Optional ByVal Index As Long = 1 _
-                                                          , Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
+'@Description: This function will retrive OperationOnText after that given delimiter. Comparing is case In Sensitive
+'@Return: It will return text after a certain delimiter based on Index and SearchDirection param.
+'         This will return vbNullString if any argument is vbNullString or if that delimiter isn't present
+'@Param:
+'       OperationOnText - > A string param containing the string in which we need to find the delimiter.
+'       Delimiter -> A string which we need to search in the OperationOnText
+'       Index -> Optional parameter which indicate that if same delimiter is found multiple times then which one to consider.
+'       SearchDirection - > Optional param which indicate from which side we need to search.
+'@ExampleCall : Text.AfterDelimiter("1997ismail.hosen@gmail.com", "@")  >> gmail.com
+'               Text.AfterDelimiter("1997ismail.hosen@gmail.com", "#")  >>
+
+Public Function AfterDelimiter(ByVal OperationOnText As String _
+                               , ByVal Delimiter As String _
+                                , Optional Index As Long = 1 _
+                                 , Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
     
     If OperationOnText = vbNullString Or Delimiter = vbNullString Then
         AfterDelimiter = OperationOnText
         Exit Function
     End If
     
+    Dim Result As String
+    
     Dim AllIndex As Collection
     Set AllIndex = FindAllIndexOf(OperationOnText, Delimiter, SearchDirection)
     
     If AllIndex.Count = 0 Then
-        AfterDelimiter = vbNullString
-        Exit Function
+        Result = vbNullString
     ElseIf Index > AllIndex.Count Then
         Err.Raise 13, "Text.AfterDelimiter", "There is not that much of data"
+    Else
+        Dim ItemStartIndex As Long
+        ItemStartIndex = AllIndex.Item(Index)
+        If ItemStartIndex + Len(Delimiter) - 1 = Len(OperationOnText) Then
+            Result = vbNullString
+        Else
+            Result = SubString(OperationOnText, AllIndex.Item(Index) + Len(Delimiter))
+        End If
     End If
     
-    Dim ItemStartIndex As Long
-    ItemStartIndex = AllIndex.Item(Index)
-    If ItemStartIndex + Len(Delimiter) - 1 = Len(OperationOnText) Then
-        AfterDelimiter = vbNullString
-    Else
-        AfterDelimiter = SubString(OperationOnText, AllIndex.Item(Index) + Len(Delimiter))
-    End If
+    AfterDelimiter = Result
     
 End Function
 
-Public Function FindAllIndexOf(ByVal OperationOnText As String, ByVal Delimiter As String _
-                                                               , ByVal SearchDirection As RelativePosition _
-                                                                , Optional ByVal ComparisionType As Comparer = CONSIDER_CASE) As Collection
+Public Function IsEqual(ByVal Text1 As String _
+                        , ByVal Text2 As String _
+                         , Optional ByVal ComparisionType As Comparer = CONSIDER_CASE) As Boolean
+    
+    Dim Result As Boolean
+    If ComparisionType = CONSIDER_CASE Then
+        Result = (Text1 = Text2)
+    Else
+        Result = (LCase$(Text1) = LCase$(Text2))
+    End If
+    
+    IsEqual = Result
+    
+End Function
+
+'@Description: This function will retrive all the index of given delimiter OperationOnText. The indexes are always from start .
+'              What change based on search direction is how the index is added in the collection. If search direction is FROM_END then collection will have [8,4].
+'              So basically we just need to reverse the collection nothing else.
+'              So it's better to use helper function to reverse out that instead of using InstrRev function.
+'@Return: All the index of given delimiter as Collection.
+'@Param:
+'       OperationOnText - > A string param containing the string in which we need to find the delimiter.
+'       Delimiter       -> A string which we need to search in the OperationOnText
+'       SearchDirection -> Optional param which indicate from which side we need to search.
+'       ComparisionType -> Optional param(indicate whether matching will be case sensitive or not.
+'@ExampleCall : Text.FindAllIndexOf("1997ismail.hosen@gmail.com", "@")  >> gmail.com
+'               Text.FindAllIndexOf("1997ismail.hosen@gmail.com", "#")  >>
+Public Function FindAllIndexOf(ByVal OperationOnText As String _
+                               , ByVal Delimiter As String _
+                                , ByVal SearchDirection As RelativePosition _
+                                 , Optional ByVal ComparisionType As Comparer = CONSIDER_CASE) As Collection
     
     Dim AllIndex As Collection
     Set AllIndex = New Collection
@@ -73,7 +116,7 @@ Public Function FindAllIndexOf(ByVal OperationOnText As String, ByVal Delimiter 
     TextLength = Len(OperationOnText)
     
     Dim ComparingOption As VbCompareMethod
-    ComparingOption = IIf(ComparisionType = IGNORE_CASE, vbTextCompare, vbBinaryCompare)
+    ComparingOption = GetComparisionOption(ComparisionType)
     
     CurrentIndex = InStr(1, OperationOnText, Delimiter, ComparingOption)
     
@@ -95,7 +138,7 @@ Public Function FindAllIndexOf(ByVal OperationOnText As String, ByVal Delimiter 
     
     If SearchDirection = FROM_START Then
         Set FindAllIndexOf = AllIndex
-    ElseIf SearchDirection = FROM_END Then
+    ElseIf SearchDirection = FROM_end Then
         Set FindAllIndexOf = ReverseIndexCollection(AllIndex)
     Else
         Err.Raise 13, "Text.FindAllIndexOf", "Invalid SearchDirection"
@@ -103,16 +146,55 @@ Public Function FindAllIndexOf(ByVal OperationOnText As String, ByVal Delimiter 
     
 End Function
 
+Private Function GetComparisionOption(ByVal ComparisionType As Comparer) As VbCompareMethod
+    
+    Dim Result As VbCompareMethod
+    
+    If ComparisionType = IGNORE_CASE Then
+        Result = vbTextCompare
+    Else
+        Result = vbBinaryCompare
+    End If
+    
+    GetComparisionOption = Result
+    
+End Function
+
+'@Description: This function will return the character at the Index position of the OperationOnText value.
+'              The first character in the OperationOnText is at position 1.
+'@Return: It will return the character At the Index position provided as param.
+'         This will return vbNullString if argument is vbNullString or out of range
+'@Param:
+'       OperationOnText -> A string param on which we want to conduct our operation.
+'       Index           -> parameter by which we need to specify the Index position of the characters of the OperationOnText that we want to get.
+
+'@ExampleCall : Text.At("1997ismail.hosen@gmail.com", 5)  >> i
+
 Public Function At(ByVal OperationOnText As String, ByVal Index As Long) As String
     At = Mid$(OperationOnText, Index, 1)
 End Function
 
-Public Function BeforeDelimiter(ByVal OperationOnText As String, ByVal Delimiter As String _
-                                                                , Optional ByVal Index As Long = 1 _
-                                                                 , Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
+'@Description: This function will retrive the portion of OperationOnText before that given delimiter.
+'@Return: It will return text after a certain delimiter based on Index and SearchDirection param.
+'         This will return vbNullString if any argument is vbNullString or if that delimiter isn't present
+'@Param:
+'       OperationOnText - > A string param containing the string in which we need to find the delimiter.
+'       Delimiter -> A string which we need to search in the OperationOnText
+'       Index -> Optional parameter which indicate that if same delimiter is found multiple times then which one to consider.
+'       SearchDirection - > Optional param which indicate from which side we need to search (from the start or end) of the input.
+'@ExampleCall : Text.BeforeDelimiter("1997ismail@hosen@gmail.com", "@")  >> 1997ismail.hosen
+'               Text.BeforeDelimiter("1997ismail@hosen@gmail.com", "@", 2)  >>1997ismail@hosen
 
+Public Function BeforeDelimiter(ByVal OperationOnText As String _
+                                , ByVal Delimiter As String _
+                                 , Optional ByVal Index As Long = 1 _
+                                  , Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
+    
     If OperationOnText = vbNullString Or Delimiter = vbNullString Then
         BeforeDelimiter = OperationOnText
+        Exit Function
+    ElseIf OperationOnText = Delimiter Then
+        BeforeDelimiter = vbNullString
         Exit Function
     End If
     
@@ -148,7 +230,7 @@ End Function
 Public Function BetweenDelimiter(ByVal OperationOnText As String _
                                  , ByVal StartDelimiter As String _
                                   , ByVal EndDelimiter As String _
-                                   , Optional ByVal StartIndex As Long = 1 _
+                                   , Optional StartIndex As Long = 1 _
                                     , Optional EndIndex As Long = 1 _
                                      , Optional ByVal StartDelimiterSearchDirection As RelativePosition = FROM_START _
                                       , Optional ByVal EndDelimiterSearchDirection As RelativePosition = FROM_START) As String
@@ -177,37 +259,75 @@ End Function
 '       Texts       -> An array of values/texts that we need to combine.
 '       Separator   -> Optional param( use to specify character/string by which it will combine all the provided values).
 '@ExampleCall : Text.Combine(Array("1997ismail","hosen","gmail.com"),"/")  >> 1997ismail/hosen/gmail.com
-Public Function Combine(ByVal Texts As Variant, Optional ByVal Separator As String = vbNullString) As String
+Public Function Combine(ByVal Texts As Variant _
+                        , Optional ByVal Separator As String = vbNullString) As String
     
     Combine = ConcatenateArray(Texts, Separator)
     
 End Function
- 
-Public Function Contains(ByVal OperationOnText As String, ByVal SubString As String _
-                                                         , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+
+'@Description: This function will Detects whether OperationOnText contains the value substring. This function doesn't support wildcards or regular expressions.
+'The following built-in comparers are available in the formula language:
+'@Return: It will Returns true if the value is found.
+'@Param:
+'       OperationOnText -> A string param containing the string in which we need to find the substring.
+'       SubString       -> A string param containg values that we want to search in OperationOnText.
+'       ComparisionType -> Optional param(indicate whether matching will be case sensitive or not.
+'@ExampleCall : Text.Contains("1997ismail.hosen@gmail.com", "gmail")  >> true
+
+Public Function Contains(ByVal OperationOnText As String _
+                         , ByVal SubString As String _
+                          , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+    
+    Dim Result As Boolean
     
     If ComparisionType = IGNORE_CASE Then
-        Contains = (InStr(1, OperationOnText, SubString, vbTextCompare) <> 0)
+        Result = (InStr(1, OperationOnText, SubString, vbTextCompare) <> 0)
     ElseIf ComparisionType = CONSIDER_CASE Then
-        Contains = (InStr(1, OperationOnText, SubString, vbBinaryCompare) <> 0)
+        Result = (InStr(1, OperationOnText, SubString, vbBinaryCompare) <> 0)
     End If
     
+    Contains = Result
+    
 End Function
+
+'@Description: This function will return the last characters from the end of the OperationOnText value.
+'@Return: It will return the spcified number of characters from the end.
+'         This will return vbNullString if argument is vbNullString or out of range
+'@Param:
+'       OperationOnText -> A string param containing the string from which we need to extract characters.
+'       Count           -> parameter by which we need to specify how many characters we need to extract.
+'@ExampleCall : Text.FromEnd("1997ismail.hosen@gmail.com", 3)  >> com
 
 Public Function FromEnd(ByVal OperationOnText As String, ByVal Count As Long) As String
     
     FromEnd = Right$(OperationOnText, Count)
 
 End Function
+
+'@Description: This function will Test if OperationOnText endswith some partial text or not.
+'@Return: It will return boolean value of either the OperationOnText is ends with TextToMatch or not.
+'         This will return vbNullString if argument is vbNullString.
+'@Param:
+'       OperationOnText -> A string param on which we want to conduct our operation.
+'       TextToMatch     -> parameter that we want to find in the end.
+'       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
+'@ExampleCall : text.IsEndsWith("1997ismail.hosen@gmail.com","com")  >> true
+'               text.IsEndsWith("1997ismail.hosen@gmail.com","abc")  >> false
          
-Public Function IsEndsWith(ByVal OperationOnText As String, ByVal TextToMatch As String _
-                                                           , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+Public Function IsEndsWith(ByVal OperationOnText As String _
+                           , ByVal TextToMatch As String _
+                            , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+    
+    Dim Result As Boolean
     
     If ComparisionType = CONSIDER_CASE Then
-        IsEndsWith = (Right$(OperationOnText, Len(TextToMatch)) = TextToMatch)
+        Result = (Right$(OperationOnText, Len(TextToMatch)) = TextToMatch)
     ElseIf ComparisionType = IGNORE_CASE Then
-        IsEndsWith = (UCase$(Right$(OperationOnText, Len(TextToMatch))) = UCase$(TextToMatch))
+        Result = (UCase$(Right$(OperationOnText, Len(TextToMatch))) = UCase$(TextToMatch))
     End If
+    
+    IsEndsWith = Result
     
 End Function
 
@@ -230,15 +350,22 @@ End Function
 '       NewText         -> New string or value that we want to insert into OperationOnText.
 '@ExampleCall : Text.Insert("1997ismail@hosen#gmail.com",2 ,"@@@") >> 19@@@97ismail@hosen#gmail.com
 
-Public Function Insert(ByVal OperationOnText As String, ByVal Offset As Long, ByVal NewText As String) As String
+Public Function Insert(ByVal OperationOnText As String _
+                       , ByVal Offset As Long _
+                        , ByVal NewText As String) As String
+    
+    Dim Result As String
     
     If Offset >= Len(OperationOnText) Then
-        Insert = OperationOnText & NewText
+        Result = OperationOnText & NewText
     ElseIf Offset <= 1 Then
-        Insert = NewText & OperationOnText
+        Result = NewText & OperationOnText
     Else
-        Insert = SubString(OperationOnText, 1, Offset) & NewText & SubString(OperationOnText, Offset + 1)
+        Result = SubString(OperationOnText, 1, Offset) _
+                 & NewText & SubString(OperationOnText, Offset + 1)
     End If
+    
+    Insert = Result
     
 End Function
 
@@ -247,10 +374,8 @@ End Function
 '@Param:
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.Length("1997ismail@hosen#gmail.com")  >> 26
-Public Function Length(ByVal OperationOnText As String) As Long
-    
+Public Function Length(OperationOnText As String) As Long
     Length = Len(OperationOnText)
-
 End Function
 
 '@Description: Will Return the lower case of OperarationOnText
@@ -258,7 +383,7 @@ End Function
 '@Param:
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.Lower("BANGLADESH")  >> bangladesh
-Public Function Lower(ByVal OperationOnText As String) As String
+Public Function Lower(OperationOnText As String) As String
     Lower = VBA.LCase$(OperationOnText)
 End Function
 
@@ -269,19 +394,35 @@ End Function
 '       Start           ->Starting index from which it will start retrieving.
 '       Count           -> Optional param(indicates Number of characters that we want to retrieve)
 '@ExampleCall : Text.Middle("12/22/2017 Robin Hossen Bangladesh", 7, 4)  >> 2017
-Public Function Middle(ByVal OperationOnText As String, Start As Long, Optional Count As Long) As String
+Public Function Middle(ByVal OperationOnText As String _
+                       , ByVal Start As Long _
+                        , Optional ByVal Count As Long) As String
     
     Middle = VBA.Mid$(OperationOnText, Start, Count)
     
 End Function
 
-Public Function PadEnd(ByVal OperationOnText As String, ByVal Count As Long, Optional ByVal Character As String = " ") As String
+ 
+'@Description: Add extra characters to make a specific length of the OperationOnText.
+'@Return: OperationOnText after adding extra characters as many as needed to fullfill the specific length(Count).
+'@Param:
+'       OperationOnText -> A string param on which we want to conduct our operation.
+'       Count           -> Specific length that we required (full length).
+'       Character       -> Optional Param( repeating character using which we will increase the full length).
+'@ExampleCall : Text.PadEnd("abedin@gmail.com", 5, " ")  >> abedin@gmail.com
+Public Function PadEnd(ByVal OperationOnText As String _
+                       , ByVal Count As Long _
+                        , Optional ByVal Character As String = " ") As String
+    
+    Dim Result As String
     
     If Len(OperationOnText) >= Count Then
-        PadEnd = OperationOnText
+        Result = OperationOnText
     Else
-        PadEnd = OperationOnText & Repeat(Character, Count - Len(OperationOnText))
+        Result = OperationOnText & Repeat(Character, Count - Len(OperationOnText))
     End If
+    
+    PadEnd = Result
     
 End Function
 
@@ -293,13 +434,19 @@ End Function
 '       Character       -> Optional Param( repeating character using which we will increase the full length).
 
 '@ExampleCall : Text.PadStart("0056", 6, 0)  >> 000056
-Public Function PadStart(ByVal OperationOnText As String, ByVal Count As Long, Optional ByVal Character As String = " ") As String
+Public Function PadStart(ByVal OperationOnText As String _
+                         , ByVal Count As Long _
+                          , Optional ByVal Character As String = " ") As String
+    
+    Dim Result As String
     
     If Len(OperationOnText) >= Count Then
-        PadStart = OperationOnText
+        Result = OperationOnText
     Else
-        PadStart = Repeat(Character, Count - Len(OperationOnText)) & OperationOnText
+        Result = Repeat(Character, Count - Len(OperationOnText)) & OperationOnText
     End If
+    
+    PadStart = Result
     
 End Function
 
@@ -311,21 +458,37 @@ End Function
 '       GivenOccurence  -> Optional param (Use to specify which findings will be considered first or last or all the findings).
 '       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
 '@ExampleCall : Text.PositionOf("1997ismail@hosen#gmail.com", "@")  >>
-Public Function PositionOf(ByVal OperationOnText As String, ByVal SubString As String _
-                                                           , Optional ByVal GivenOccurence As Occurrence = FIRST _
-                                                            , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Variant
+Public Function PositionOf(ByVal OperationOnText As String _
+                           , ByVal SubString As String _
+                            , Optional ByVal GivenOccurence As Occurrence = FIRST _
+                             , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Variant
+    
+    Dim ComparisionOpt As VbCompareMethod
+    ComparisionOpt = GetComparisionOption(ComparisionType)
+    
+    Dim Result As Variant
+    
     Select Case GivenOccurence
     
         Case Occurrence.FIRST
-            PositionOf = InStr(FROM_START, OperationOnText, SubString, IIf(ComparisionType = IGNORE_CASE, vbTextCompare, vbBinaryCompare))
-        Case Occurrence.last
-            PositionOf = InStrRev(OperationOnText, SubString, FROM_END, IIf(ComparisionType = IGNORE_CASE, vbTextCompare, vbBinaryCompare))
+            Result = InStr(FROM_START, OperationOnText, SubString, ComparisionOpt)
+            
+        Case Occurrence.LAST
+            Result = InStrRev(OperationOnText, SubString, FROM_end, ComparisionOpt)
+            
         Case Occurrence.ALL
-            Set PositionOf = FindAllIndexOf(OperationOnText, SubString, FROM_START, ComparisionType)
+            Set Result = FindAllIndexOf(OperationOnText, SubString, FROM_START, ComparisionType)
+            
         Case Else
             Err.Raise 13, "Text.PositionOf", "Wrong Occurence type"
         
     End Select
+    
+    If IsObject(Result) Then
+        Set PositionOf = Result
+    Else
+        PositionOf = Result
+    End If
     
 End Function
 
@@ -336,7 +499,8 @@ End Function
 '       Delimiters      -> A variant param which will take multiple delimiters to search in OperationOnText.
 '@ExampleCall : Text.PositionOfAny("1997ismail@hosen#gmail.com", Array("#","@","n")) >> 11
 
-Public Function PositionOfAny(ByVal OperationOnText As String, ByVal Delimiters As Variant) As Long
+Public Function PositionOfAny(ByVal OperationOnText As String _
+                              , ByVal Delimiters As Variant) As Long
        
     'Initially consider that index is more than text length
     Dim FirstFoundIndex As Long
@@ -344,13 +508,17 @@ Public Function PositionOfAny(ByVal OperationOnText As String, ByVal Delimiters 
     
     Dim IsAnyDelimiterFound As Boolean
     Dim CurrentDelimter As Variant
+    
     For Each CurrentDelimter In Delimiters
+        
         Dim FoundInPosition As Long
         FoundInPosition = PositionOf(OperationOnText, CStr(CurrentDelimter))
+        
         If FoundInPosition < FirstFoundIndex And FoundInPosition <> 0 Then
             IsAnyDelimiterFound = True
             FirstFoundIndex = FoundInPosition
         End If
+        
     Next CurrentDelimter
     
     PositionOfAny = IIf(IsAnyDelimiterFound, FirstFoundIndex, -1)
@@ -363,7 +531,8 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       Delimiters       -> A variant param which will take multiple delimiters to search in OperationOnText.
 '@ExampleCall : Text.IsAnyDelimiterExists("1997ismail@hosen#gmail.com",Array("$","*"))  >> False
-Public Function IsAnyDelimiterExists(ByVal OperationOnText As String, ByVal Delimiters As Variant) As Boolean
+Public Function IsAnyDelimiterExists(ByVal OperationOnText As String _
+                                     , ByVal Delimiters As Variant) As Boolean
        
     IsAnyDelimiterExists = (PositionOfAny(OperationOnText, Delimiters) <> -1)
     
@@ -376,20 +545,33 @@ End Function
 '       Delimiters      -> A variant param which will take multiple delimiters to search in OperationOnText.
 '@ExampleCall : Text.IsAllDelimiterExists("1997ismail@hosen#gmail.com",Array("#","@"))  >> True
 '               Text.IsAllDelimiterExists("1997ismail@hosen#gmail.com",Array("$","@"))  >> False
-Public Function IsAllDelimiterExists(ByVal OperationOnText As String, ByVal Delimiters As Variant) As Boolean
+Public Function IsAllDelimiterExists(ByVal OperationOnText As String _
+                                     , ByVal Delimiters As Variant) As Boolean
+       
+    Dim FirstFoundIndex As Long
+    FirstFoundIndex = Len(OperationOnText) + 1
+    
+    Dim Result As Boolean
+    Result = True
     
     Dim CurrentDelimiter As Variant
+    
     For Each CurrentDelimiter In Delimiters
+        
         Dim FoundInPosition As Long
         FoundInPosition = PositionOf(OperationOnText, CStr(CurrentDelimiter))
+        
         If FoundInPosition = 0 Then
-            IsAllDelimiterExists = False
-            Exit Function
+            Result = False
+            Exit For
         End If
+        
     Next CurrentDelimiter
-    IsAllDelimiterExists = True
+    
+    IsAllDelimiterExists = Result
     
 End Function
+
 
 '@Description: Will Return the Propercase of OperarationOnText
 '@Return: Propercase of OperarationOnText
@@ -409,7 +591,9 @@ End Function
 '       Offset          -> Offset is the starting point of index postion after which we want to extract. It starts from 0.
 '       Count           -> Optional param( use to indicate the number of characters we need to extract)
 '@ExampleCall : Text.Range("1997ismail@hosen#gmail.com", "@")  >>
-Public Function Range(ByVal OperationOnText As String, ByVal Offset As Long, Optional ByVal Count As Long) As String
+Public Function Range(ByVal OperationOnText As String _
+                      , ByVal Offset As Long _
+                       , Optional ByVal Count As Long) As String
 
     Range = Middle(OperationOnText, Offset + 1, Count)
     
@@ -421,14 +605,18 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       RemoveChars     -> An array of characters those are needed to remove from OperationOnText.
 '@ExampleCall : Text.RemoveCharacters("1997@ismail@hosen#gmail.com",Array("@","#"))  >> 1997ismailhosengmail.com
-Public Function RemoveCharacters(ByVal OperationOnText As String, ByVal RemoveChars As Variant) As String
+Public Function RemoveCharacters(ByVal OperationOnText As String _
+                                 , ByVal RemoveChars As Variant) As String
      
     Dim ResultText As String
     ResultText = OperationOnText
+    
     Dim CurrentChar As Variant
+    
     For Each CurrentChar In RemoveChars
         ResultText = VBA.Replace(ResultText, CurrentChar, vbNullString)
     Next CurrentChar
+    
     RemoveCharacters = ResultText
     
 End Function
@@ -439,17 +627,22 @@ End Function
 '       OperationOnText     -> A string param on which we want to conduct our operation.
 '       NumberOfCharacter   -> Total number of characters we want to remove from the beginning.
 '@ExampleCall : Text.RemoveFromStart("1997@ismail@hosen#gmail.com", 4)  >> @ismail@hosen#gmail.com
-Public Function RemoveFromStart(ByVal OperationOnText As String, ByVal NumberOfCharacter As Long) As String
+Public Function RemoveFromStart(ByVal OperationOnText As String _
+                                , ByVal NumberOfCharacter As Long) As String
+    
+    Dim Result As String
     
     If OperationOnText = vbNullString Then
-        RemoveFromStart = vbNullString
+        Result = vbNullString
     ElseIf NumberOfCharacter < 1 Then
-        RemoveFromStart = OperationOnText
+        Result = OperationOnText
     ElseIf NumberOfCharacter >= Len(OperationOnText) Then
-        RemoveFromStart = vbNullString
+        Result = vbNullString
     Else
-        RemoveFromStart = SubString(OperationOnText, NumberOfCharacter + 1)
+        Result = SubString(OperationOnText, NumberOfCharacter + 1)
     End If
+    
+    RemoveFromStart = Result
     
 End Function
 
@@ -460,14 +653,19 @@ End Function
 '       TextToFind      -> Text that we are searching for.
 '       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
 '       @ExampleCall : Text.RemoveFromStartIfPresent("1997ismail@hosen#gmail.com","1997")  >> ismail@hosen#gmail.com
-Public Function RemoveFromStartIfPresent(ByVal OperationOnText As String, ByVal TextToFind As String _
-                                                                   , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
+Public Function RemoveFromStartIfPresent(ByVal OperationOnText As String _
+                                         , ByVal TextToFind As String _
+                                          , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
+    
+    Dim Result As String
     
     If IsStartsWith(OperationOnText, TextToFind, ComparisionType) Then
-        RemoveFromStartIfPresent = RemoveFromStart(OperationOnText, Len(TextToFind))
+        Result = RemoveFromStart(OperationOnText, Len(TextToFind))
     Else
-        RemoveFromStartIfPresent = OperationOnText
+        Result = OperationOnText
     End If
+    
+    RemoveFromStartIfPresent = Result
     
 End Function
 
@@ -477,17 +675,22 @@ End Function
 '       OperationOnText     -> A string param on which we want to conduct our operation.
 '       NumberOfCharacter   -> Total number of characters we want to remove from the end.
 '@ExampleCall : Text.RemoveFromEnd("1997@ismail@hosen#gmail.com", 4)  >> 1997@ismail@hosen#gmail
-Public Function RemoveFromEnd(ByVal OperationOnText As String, ByVal NumberOfCharacter As Long) As String
+Public Function RemoveFromEnd(ByVal OperationOnText As String _
+                              , ByVal NumberOfCharacter As Long) As String
+    
+    Dim Result As String
     
     If OperationOnText = vbNullString Then
-        RemoveFromEnd = vbNullString
+        Result = vbNullString
     ElseIf NumberOfCharacter < 1 Then
-        RemoveFromEnd = OperationOnText
+        Result = OperationOnText
     ElseIf NumberOfCharacter >= Len(OperationOnText) Then
-        RemoveFromEnd = vbNullString
+        Result = vbNullString
     Else
-        RemoveFromEnd = Mid$(OperationOnText, 1, Len(OperationOnText) - NumberOfCharacter)
+        Result = Mid$(OperationOnText, 1, Len(OperationOnText) - NumberOfCharacter)
     End If
+    
+    RemoveFromEnd = Result
     
 End Function
 
@@ -499,14 +702,19 @@ End Function
 '       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
 '       @ExampleCall : Text.RemoveFromEndIfPresent("1997ismail@hosen#gmail.com","1997")  >> ismail@hosen#gmail.com
 '       @ExampleCall : Text.RemoveFromEndIfPresent("1997ismail@hosen#gmail.com","1998")  >> 1997ismail@hosen#gmail.com
-Public Function RemoveFromEndIfPresent(ByVal OperationOnText As String, ByVal TextToFind As String _
-                                                                 , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
+Public Function RemoveFromEndIfPresent(ByVal OperationOnText As String _
+                                       , ByVal TextToFind As String _
+                                        , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
+    
+    Dim Result As String
     
     If IsEndsWith(OperationOnText, TextToFind, ComparisionType) Then
-        RemoveFromEndIfPresent = RemoveFromEnd(OperationOnText, Len(TextToFind))
+        Result = RemoveFromEnd(OperationOnText, Len(TextToFind))
     Else
-        RemoveFromEndIfPresent = OperationOnText
+        Result = OperationOnText
     End If
+    
+    RemoveFromEndIfPresent = Result
     
 End Function
 
@@ -517,18 +725,21 @@ End Function
 '       Offset          -> Offset is the starting point of index postion after which we want to remove. It starts from 1.
 '       Count           -> Optional param( use to indicate the number of characters we need to remove).
 '@ExampleCall : Text.RemoveRange("1997ismail@hosen#gmail.com",1,4)  >> ismail@hosen#gmail.com
-Public Function RemoveRange(ByVal OperationOnText As String, ByVal Offset As Long, Optional ByVal Count As Long = -1) As String
+Public Function RemoveRange(ByVal OperationOnText As String _
+                            , ByVal Offset As Long _
+                             , Optional ByVal Count As Long = -1) As String
+    
+    Dim Result As String
     
     If OperationOnText = vbNullString Then
-        RemoveRange = vbNullString
-        Exit Function
+        Result = vbNullString
+    ElseIf Count = -1 Then
+        Result = Left$(OperationOnText, Offset - 1)
+    Else
+        Result = Left$(OperationOnText, Offset - 1) & Mid$(OperationOnText, Offset + Count)
     End If
     
-    If Count = -1 Then
-        RemoveRange = Left$(OperationOnText, Offset - 1)
-    Else
-        RemoveRange = Left$(OperationOnText, Offset - 1) & Mid$(OperationOnText, Offset + Count)
-    End If
+    RemoveRange = Result
     
 End Function
 
@@ -546,22 +757,25 @@ Public Function PadIfNotPresent(ByVal OperationOnText As String _
                                  , Optional ByVal PadDirection As RelativePosition = RelativePosition.FROM_START _
                                   , Optional ByVal ComparisionType As Comparer = Comparer.IGNORE_CASE) As String
     
-    PadIfNotPresent = OperationOnText
+    Dim Result As String
+    Result = OperationOnText
     Select Case PadDirection
         Case RelativePosition.FROM_BOTH
             OperationOnText = PadIfNotPresent(OperationOnText, PadText, FROM_START)
-            PadIfNotPresent = PadIfNotPresent(OperationOnText, PadText, FROM_END)
+            Result = PadIfNotPresent(OperationOnText, PadText, FROM_end)
         Case RelativePosition.FROM_START
             If Not IsStartsWith(OperationOnText, PadText, ComparisionType) Then
-                PadIfNotPresent = PadText & OperationOnText
+                Result = PadText & OperationOnText
             End If
-        Case RelativePosition.FROM_END
+        Case RelativePosition.FROM_end
             If Not IsEndsWith(OperationOnText, PadText, ComparisionType) Then
-                PadIfNotPresent = OperationOnText & PadText
+                Result = OperationOnText & PadText
             End If
         Case Else
             Err.Raise 13, "Text.PadIfNotPresent", "PadDirection value is wrong."
     End Select
+    
+    PadIfNotPresent = Result
     
 End Function
 
@@ -571,14 +785,17 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       Count           -> A long for specifying how many times we want to repeat the text
 '@ExampleCall : Text.Repeat("ismail@hosen",3)  >> ismail@hosenismail@hosenismail@hosen
-Public Function Repeat(ByVal OperationOnText As String, ByVal Count As Long) As String
+Public Function Repeat(ByVal OperationOnText As String _
+                       , ByVal Count As Long) As String
     
     Dim ResultText As String
     ResultText = OperationOnText
+    
     Dim CurrentCount As Long
     For CurrentCount = 1 To Count - 1
         ResultText = ResultText & OperationOnText
     Next CurrentCount
+    
     Repeat = ResultText
     
 End Function
@@ -591,14 +808,22 @@ End Function
 '       Count           -> A Long param( use to indicate the number of characters we want to replace).
 '       ReplaceWith     -> String or values by which we want to replace the specified text.
 '@ExampleCall : Text.ReplaceRange("1997 Downtown Street",15,6,"City")  >> 1997 Downtown City
-Public Function ReplaceRange(ByVal OperationOnText As String, ByVal Offset As Long, ByVal Count As Long, ByVal ReplaceWith As String) As String
+Public Function ReplaceRange(ByVal OperationOnText As String _
+                             , ByVal Offset As Long _
+                              , ByVal Count As Long _
+                               , ByVal ReplaceWith As String) As String
+    
+    Dim Result As String
     
     If OperationOnText = vbNullString Then
-        ReplaceRange = vbNullString
-        Exit Function
+        Result = vbNullString
+    Else
+        Result = Left$(OperationOnText, Offset - 1) _
+                 & ReplaceWith _
+                 & Mid$(OperationOnText, Offset + Count)
     End If
     
-    ReplaceRange = Left$(OperationOnText, Offset - 1) & ReplaceWith & Mid$(OperationOnText, Offset + Count)
+    ReplaceRange = Result
     
 End Function
 
@@ -608,9 +833,7 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.Reverse("ismail@hosen#gmail.com")  >> moc.liamg#nesoh@liamsi
 Public Function Reverse(ByVal OperationOnText As String) As String
-    
     Reverse = StrReverse(OperationOnText)
-    
 End Function
 
 '@Description: This function will extract only provided characters(SelectChars) from OperationOnText
@@ -620,22 +843,28 @@ End Function
 '       SelectChars     -> All the characters that we want to extract from OperationOnText as a string.
 '@ExampleCall : Text.Keep("1997@ismail@hosen#gmail.com", "1234567890")  >> 1997
 '               Text.Keep("1997@ismail@hosen#gmail.com", "@#") >> @@#
-Public Function Keep(ByVal OperationOnText As String, ByVal SelectChars As String) As String
+Public Function Keep(ByVal OperationOnText As String _
+                     , ByVal SelectChars As String) As String
+    
+    Dim Result As String
     
     If OperationOnText = vbNullString Or SelectChars = vbNullString Then
-        Keep = OperationOnText
-        Exit Function
+        Result = OperationOnText
+    Else
+        
+        Dim CurrentenIndex As Long
+        Dim CurrentCharacter As String
+        
+        For CurrentenIndex = 1 To Len(OperationOnText)
+            CurrentCharacter = Mid$(OperationOnText, CurrentenIndex, 1)
+            If Contains(SelectChars, CurrentCharacter, CONSIDER_CASE) Then
+                Result = Result & CurrentCharacter
+            End If
+        Next CurrentenIndex
+        
     End If
     
-    Dim FilteredText As String
-    Dim CurrentenIndex As Long
-    Dim CurrentCharacter As String
-    For CurrentenIndex = 1 To Len(OperationOnText)
-        CurrentCharacter = Mid$(OperationOnText, CurrentenIndex, 1)
-        If Contains(SelectChars, CurrentCharacter, CONSIDER_CASE) Then FilteredText = FilteredText & CurrentCharacter
-    Next CurrentenIndex
-    
-    Keep = FilteredText
+    Keep = Result
     
 End Function
 
@@ -645,13 +874,24 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       Separator       -> A specific seperator( Function will split OperationOnText into another part when it found that seperator)
 '@ExampleCall : Text.SplitText("C:\Users\Ismail\Desktop\hasan's VBA practices\Github collaboration\","\")  >>
-Public Function SplitText(ByVal OperationOnText As String, ByVal Delimiter As String, Optional ByVal IgnoreInsideQuote As Boolean = False) As Variant
-
+Public Function SplitText(ByVal OperationOnText As String _
+                          , ByVal Delimiter As String _
+                           , Optional ByVal IgnoreInsideQuote As Boolean = False) As Variant
+    
+    Dim Result As Variant
+    
     If Not IgnoreInsideQuote Then
-        SplitText = Application.WorksheetFunction.Transpose(VBA.Split(OperationOnText, Delimiter))
-        Exit Function
+        Result = Application.WorksheetFunction.Transpose(VBA.Split(OperationOnText, Delimiter))
+    Else
+        Result = SplitTextIgnoreDelInsideQuote(OperationOnText, Delimiter)
     End If
 
+    SplitText = Result
+    
+End Function
+
+Private Function SplitTextIgnoreDelInsideQuote(ByVal OperationOnText As String _
+                                                 , ByVal Delimiter As String)
     Dim InQuotes As Boolean
     InQuotes = False
     Dim StartIndex As Long
@@ -662,6 +902,7 @@ Public Function SplitText(ByVal OperationOnText As String, ByVal Delimiter As St
     
     Dim CurrentCharIndex As Long
     For CurrentCharIndex = 1 To Len(OperationOnText)
+        
         Dim CurrentCharacter As String
         CurrentCharacter = Mid$(OperationOnText, CurrentCharIndex, 1)
         Const QUOTE As String = """"
@@ -673,12 +914,15 @@ Public Function SplitText(ByVal OperationOnText As String, ByVal Delimiter As St
             Result.Add Mid$(OperationOnText, StartIndex, EndIndex - StartIndex + 1)
             StartIndex = CurrentCharIndex + Len(Delimiter)
         End If
+        
     Next CurrentCharIndex
 
     Result.Add Mid$(OperationOnText, StartIndex)
-    SplitText = CollectionToArray(Result)
+    
+    SplitTextIgnoreDelInsideQuote = CollectionToArray(Result)
     
 End Function
+
 
 '@Description: This will help to extract a specific number of characters from the beginning of the OperationOnText.
 '@Return: Specific number of characters from the beginning.
@@ -686,10 +930,8 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       Count           -> A long param( use to specify how many characters we want to extract)
 '@ExampleCall : Text.Start("1997ismail@hosen#gmail.com", 4)  >> 1997
-Public Function Start(ByVal OperationOnText As String, Count As Long) As String
-    
+Public Function Start(ByVal OperationOnText As String, ByVal Count As Long) As String
     Start = Left$(OperationOnText, Count)
-    
 End Function
 
 '@Description: This will extract part of a string like java.If You don't mention EndIndex then it will extract upto last part.
@@ -699,12 +941,16 @@ End Function
 '       StartIndex  -> A long param( use to specify the staring index to
 '       EndIndex    -> Optional param( use to specify Ending point as a long. Function will extract upto last if this remain empty)
 '@ExampleCall : Text.SubString("Ismail Hosen",8) >> Hosen
-Public Function SubString(ByVal GivenText As String, ByVal StartIndex As Long, Optional ByVal EndIndex As Long = -1) As String
+Public Function SubString(ByVal GivenText As String _
+                          , ByVal StartIndex As Long _
+                           , Optional ByVal EndIndex As Long = -1) As String
     
     If EndIndex = -1 Then EndIndex = Len(GivenText)
+    
     If StartIndex > EndIndex Then
         Err.Raise 13, "SubString", "StartIndex need to be less or equal to EndIndex"
     End If
+    
     SubString = Mid$(GivenText, StartIndex, EndIndex - StartIndex + 1)
     
 End Function
@@ -716,13 +962,19 @@ End Function
 '       TextToMatch     -> Text that we want to check whether existed at the beginning.
 '       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
 '@ExampleCall : Text.IsStartsWith("1997ismail@hosen#gmail.com", "1997")  >> True
-Public Function IsStartsWith(ByVal OperationOnText As String, ByVal TextToMatch As String, Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+Public Function IsStartsWith(ByVal OperationOnText As String _
+                             , ByVal TextToMatch As String _
+                              , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As Boolean
+    
+    Dim Result As Boolean
     
     If ComparisionType = CONSIDER_CASE Then
-        IsStartsWith = (Left$(OperationOnText, Len(TextToMatch)) = TextToMatch)
+        Result = (Left$(OperationOnText, Len(TextToMatch)) = TextToMatch)
     ElseIf ComparisionType = IGNORE_CASE Then
-        IsStartsWith = (UCase$(Left$(OperationOnText, Len(TextToMatch))) = UCase$(TextToMatch))
+        Result = (UCase$(Left$(OperationOnText, Len(TextToMatch))) = UCase$(TextToMatch))
     End If
+    
+    IsStartsWith = Result
     
 End Function
 
@@ -733,19 +985,24 @@ End Function
 '@ExampleCall : Text.ToCharacters("1997ismail@hosen#gmail.com")  >>
 Public Function ToCharacters(ByVal OperationOnText As String) As Variant
     
-    If OperationOnText = vbNullString Then
-        ToCharacters = vbEmpty
-        Exit Function
-    End If
     Dim Result As Variant
-    ReDim Result(1 To Len(OperationOnText), 1 To 1)
-    Dim CurrentIndex As Long
-    For CurrentIndex = 1 To Len(OperationOnText)
-        Result(CurrentIndex, 1) = Mid$(OperationOnText, CurrentIndex, 1)
-    Next CurrentIndex
+    
+    If OperationOnText = vbNullString Then
+        Result = vbEmpty
+    Else
+        
+        ReDim Result(1 To Len(OperationOnText), 1 To 1)
+        Dim CurrentIndex As Long
+        For CurrentIndex = 1 To Len(OperationOnText)
+            Result(CurrentIndex, 1) = Mid$(OperationOnText, CurrentIndex, 1)
+        Next CurrentIndex
+
+    End If
+    
     ToCharacters = Result
   
 End Function
+
 
 '@Description:This will remove all the extra spaces from OperationOnString( srart, end, middle)
 '@Return: Will return OperationOnText after removing all the extra spaces.
@@ -754,9 +1011,7 @@ End Function
 '@DependencyOnExcel:
 '@ExampleCall : Text.Trim("     1997ismail@ho       sen#gmail.com    ")  >> 1997ismail@ho sen#gmail.com
 Public Function Trim(ByVal OperationOnText As String) As String
-    
     Trim = Application.WorksheetFunction.Trim(OperationOnText)
-    
 End Function
 
 '@Description:This will remove all the extra spaces from the end of OperationOnString( srart, end, middle)
@@ -765,9 +1020,7 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.TrimEnd("1997ismail@hosen#gmail.com      ")  >>
 Public Function TrimEnd(ByVal OperationOnText As String) As String
-    
     TrimEnd = VBA.RTrim$(OperationOnText)
-    
 End Function
 
 '@Description:This will remove all the extra spaces from the beginning of OperationOnString( srart, end, middle)
@@ -776,9 +1029,7 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.TrimStart("           1997ismail@hosen#gmail.com")  >>
 Public Function TrimStart(ByVal OperationOnText As String) As String
-    
     TrimStart = VBA.LTrim$(OperationOnText)
-    
 End Function
 
 '@Description: Will Return the Uppercase of OperarationOnText
@@ -787,9 +1038,7 @@ End Function
 '       OperationOnText -> A string param that we want to convert into Uppercase.
 '@ExampleCall : Text.Upper("bangladesh")  >> BANGLADESH
 Public Function Upper(ByVal OperationOnText As String) As String
-    
     Upper = VBA.UCase$(OperationOnText)
-    
 End Function
 
 '@Description:This will extract all the numbers from the end.
@@ -798,7 +1047,7 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ExtractNumberFromEnd("ismailhosen1997")  >> 1997
 Public Function ExtractNumberFromEnd(ByVal OperationOnText As String) As String
-    ExtractNumberFromEnd = ExtractNumber(OperationOnText, FROM_END)
+    ExtractNumberFromEnd = ExtractNumber(OperationOnText, FROM_end)
 End Function
 
 '@Description: This will extract all the numbers from the beginning.
@@ -816,33 +1065,22 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '       SearchDirection -> Optional param which indicate from which side we need to search.
 '@ExampleCall : Text.ExtractNumber("1997ismailhosen286")  >> 1997
-Private Function ExtractNumber(ByVal OperationOnText As String, Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
+Private Function ExtractNumber(ByVal OperationOnText As String _
+                               , Optional ByVal SearchDirection As RelativePosition = FROM_START) As String
     
-    Dim FromIndex As Long
-    Dim ToIndex As Long
-    Dim IncrementOrDecrement As Long
-
-    FromIndex = IIf(SearchDirection = FROM_START, 1, Len(OperationOnText))
-    ToIndex = IIf(SearchDirection = FROM_START, Len(OperationOnText), 1)
-    IncrementOrDecrement = IIf(SearchDirection = FROM_START, 1, -1)
+    Dim ExtractedNumbers As Collection
+    Set ExtractedNumbers = ExtractAllNumbers(OperationOnText)
     
-    Dim ExtractedNumber As String
-    Dim CurrentChar As String
-    Dim CurrentIndex As Long
-    For CurrentIndex = FromIndex To ToIndex Step IncrementOrDecrement
-        CurrentChar = VBA.Mid$(OperationOnText, CurrentIndex, 1)
-        If CurrentChar Like "[0-9]" Then
-            If SearchDirection = FROM_END Then
-                ExtractedNumber = CurrentChar & ExtractedNumber
-            Else
-                ExtractedNumber = ExtractedNumber & CurrentChar
-            End If
-        Else
-            Exit For
-        End If
-    Next CurrentIndex
+    Dim Result As String
+    If ExtractedNumbers.Count = 0 Then
+        Result = vbNullString
+    ElseIf SearchDirection = FROM_START Or SearchDirection = FROM_BOTH Then
+        Result = ExtractedNumbers.Item(1)
+    Else
+        Result = ExtractedNumbers.Item(ExtractedNumbers.Count)
+    End If
     
-    ExtractNumber = ExtractedNumber
+    ExtractNumber = Result
     
 End Function
 
@@ -851,24 +1089,26 @@ End Function
 '@Param:
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ExtractAllNumbers("1997hasan47imam1998")  >> ExtractAllNumbers(Item 1 ="1997",Item 2 ="47", Item 3 = "1998")
-Public Function ExtractAllNumbers(ByVal OperationOnText As String) As Variant
+Public Function ExtractAllNumbers(ByVal OperationOnText As String) As Collection
+    
     Dim SplittedDigitAndAlphabet As Collection
-    Set SplittedDigitAndAlphabet = New Collection
     Set SplittedDigitAndAlphabet = SplitDigitAndNonDigit(OperationOnText)
     
-    Dim ItemsThatExistsNumberOnly As Collection
-    Set ItemsThatExistsNumberOnly = New Collection
+    Dim Numbers As Collection
+    Set Numbers = New Collection
 
-    Dim CurrentItem As Long
-    For CurrentItem = 1 To SplittedDigitAndAlphabet.Count
+    Dim Index As Long
+    For Index = 1 To SplittedDigitAndAlphabet.Count
+        
         Dim FirstCharacter As String
-        FirstCharacter = Mid$(SplittedDigitAndAlphabet(CurrentItem), 1, 1)
+        FirstCharacter = Mid$(SplittedDigitAndAlphabet(Index), 1, 1)
         If IsDigit(FirstCharacter) Then
-            ItemsThatExistsNumberOnly.Add SplittedDigitAndAlphabet(CurrentItem)
+            Numbers.Add SplittedDigitAndAlphabet(Index)
         End If
-    Next CurrentItem
+        
+    Next Index
     
-    Set ExtractAllNumbers = ItemsThatExistsNumberOnly
+    Set ExtractAllNumbers = Numbers
     
 End Function
 
@@ -878,23 +1118,25 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ExtractAllTexts("1997hasan47imam1998")  >> ExtractAllTexts(Item 1 ="hasan",Item 2 ="imam")
 Public Function ExtractAllTexts(ByVal OperationOnText As String) As Variant
+    
     Dim SplittedDigitAndAlphabet As Collection
-    Set SplittedDigitAndAlphabet = New Collection
     Set SplittedDigitAndAlphabet = SplitDigitAndNonDigit(OperationOnText)
     
-    Dim ItemsThatExistsAlphabetOnly As Collection
-    Set ItemsThatExistsAlphabetOnly = New Collection
+    Dim Texts As Collection
+    Set Texts = New Collection
 
-    Dim CurrentItem As Long
-    For CurrentItem = 1 To SplittedDigitAndAlphabet.Count
+    Dim Index As Long
+    For Index = 1 To SplittedDigitAndAlphabet.Count
+        
         Dim FirstCharacter As String
-        FirstCharacter = Mid$(SplittedDigitAndAlphabet(CurrentItem), 1, 1)
+        FirstCharacter = Mid$(SplittedDigitAndAlphabet(Index), 1, 1)
         If Not IsDigit(FirstCharacter) Then
-            ItemsThatExistsAlphabetOnly.Add SplittedDigitAndAlphabet(CurrentItem)
+            Texts.Add SplittedDigitAndAlphabet(Index)
         End If
-    Next CurrentItem
+        
+    Next Index
     
-    Set ExtractAllTexts = ItemsThatExistsAlphabetOnly
+    Set ExtractAllTexts = Texts
     
 End Function
 
@@ -906,18 +1148,31 @@ End Function
 '       IsNoOperationIfNoNumberPresent -> Optional param (use to specify exit function if no number is found)
 '@ExampleCall : Text.IncrementOrDecrementEndNumber("1997ismailhosen286",4)  >> 1997ismailhosen290
 '               Text.IncrementOrDecrementEndNumber("1997ismailhosen286", -4) >> 1997ismailhosen282
-Public Function IncrementOrDecrementEndNumber(ByVal OperationOnText As String, ByVal Amount As Long _
-                                                                        , Optional ByVal IsNoOperationIfNoNumberPresent As Boolean = True) As String
+Public Function IncrementOrDecrementEndNumber(ByVal OperationOnText As String _
+                                              , ByVal Amount As Long _
+                                               , Optional ByVal IsNoOperationIfNoNumberPresent As Boolean = True) As String
 
     Dim NumberAtEnd As String
     NumberAtEnd = ExtractNumberFromEnd(OperationOnText)
+    
+    Dim Result As String
+    
     If NumberAtEnd = vbNullString Then
-        Amount = IIf(Not IsNoOperationIfNoNumberPresent And Amount = 1, Amount + 1, Amount)
-        IncrementOrDecrementEndNumber = IIf(IsNoOperationIfNoNumberPresent, OperationOnText, OperationOnText & Amount)
+        
+        If IsNoOperationIfNoNumberPresent Then
+            Result = OperationOnText
+        ElseIf Amount = 1 Then
+            Result = OperationOnText & (Amount + 1)
+        Else
+            Result = OperationOnText & Amount
+        End If
+        
     Else
-        IncrementOrDecrementEndNumber = RemoveFromEndIfPresent(OperationOnText, NumberAtEnd, IGNORE_CASE) & _
-                                        (CLng(NumberAtEnd) + Amount)
+        Result = RemoveFromEndIfPresent(OperationOnText, NumberAtEnd, IGNORE_CASE) & _
+                 (CLng(NumberAtEnd) + Amount)
     End If
+    
+    IncrementOrDecrementEndNumber = Result
     
 End Function
 
@@ -929,17 +1184,29 @@ End Function
 '       IsNoOperationIfNoNumberPresent -> Optional param (use to specify exit function if no number is found)
 '@ExampleCall : Text.IncrementOrDecrementStartNumber("1997ismailhosen286",3)  >> 2000ismailhosen286
 '               Text.IncrementOrDecrementStartNumber("1997ismailhosen286", -4) >> 1993ismailhosen286
-Public Function IncrementOrDecrementStartNumber(ByVal OperationOnText As String, ByVal Amount As Long _
-                                                                          , Optional ByVal IsNoOperationIfNoNumberPresent As Boolean = True) As String
+Public Function IncrementOrDecrementStartNumber(ByVal OperationOnText As String _
+                                                , ByVal Amount As Long _
+                                                 , Optional IsNoOperationIfNoNumberPresent As Boolean = True) As String
     
     Dim NumberAtStart As String
     NumberAtStart = ExtractNumberFromStart(OperationOnText)
+    
+    Dim Result As String
+    
     If NumberAtStart = vbNullString Then
-        IncrementOrDecrementStartNumber = IIf(IsNoOperationIfNoNumberPresent, OperationOnText, Amount & OperationOnText)
+        
+        If IsNoOperationIfNoNumberPresent Then
+            Result = OperationOnText
+        Else
+            Result = OperationOnText & Amount
+        End If
+
     Else
-        IncrementOrDecrementStartNumber = (CLng(NumberAtStart) + Amount) & _
-                                          RemoveFromStartIfPresent(OperationOnText, NumberAtStart, IGNORE_CASE)
+        Result = (CLng(NumberAtStart) + Amount) & _
+                 RemoveFromStartIfPresent(OperationOnText, NumberAtStart, IGNORE_CASE)
     End If
+    
+    IncrementOrDecrementStartNumber = Result
     
 End Function
 
@@ -957,6 +1224,7 @@ Private Function ReverseIndexCollection(ByVal InputCollection As Collection) As 
     For CurrentItemIndex = InputCollection.Count To 1 Step -1
         ReversedIndex.Add InputCollection.Item(CurrentItemIndex)
     Next CurrentItemIndex
+    
     Set ReverseIndexCollection = ReversedIndex
         
 End Function
@@ -967,14 +1235,18 @@ End Function
 '       GivenArray -> Array contains values that we want to combine.
 '       Delimiter  -> String with which we want to combine each of the element of the array.
 '@ExampleCall : Text.ReverseIndexCollection()  >>
-Private Function ConcatenateArray(ByVal GivenArray As Variant, ByVal Delimiter As String) As String
+Private Function ConcatenateArray(ByVal GivenArray As Variant _
+                                  , ByVal Delimiter As String) As String
    
     Dim ConcatenatedText As String
+    
     Dim Element As Variant
     For Each Element In GivenArray
         ConcatenatedText = ConcatenatedText & CStr(Element) & Delimiter
     Next Element
+    
     ConcatenatedText = RemoveFromEndIfPresent(ConcatenatedText, Delimiter, IGNORE_CASE)
+    
     ConcatenateArray = ConcatenatedText
     
 End Function
@@ -987,8 +1259,9 @@ End Function
 '       ComparisionType -> Optional param which will specify whether it will be case sensitive or not.
 '       @ExampleCall : Text.RemoveFromBothEndIfPresent("1997ismail@hosen#gmail.com1998","1997")  >> ismail@hosen#gmail.com
 '       @ExampleCall : Text.RemoveFromBothEndIfPresent("1997ismail@hosen#gmail.com","com")  >> 1997ismail@hosen#gmail.
-Public Function RemoveFromBothEndIfPresent(ByVal OperationOnText As String, ByVal TextToFind As String _
-                                                                     , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
+Public Function RemoveFromBothEndIfPresent(ByVal OperationOnText As String _
+                                           , ByVal TextToFind As String _
+                                            , Optional ByVal ComparisionType As Comparer = IGNORE_CASE) As String
 
     OperationOnText = RemoveFromEndIfPresent(OperationOnText, TextToFind, ComparisionType)
     RemoveFromBothEndIfPresent = RemoveFromStartIfPresent(OperationOnText, TextToFind, ComparisionType)
@@ -1000,22 +1273,29 @@ End Function
 '@Param:
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ConvertToMeaningfulText("1997ismail@h   1252osen#gmail.com    ","\")  >> 1997\ismail@h \1252\osen#gmail.com
-Public Function ConvertToMeaningfulText(ByVal OperationOnText As String, ByVal Separator As String) As String
+Public Function ConvertToMeaningfulText(ByVal OperationOnText As String _
+                                        , ByVal Separator As String) As String
     
     Dim SplittedNumberAndText As Collection
     Set SplittedNumberAndText = SplitDigitAndNonDigit(OperationOnText)
+    
     Dim MeaningFulName As String
     
     Dim CurrentItem As Variant
+    
     For Each CurrentItem In SplittedNumberAndText
         If IsNumeric(CurrentItem) Then
             MeaningFulName = MeaningFulName & CurrentItem & Separator
         Else
-            MeaningFulName = MeaningFulName & ConvertTextToUseableName(CStr(CurrentItem), Separator) & Separator
+            MeaningFulName = MeaningFulName _
+                             & ConvertTextToUseableName(CStr(CurrentItem), Separator) _
+                             & Separator
         End If
     Next CurrentItem
+    
     MeaningFulName = Text.RemoveFromEnd(MeaningFulName, Len(Separator))
     MeaningFulName = Text.Trim(MeaningFulName)
+    
     ConvertToMeaningfulText = MeaningFulName
     
 End Function
@@ -1057,17 +1337,22 @@ End Function
 '@Param:
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ConvertTextToUseableName("1997ismail@hosen#gmail.com")  >>
-Private Function ConvertTextToUseableName(ByVal OperationOnText As String, Optional ByVal Separator As String = " ") As String
+'@TODO: Need refactoring
+Private Function ConvertTextToUseableName(ByVal OperationOnText As String _
+                                          , Optional ByVal Separator As String = " ") As String
 
     Dim Result As Collection
     Set Result = New Collection
+    
     Dim IsNewCapitalLetterStart As Boolean
     Dim IsNewSmallLetterStart As Boolean
     Dim CurrentCharIndex As Long
     Dim LastSmallLetterSeenAtIndex As Long
     Dim LastCapitalLetterSeenAtIndex As Long
+    
     For CurrentCharIndex = 1 To Len(OperationOnText)
         If IsCapitalLetter(Mid$(OperationOnText, CurrentCharIndex, 1)) Then
+            
             If IsNewSmallLetterStart Then
                 IsNewCapitalLetterStart = True
                 LastCapitalLetterSeenAtIndex = CurrentCharIndex
@@ -1077,7 +1362,9 @@ Private Function ConvertTextToUseableName(ByVal OperationOnText As String, Optio
                 IsNewCapitalLetterStart = True
                 LastCapitalLetterSeenAtIndex = CurrentCharIndex
             End If
+            
         Else
+            
             If IsNewCapitalLetterStart Then
                 IsNewSmallLetterStart = True
                 LastSmallLetterSeenAtIndex = CurrentCharIndex
@@ -1087,6 +1374,7 @@ Private Function ConvertTextToUseableName(ByVal OperationOnText As String, Optio
                 IsNewSmallLetterStart = True
                 LastSmallLetterSeenAtIndex = CurrentCharIndex
             End If
+            
         End If
     Next CurrentCharIndex
     
@@ -1144,8 +1432,10 @@ Private Function CollectionToArray(ByVal GivenCollection As Collection) As Varia
     
     Dim Result() As Variant
     ReDim Result(1 To GivenCollection.Count, 1 To 1)
+    
     Dim CurrentElement As Variant
     Dim CurrentIndex As Long
+    
     For Each CurrentElement In GivenCollection
         CurrentIndex = CurrentIndex + 1
         If IsObject(CurrentElement) Then
@@ -1171,10 +1461,12 @@ Public Function IsDigit(ByVal GivenChar As String) As Boolean
         IsDigit = False
         Exit Function
     End If
+    
     Const CHARACTER_CODE_OF_0 As Long = 48
     Const CHARACTER_CODE_OF_9 As Long = 57
     Dim CurrentCharCode As Long
     CurrentCharCode = VBA.Asc(GivenChar)
+    
     IsDigit = (CurrentCharCode >= CHARACTER_CODE_OF_0 _
                And CurrentCharCode <= CHARACTER_CODE_OF_9)
                
@@ -1195,8 +1487,10 @@ Public Function IsSmallLetter(ByVal GivenChar As String) As Boolean
     
     Const CHARACTER_CODE_OF_a As Long = 97
     Const CHARACTER_CODE_OF_z As Long = 122
+    
     Dim CurrentCharCode As Long
     CurrentCharCode = VBA.Asc(GivenChar)
+    
     IsSmallLetter = (CurrentCharCode >= CHARACTER_CODE_OF_a _
                      And CurrentCharCode <= CHARACTER_CODE_OF_z)
                        
@@ -1207,7 +1501,8 @@ End Function
 '@Param:
 '       GivenText -> Text that we want to split.
 '@ExampleCall : Text.SplitDigitAndNonDigit("1997ismail@hosen#gmail.com")
-'               Text.SplitDigitAndNonDigit("1997ismail4555lhosengmail.com") will return (1997, ismail,4555,hosengmail.com)
+'               Text.SplitDigitAndNonDigit("1997ismail4555lhosengmail.com") will return 4(1997, ismail,4555,hosengmail.com)
+'@TODO: Need refactoring.
 Public Function SplitDigitAndNonDigit(ByVal GivenText As String) As Collection
 
     Dim Result As Collection
@@ -1230,7 +1525,7 @@ Public Function SplitDigitAndNonDigit(ByVal GivenText As String) As Collection
             End If
         Else
             If IsNewDigitStart And Mid$(GivenText, CurrentCharIndex, 1) = "." Then
-                Logger.Log DEBUG_LOG, "Period Present"
+'                Debug.Print "Period Present"
             ElseIf IsNewDigitStart Then
                 IsNewNonDigitStart = True
                 LastNonDigitSeenAtIndex = CurrentCharIndex
@@ -1254,6 +1549,7 @@ Public Function SplitDigitAndNonDigit(ByVal GivenText As String) As Collection
 
 End Function
 
+
 '@Description : By default it will not through error for duplicate case
 '@FullyQualifiedCase: It will use given column indexes
 '@ExampleCall : Set ArrayToCollectionMapping = ArrayToCollection(SUTArray, 1, 2, IsSuppressDuplicateError:=False) >> It will through error if any duplicate key is present.
@@ -1272,8 +1568,10 @@ End Function
 '       IsSuppressDuplicateError -> Optional param for duplicate error.
 
 '@ExampleCall : Text.CollectionToArray() >>
-Private Function ArrayToCollection(ByVal GivenArray As Variant, Optional ByVal KeyColumnIndex As Long = -1, _
-                                   Optional ByVal ItemColumnIndex As Long = -1, Optional ByVal IsSuppressDuplicateError As Boolean = True) As Variant
+Private Function ArrayToCollection(ByVal GivenArray As Variant _
+                                   , Optional ByVal KeyColumnIndex As Long = -1 _
+                                    , Optional ByVal ItemColumnIndex As Long = -1 _
+                                     , Optional ByVal IsSuppressDuplicateError As Boolean = True) As Variant
 
 
     Dim FirstColumnIndex  As Long
@@ -1295,8 +1593,7 @@ Private Function ArrayToCollection(ByVal GivenArray As Variant, Optional ByVal K
     Next CurrentRowIndex
 
     Set ArrayToCollection = KeyItemMapping
-    If IsSuppressDuplicateError Then On Error GoTo 0
-    
+
 End Function
 
 '@Description: This is use to check whether the key or value exists in given Collection or not.
@@ -1305,7 +1602,8 @@ End Function
 '       GivenCollection -> Collection in which we want to search or value.
 '       Key             -> String param( use to pass the value that we are searching for)
 '@ExampleCall : Text.IsExistInCollection()  >>
-Private Function IsExistInCollection(ByVal GivenCollection As Collection, ByVal Key As String) As Boolean
+Private Function IsExistInCollection(ByVal GivenCollection As Collection _
+                                     , ByVal Key As String) As Boolean
 
     On Error GoTo NotExist
     Dim Item  As Variant
@@ -1316,10 +1614,206 @@ Private Function IsExistInCollection(ByVal GivenCollection As Collection, ByVal 
     End If
     IsExistInCollection = True
     Exit Function
-    
 NotExist:
     IsExistInCollection = False
-    Err.Clear
+
+End Function
+
+'@Description: This function will use to remove initial Spaces and New lines
+'@Return:
+'@Param:
+'       OperationOnText -> Collection in which we want to search or value.
+'@ExampleCall : Text.RemoveInitialSpaceAndNewLines("jdkfjdf  kdsfjdskfds    ")  >>
+Public Function RemoveInitialSpaceAndNewLines(ByVal OperationOnText As String) As String
+
+    Dim Index As Long
+    Dim CurrentChar As String
+    For Index = 1 To VBA.Len(OperationOnText)
+        CurrentChar = VBA.Mid$(OperationOnText, Index, 1)
+        If Not (CurrentChar = Space(1) _
+                Or CurrentChar = vbNewLine _
+                Or CurrentChar = VBA.Chr$(10)) Then
+            Exit For
+        End If
+    Next Index
+    
+    RemoveInitialSpaceAndNewLines = VBA.Mid$(OperationOnText, Index)
+
+End Function
+
+'@Description: This function will retrive the portion of OperationOnText between two given index postion.
+'@Return: It will return text between two  Parameter based on StartIndex and EndIndex param.
+'@Param:
+'       OperationOnText -> A string param containing the string in which we want to search.
+'       StartIndex      -> param(indicate the starting index position).
+'       EndIndex        -> param(indicate the End index position of operaitonOnText).
+
+Public Function FromRange(ByVal OperationOnText As String _
+                          , ByVal StartIndex As Long _
+                           , ByVal EndIndex As Long) As String
+    
+    If StartIndex <= 0 Or EndIndex <= 0 _
+       Or StartIndex > EndIndex Or StartIndex > Len(OperationOnText) _
+       Or EndIndex > Len(OperationOnText) Then
+        Err.Raise 13, , "Text.FromRange", "Invalid input argument"
+    End If
+    
+    FromRange = Mid$(OperationOnText, StartIndex, EndIndex - StartIndex + 1)
+    
+End Function
+
+'@Description("This will check if all the character of SearchForText is found in sequence in SearchInText.")
+'@Dependency("No Dependency")
+'@ExampleCall : IsCharacterOfSearchTextFoundInSequence("Dim CurrentCharacter As String", "DCuASt") > True
+'@Date : 19 May 2023 07:57:46 PM
+'@PossibleError :
+Public Function IsCharacterOfSearchTextFoundInSequence(ByVal SearchInText As String _
+                                                       , ByVal SearchForText As String) As Boolean
+
+    Dim Index As Long
+    Dim CurrentCharacterOfSearchForText As String
+    Dim PreviousCharIndex As Long
+    PreviousCharIndex = 0
+    Dim CurrentCharIndex As Long
+    
+    Dim Result As Boolean
+    Result = True
+    
+    For Index = 1 To Len(SearchForText)
+        
+        CurrentCharacterOfSearchForText = Mid(SearchForText, Index, 1)
+        CurrentCharIndex = InStr(PreviousCharIndex + 1, SearchInText _
+                                                       , CurrentCharacterOfSearchForText _
+                                                        , vbTextCompare)
+        If CurrentCharIndex = 0 Then
+            Result = False
+            Exit For
+        End If
+        PreviousCharIndex = CurrentCharIndex
+        
+    Next Index
+    
+    IsCharacterOfSearchTextFoundInSequence = Result
+    
+End Function
+
+'@Description("This will try to match in each word.See example call. This function is not 100% perfect")
+'@Dependency("No Dependency")
+'@ExampleCall : IsCharacterOfSearchTextFoundInSequenceAndAtTheStartOfEachWord("Dim CurrentCharacter As String", "DCuAS")->True
+'               because D is found on "Dim" and Cu is found on "CurrentCharacter" and "As" is found on "As" and finally S is found on "String
+
+'@Date : 19 May 2023 07:54:27 PM
+'@PossibleError :
+
+'@TODO: Need refactoring.
+Public Function IsCharacterOfSearchTextFoundInSequenceAndAtTheStartOfEachWord(ByVal SearchInText As String _
+                                                                              , ByVal SearchForText As String) As Boolean
+
+    SearchForText = Replace(SearchForText, Space(1), vbNullString)
+    Dim Words As Variant
+    Words = Split(SearchInText)
+    Dim CurrentWord As Variant
+    Dim Index As Long
+    Index = 1
+    
+    For Each CurrentWord In Words
+        
+        Dim IndexInWord As Long
+        IndexInWord = 1
+        Do While IndexInWord <= Len(CurrentWord)
+            Dim CurrentCharacterOfSearchForText As String
+            CurrentCharacterOfSearchForText = LCase(Mid(SearchForText, Index, 1))
+            Dim CurrentCharacterOfCurrentWord As String
+            CurrentCharacterOfCurrentWord = LCase(Mid(CStr(CurrentWord), IndexInWord, 1))
+            If CurrentCharacterOfCurrentWord = CurrentCharacterOfSearchForText Then
+                Index = Index + 1
+                IndexInWord = IndexInWord + 1
+            Else
+                Exit Do
+            End If
+        Loop
+        
+    Next CurrentWord
+    
+    'After Last Match we increment it by 1 . So subtract that.
+    Index = Index - 1
+    IsCharacterOfSearchTextFoundInSequenceAndAtTheStartOfEachWord = (Index = Len(SearchForText))
+    
+End Function
+
+'@Description("This will check if all character is present no matter in which order.")
+'@Dependency("No Dependency")
+'@ExampleCall :IsAllCharacterPresent("present","rp")>True because we found r and p in "present"
+'@Date : 19 May 2023 08:22:45 PM
+'@PossibleError :
+Public Function IsAllCharacterPresent(ByVal SearchInText As String _
+                                      , ByVal SearchForText As String) As Boolean
+
+    Dim Index As Long
+    Dim CurrentCharacterOfSearchForText As String
+    Dim CurrentCharIndex As Long
+    
+    Dim Result As Boolean
+    Result = True
+    
+    For Index = 1 To Len(SearchForText)
+        CurrentCharacterOfSearchForText = Mid(SearchForText, Index, 1)
+        CurrentCharIndex = InStr(1, SearchInText, CurrentCharacterOfSearchForText, vbTextCompare)
+        If CurrentCharIndex = 0 Then
+            Result = False
+            Exit For
+        End If
+    Next Index
+    
+    IsAllCharacterPresent = Result
+
+End Function
+
+Public Function IsStartsWithAndEndsWith(ByVal OperationText As String _
+                                        , ByVal StartsWithWhat As String _
+                                         , Optional ByVal EndsWithWhat As String = vbNullString) As Boolean
+    
+    ' This function will check whether the OperationText starts with StartsWithWhat and ends with EndsWithWhat
+    ' If EndsWithWhat is not provided then it will check whether the OperationText starts with StartsWithWhat
+    ' and ends with StartsWithWhat
+    '@ExampleCall: Text.IsStartsWithAndEndsWith("1997ismail@hosen#gmail.com", "1997", "com") >> True
+    '@Return: Return boolean value of the result.
+
+    Dim StartsWith As Boolean
+    Dim EndsWith As Boolean
+    StartsWith = IsStartsWith(OperationText, StartsWithWhat)
+    
+    If EndsWithWhat = vbNullString Then
+        EndsWith = IsEndsWith(OperationText, StartsWithWhat)
+    Else
+        EndsWith = IsEndsWith(OperationText, EndsWithWhat)
+    End If
+
+    IsStartsWithAndEndsWith = (StartsWith And EndsWith)
+
+End Function
+
+Public Function IsStartsWithOrEndsWith(ByVal OperationText As String _
+                                        , ByVal StartsWithWhat As String _
+                                         , Optional ByVal EndsWithWhat As String = vbNullString) As Boolean
+    
+    ' This function will check whether the OperationText starts with StartsWithWhat or ends with EndsWithWhat
+    ' If EndsWithWhat is not provided then it will check whether the OperationText starts with StartsWithWhat
+    ' or ends with StartsWithWhat
+    '@ExampleCall: Text.IsStartsWithOrEndsWith("1997ismail@hosen#gmail.com", "1997", "com") >> True
+    '@Return: Return boolean value of the result.
+
+    Dim StartsWith As Boolean
+    Dim EndsWith As Boolean
+    StartsWith = IsStartsWith(OperationText, StartsWithWhat)
+    
+    If EndsWithWhat = vbNullString Then
+        EndsWith = IsEndsWith(OperationText, StartsWithWhat)
+    Else
+        EndsWith = IsEndsWith(OperationText, EndsWithWhat)
+    End If
+
+    IsStartsWithOrEndsWith = (StartsWith Or EndsWith)
 
 End Function
 

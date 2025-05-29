@@ -24,53 +24,53 @@ Private Type TMapper
     ToJSON As String
 End Type
 
-Private This As TMapper
+Private this As TMapper
 
 Public Property Get ToJSON() As String
     
     Dim JSONText As String
     Dim JaggedMapperCollection As Collection
     Dim CurrentMapper As Mapper
-    If TypeName(This.Value) = "Collection" Then
-        Set JaggedMapperCollection = This.Value
+    If TypeName(this.Value) = "Collection" Then
+        Set JaggedMapperCollection = this.Value
         If TypeName(JaggedMapperCollection.Item(1)) = "Mapper" Then
             For Each CurrentMapper In JaggedMapperCollection
                 JSONText = JSONText & COMMA & CurrentMapper.ToJSON
             Next CurrentMapper
         End If
-        JSONText = BeautifyString(JAGGED_MAPPER_JSON_PATTERN, Array(This.Key, JSONText))
+        JSONText = BeautifyString(JAGGED_MAPPER_JSON_PATTERN, Array(this.Key, JSONText))
     Else
-        JSONText = BeautifyString(JSON_PATTERN, Array(This.Key, This.Value))
+        JSONText = BeautifyString(JSON_PATTERN, Array(this.Key, this.Value))
     End If
-    This.ToJSON = JSONText
-    ToJSON = This.ToJSON
+    this.ToJSON = JSONText
+    ToJSON = this.ToJSON
     
 End Property
 
 Public Property Get Key() As String
-    Key = This.Key
+    Key = this.Key
 End Property
 
 Public Property Let Key(ByVal RHS As String)
-    This.Key = RHS
+    this.Key = RHS
 End Property
 
 Public Property Get Value() As Variant
     
-    If IsObject(This.Value) Then
-        Set Value = This.Value
+    If IsObject(this.Value) Then
+        Set Value = this.Value
     Else
-        Value = This.Value
+        Value = this.Value
     End If
     
 End Property
 
 Public Property Let Value(ByVal RHS As Variant)
-    This.Value = RHS
+    this.Value = RHS
 End Property
 
 Public Property Set Value(ByVal RHS As Variant)
-    Set This.Value = RHS
+    Set this.Value = RHS
 End Property
 
 Public Function Create(GivenKey As String, GivenValue As Variant) As Mapper
@@ -114,7 +114,5 @@ Private Function BeautifyString(Pattern As String, PlaceHolderValues As Variant 
     BeautifyString = Pattern
     
 End Function
-
-
 
 

@@ -16,22 +16,22 @@ Private Type TStructuredRefManager
     CellRefToLetStepLambdaRefMap As Collection
 End Type
 
-Private This As TStructuredRefManager
+Private this As TStructuredRefManager
 
 Public Property Get AllNamedRange() As Dictionary
-    Set AllNamedRange = This.AllNamedRange
+    Set AllNamedRange = this.AllNamedRange
 End Property
 
 Public Property Set AllNamedRange(ByVal RHS As Dictionary)
-    Set This.AllNamedRange = RHS
+    Set this.AllNamedRange = RHS
 End Property
 
 Public Property Get FormulaStartCellInSheet() As Worksheet
-    Set FormulaStartCellInSheet = This.FormulaStartCellInSheet
+    Set FormulaStartCellInSheet = this.FormulaStartCellInSheet
 End Property
 
 Public Property Set FormulaStartCellInSheet(ByVal RHS As Worksheet)
-    Set This.FormulaStartCellInSheet = RHS
+    Set this.FormulaStartCellInSheet = RHS
 End Property
 
 Public Function GetStructuredFormula(ByVal ForCell As Range) As String
@@ -40,11 +40,11 @@ Public Function GetStructuredFormula(ByVal ForCell As Range) As String
     Dim FullyQualifiedCellRef As String
     FullyQualifiedCellRef = ConvertToFullyQualifiedCellRef(ForCell.Cells(1))
     
-    If Not IsExistInCollection(This.QualifiedCellRefVsStructuredFormulaMap, FullyQualifiedCellRef) Then
+    If Not IsExistInCollection(this.QualifiedCellRefVsStructuredFormulaMap, FullyQualifiedCellRef) Then
         ConvertRangeRefToStructuralRef ForCell
     End If
     
-    GetStructuredFormula = This.QualifiedCellRefVsStructuredFormulaMap.Item(FullyQualifiedCellRef)
+    GetStructuredFormula = this.QualifiedCellRefVsStructuredFormulaMap.Item(FullyQualifiedCellRef)
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.GetStructuredFormula"
     
 End Function
@@ -55,11 +55,11 @@ Public Function GetLetStepLambdaRefs(ByVal ForCell As Range) As Dictionary
     Dim FullyQualifiedCellRef As String
     FullyQualifiedCellRef = ConvertToFullyQualifiedCellRef(ForCell.Cells(1))
     
-    If Not IsExistInCollection(This.QualifiedCellRefVsStructuredFormulaMap, FullyQualifiedCellRef) Then
+    If Not IsExistInCollection(this.QualifiedCellRefVsStructuredFormulaMap, FullyQualifiedCellRef) Then
         ConvertRangeRefToStructuralRef ForCell
     End If
     
-    Set GetLetStepLambdaRefs = This.CellRefToLetStepLambdaRefMap.Item(FullyQualifiedCellRef)
+    Set GetLetStepLambdaRefs = this.CellRefToLetStepLambdaRefMap.Item(FullyQualifiedCellRef)
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.GetLetStepLambdaRefs"
     
 End Function
@@ -76,13 +76,13 @@ Public Sub ConvertRangeRefToStructuralRef(ByVal ForCell As Range)
     ' Debug.Assert CellRef <> "'[TextOffset lambda testing.xlsm]Sheet1'!$C$15"
     
     ' If the structural formula is not already stored in the map, calculate the structural formula.
-    If Not modUtility.IsExistInCollection(This.QualifiedCellRefVsStructuredFormulaMap, CellRef) Then
+    If Not modUtility.IsExistInCollection(this.QualifiedCellRefVsStructuredFormulaMap, CellRef) Then
         Dim Formula As String
-'        Debug.Assert ForCell.Address <> "$J$3"
-        Formula = GetConvertedStructuredFormula(ForCell)
-        Formula = modUtility.GetLambdaDefIfLETStepRefCell(ForCell, Formula, This.FormulaStartCellInSheet)
+        '        Debug.Assert ForCell.Address <> "$J$3"
+        Formula = GetConvertedStructuredFormula(ForCell, True)
+        Formula = modUtility.GetLambdaDefIfLETStepRefCell(ForCell, Formula, this.FormulaStartCellInSheet)
         UpdateLETStepLambdaRefCell Formula, CellRef
-        This.QualifiedCellRefVsStructuredFormulaMap.Add Formula, CellRef
+        this.QualifiedCellRefVsStructuredFormulaMap.Add Formula, CellRef
     End If
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.ConvertRangeRefToStructuralRef"
     
@@ -123,30 +123,30 @@ Private Sub UpdateLETStepLambdaRefCell(ByVal Formula As String, ByVal CellRef As
 
         ' Check if the LET-Step-Lambda reference exists in the AllNamedRange collection.
         Dim QualifiedSheetName As String
-        QualifiedSheetName = GetSheetRefForRangeReference(This.FormulaStartCellInSheet.name, False)
+        QualifiedSheetName = GetSheetRefForRangeReference(this.FormulaStartCellInSheet.Name, False)
         ' Check for local named range first.
         Dim LetStepRefNamedRange As String
         Dim LetStepRefCell As Range
-        If This.AllNamedRange.Exists(QualifiedSheetName & FunctionName) Then
+        If this.AllNamedRange.Exists(QualifiedSheetName & FunctionName) Then
             LetStepRefNamedRange = QualifiedSheetName & VBA.Replace(FunctionName _
                                                                     , LETSTEP_UNDERSCORE_PREFIX _
                                                                      , LETSTEPREF_UNDERSCORE_PREFIX)
-            Set LetStepRefCell = This.AllNamedRange.Item(LetStepRefNamedRange).RefersToRange
+            Set LetStepRefCell = this.AllNamedRange.Item(LetStepRefNamedRange).RefersToRange
             Formula = VBA.Replace(Formula, FunctionName & Suffix, LetStepRefCell.Address & Suffix)
             LetStepLambdaRefs.Item(GetRangeRefWithSheetName(LetStepRefCell, False)) = FunctionName
         
             ' Check for global named range as well
-        ElseIf This.AllNamedRange.Exists(FunctionName) Then
+        ElseIf this.AllNamedRange.Exists(FunctionName) Then
             LetStepRefNamedRange = VBA.Replace(FunctionName _
                                                , LETSTEP_UNDERSCORE_PREFIX _
                                                 , LETSTEPREF_UNDERSCORE_PREFIX)
-            Set LetStepRefCell = This.AllNamedRange.Item(LetStepRefNamedRange).RefersToRange
+            Set LetStepRefCell = this.AllNamedRange.Item(LetStepRefNamedRange).RefersToRange
             Formula = VBA.Replace(Formula, FunctionName & Suffix, LetStepRefCell.Address & Suffix)
             LetStepLambdaRefs.Item(GetRangeRefWithSheetName(LetStepRefCell, False)) = FunctionName
         End If
     Loop
 
-    This.CellRefToLetStepLambdaRefMap.Add LetStepLambdaRefs, CellRef
+    this.CellRefToLetStepLambdaRefMap.Add LetStepLambdaRefs, CellRef
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.UpdateLETStepLambdaRefCell"
     
 End Sub
@@ -177,8 +177,8 @@ End Function
 Private Sub Class_Initialize()
     
     Logger.Log TRACE_LOG, "Enter StructuredRefManager.Class_Initialize"
-    Set This.QualifiedCellRefVsStructuredFormulaMap = New Collection
-    Set This.CellRefToLetStepLambdaRefMap = New Collection
+    Set this.QualifiedCellRefVsStructuredFormulaMap = New Collection
+    Set this.CellRefToLetStepLambdaRefMap = New Collection
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.Class_Initialize"
     
 End Sub
@@ -186,9 +186,10 @@ End Sub
 Private Sub Class_Terminate()
     
     Logger.Log TRACE_LOG, "Enter StructuredRefManager.Class_Terminate"
-    Set This.QualifiedCellRefVsStructuredFormulaMap = Nothing
-    Set This.CellRefToLetStepLambdaRefMap = Nothing
+    Set this.QualifiedCellRefVsStructuredFormulaMap = Nothing
+    Set this.CellRefToLetStepLambdaRefMap = Nothing
     Logger.Log TRACE_LOG, "Exit StructuredRefManager.Class_Terminate"
     
 End Sub
+
 

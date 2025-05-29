@@ -20,12 +20,12 @@ Public Sub FindReferenceInChartSeries(ByVal GivenRange As Range, ByVal PutOnCell
     
 ErrorHandler:
     
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -54,12 +54,12 @@ End Sub
 Public Sub PrintDirectPrecedentsOfActiveCell()
     
     Dim Dependency As Variant
-    Dependency = GetDirectPrecedents(ActiveCell.Formula2, ActiveCell.Worksheet)
+    Dependency = GetDirectPrecedents(GetCellFormula(ActiveCell), ActiveCell.Worksheet)
     
     ' Ensure the Dependency is an array
     If Not IsArray(Dependency) Then Dependency = Array(Dependency)
     
-     Dim CurrentDependency As Variant
+    Dim CurrentDependency As Variant
     For Each CurrentDependency In Dependency
         If CurrentDependency <> vbNullString Then
             Debug.Print CurrentDependency
@@ -100,21 +100,13 @@ End Sub
 '
 'End Sub
 
-Public Sub TestStructuredRefManager()
-    
-    Dim Manager As StructuredRefManager
-    Set Manager = New StructuredRefManager
-    With Manager
-        Set .AllNamedRange = GetNamedRangeToDictionary(ActiveWorkbook)
-        Set .FormulaStartCellInSheet = ActiveWorkbook.Worksheets("Sheet3")
-        Debug.Print .GetStructuredFormula(ActiveCell)
-    End With
-    
-End Sub
-
 Private Sub TestNamedRangeEvaluation()
     
     Dim V As Variant
     V = Evaluate("ShortMonthOfTheYear")
     
+End Sub
+
+Private Sub TestGenLambda()
+    GenerateLambdaStatement ActiveCell, ActiveCell
 End Sub

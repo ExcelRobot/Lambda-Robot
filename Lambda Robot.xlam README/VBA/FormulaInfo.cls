@@ -16,30 +16,30 @@ Private Type TFormulaInfo
     IsR1C1 As Boolean
 End Type
 
-Private This As TFormulaInfo
+Private this As TFormulaInfo
 
 Public Property Get FormulaText() As String
-    FormulaText = This.FormulaText
+    FormulaText = this.FormulaText
 End Property
 
 Public Property Let FormulaText(ByVal RHS As String)
-    This.FormulaText = RHS
+    this.FormulaText = RHS
 End Property
 
 Public Property Get Source() As String
-    Source = This.Source
+    Source = this.Source
 End Property
 
 Public Property Let Source(ByVal RHS As String)
-    This.Source = RHS
+    this.Source = RHS
 End Property
 
 Public Property Get IsR1C1() As Boolean
-    IsR1C1 = This.IsR1C1
+    IsR1C1 = this.IsR1C1
 End Property
 
 Public Property Let IsR1C1(ByVal RHS As Boolean)
-    This.IsR1C1 = RHS
+    this.IsR1C1 = RHS
 End Property
 
 Public Property Get Self() As FormulaInfo

@@ -34,7 +34,7 @@ Private Type TLetStepManager
     LastStepName As String
 End Type
 
-Private This As TLetStepManager
+Private this As TLetStepManager
 
 '@EntryPoint
 Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
@@ -51,26 +51,26 @@ Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
     ' Retrieving the context data
     RetriveContextData FormulaCell
     ' Getting a valid step name
-    StepName = GetValidStepName(StepName, This.AllNamedRanges, This.LambdaAndLetStepsName)
+    StepName = GetValidStepName(StepName, this.AllNamedRanges, this.LambdaAndLetStepsName)
     Dim FormulaText As String
-    FormulaText = modDependencyLambdaResult.AddLetStep(This.FormulaText, StepName, StepFormula)
+    FormulaText = modDependencyLambdaResult.AddLetStep(this.FormulaText, StepName, StepFormula)
     ' Checking if TargetCell is null
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
     ' Replacing the formula in the target cell
     TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(FormulaText)
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.AddLetStep"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.AddLetStep"
     Exit Sub
     
 ErrorHandler:
     
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
     ' Raising the error if ErrorNumber is not 0
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -117,24 +117,24 @@ Private Sub RetriveContextData(ByVal FormulaCell As Range)
     
     Logger.Log TRACE_LOG, "Enter LetStepManager.RetriveContextData"
     ' Retrieving all context data necessary for processing the input formula cell
-    Set This.OnBook = FormulaCell.Worksheet.Parent
-    This.FormulaText = FormulaCell.Formula2
-    This.IsLambdaFormulaWithLet = IsLambdaWithLet(This.FormulaText)
-    This.IsCellStartWithLetFormula = IsLetFunction(This.FormulaText)
+    Set this.OnBook = FormulaCell.Worksheet.Parent
+    Set this.AllNamedRanges = Context.GetAllNamedRangeCollectionFromBook(this.OnBook)
+    this.FormulaText = GetCellFormula(FormulaCell)
+    this.IsLambdaFormulaWithLet = IsLambdaWithLet(this.FormulaText)
+    this.IsCellStartWithLetFormula = IsLetFunction(this.FormulaText)
 
-    This.IsValidForProcessingFurther = IsStartingFormulaIsTheEntireFormula(This.FormulaText)
+    this.IsValidForProcessingFurther = IsStartingFormulaIsTheEntireFormula(this.FormulaText)
     ' If the formula is not valid for processing, it's converted to a LET statement
-    If Not This.IsValidForProcessingFurther Then
-        This.IsLambdaFormulaWithLet = False
-        This.FormulaText = ConvertToALetStatement(This.FormulaText)
+    If Not this.IsValidForProcessingFurther Then
+        this.IsLambdaFormulaWithLet = False
+        this.FormulaText = ConvertToALetStatement(this.FormulaText)
     End If
 
     ' Retrieving more context data
-    Set This.AllNamedRanges = FindAllNamedRange(This.OnBook, False)
-    This.LetParts = GetDependencyFunctionResult(This.FormulaText, LET_PARTS)
-    This.LambdaParts = GetDependencyFunctionResult(This.FormulaText, LAMBDA_PARTS)
-    This.LambdaAndLetStepsName = GetParametersAndStepsName(This.FormulaText)
-    This.LastStepName = FindLastStepName(This.LambdaAndLetStepsName)
+    this.LetParts = GetDependencyFunctionResult(this.FormulaText, LET_PARTS)
+    this.LambdaParts = GetDependencyFunctionResult(this.FormulaText, LAMBDA_PARTS)
+    this.LambdaAndLetStepsName = GetParametersAndStepsName(this.FormulaText)
+    this.LastStepName = FindLastStepName(this.LambdaAndLetStepsName)
     Logger.Log TRACE_LOG, "Exit LetStepManager.RetriveContextData"
     
 End Sub
@@ -144,6 +144,11 @@ Private Function FindLastStepName(ByVal LambdaAndLetStepsName As Variant) As Str
     
     Logger.Log TRACE_LOG, "Enter LetStepManager.FindLastStepName"
     ' Iterating through all the step names and finding the last valid (non-error) step name
+    If Not IsArray(LambdaAndLetStepsName) Then
+        FindLastStepName = vbNullString
+        Exit Function
+    End If
+    
     Dim LastStepName As String
     Dim CurrentStepName As Variant
     For Each CurrentStepName In LambdaAndLetStepsName
@@ -216,7 +221,7 @@ Public Sub RemoveLastLETStep(ByVal FormulaCell As Range, Optional ByVal TargetCe
     On Error GoTo ErrorHandler
     RetriveContextData FormulaCell
     
-    If Not (This.IsLambdaFormulaWithLet Or This.IsCellStartWithLetFormula) Then
+    If Not (this.IsLambdaFormulaWithLet Or this.IsCellStartWithLetFormula) Then
         MsgBox "Remove Last LET Steps command is only for cell having " _
                & LET_FX_NAME & " or " & LAMBDA_FX_NAME & " formula." _
                , vbCritical, "Remove Last LET Steps"
@@ -227,32 +232,32 @@ Public Sub RemoveLastLETStep(ByVal FormulaCell As Range, Optional ByVal TargetCe
     Dim ReplaceOnFormula As String
     Dim ReplacedFormula As String
     ' Depending on whether cell starts with a lambda formula, the removal of the step varies
-    If This.IsLambdaFormulaWithLet Then
-        ReplaceOnFormula = This.LambdaParts(UBound(This.LambdaParts, 1), LBound(This.LambdaParts, 2))
+    If this.IsLambdaFormulaWithLet Then
+        ReplaceOnFormula = this.LambdaParts(UBound(this.LambdaParts, 1), LBound(this.LambdaParts, 2))
         ReplacedFormula = GetFormulaAfterRemovingLastStep(EQUAL_SIGN & ReplaceOnFormula)
-        ReplacedFormula = GetUptoLambdaParamDefPart(This.FormulaText) _
+        ReplacedFormula = GetUptoLambdaParamDefPart(this.FormulaText) _
                           & ReplacedFormula & FIRST_PARENTHESIS_CLOSE _
-                          & GetLambdaInvocationPart(This.FormulaText)
+                          & GetLambdaInvocationPart(this.FormulaText)
     Else
-        ReplaceOnFormula = This.FormulaText
+        ReplaceOnFormula = this.FormulaText
         ReplacedFormula = EQUAL_SIGN & GetFormulaAfterRemovingLastStep(ReplaceOnFormula)
     End If
     Logger.Log DEBUG_LOG, "Removing last let step from formula:" & ReplaceOnFormula
     Logger.Log DEBUG_LOG, "Final formula after Removing last let step:" & ReplacedFormula
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
     TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(ReplacedFormula)
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.RemoveLastLETStep"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.RemoveLastLETStep"
     Exit Sub
     
 ErrorHandler:
     ' If an error occurs, clean up resources and raise error
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         Resume
     End If
     Logger.Log TRACE_LOG, "Exit LetStepManager.RemoveLastLETStep"
@@ -270,7 +275,7 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     On Error GoTo ErrorHandler
     RetriveContextData FormulaCell
     
-    If Not (This.IsLambdaFormulaWithLet Or This.IsCellStartWithLetFormula) Then
+    If Not (this.IsLambdaFormulaWithLet Or this.IsCellStartWithLetFormula) Then
         MsgBox "Cycle LET Steps command is only for cells having a " & LET_FX_NAME _
                & " or " & LAMBDA_FX_NAME & "/" _
                & LET_FX_NAME & " formula.", vbCritical, "Cycle LET Steps"
@@ -281,14 +286,14 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     Dim ReplaceOnFormula As String
     Dim ReplacedFormula As String
     ' Depending on whether cell starts with a lambda formula, the removal of the step varies
-    If This.IsLambdaFormulaWithLet Then
-        ReplaceOnFormula = This.LambdaParts(UBound(This.LambdaParts, 1), LBound(This.LambdaParts, 2))
+    If this.IsLambdaFormulaWithLet Then
+        ReplaceOnFormula = this.LambdaParts(UBound(this.LambdaParts, 1), LBound(this.LambdaParts, 2))
         ReplacedFormula = GetFormulaAfterCycleLetStep(EQUAL_SIGN & ReplaceOnFormula, IsReset)
-        ReplacedFormula = GetUptoLambdaParamDefPart(This.FormulaText) _
+        ReplacedFormula = GetUptoLambdaParamDefPart(this.FormulaText) _
                           & ReplacedFormula & FIRST_PARENTHESIS_CLOSE _
-                          & GetLambdaInvocationPart(This.FormulaText)
+                          & GetLambdaInvocationPart(this.FormulaText)
     Else
-        ReplaceOnFormula = This.FormulaText
+        ReplaceOnFormula = this.FormulaText
         ReplacedFormula = EQUAL_SIGN & GetFormulaAfterCycleLetStep(ReplaceOnFormula, IsReset)
     End If
     
@@ -297,18 +302,18 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     If IsNothing(TargetCell) Then Set TargetCell = FormulaCell
     
     TargetCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(ReplacedFormula)
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.CycleLETSteps"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.CycleLETSteps"
     Exit Sub
     
 ErrorHandler:
     ' If an error occurs, clean up resources and raise error
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         Resume
     End If
     Logger.Log TRACE_LOG, "Exit LetStepManager.CycleLETSteps"
@@ -371,9 +376,9 @@ Private Sub TrimAndCleanStepsName(ByRef LetParts As Variant)
 End Sub
 
 Private Sub GetRowAndColumnDetails(ByVal LetParts As Variant, ByRef FirstColumnIndex As Long _
-                                                       , ByRef LastRowIndex As Long _
-                                                        , ByRef FirstRowIndex As Long _
-                                                         , ByRef NumberOfRow As Long)
+                                                             , ByRef LastRowIndex As Long _
+                                                              , ByRef FirstRowIndex As Long _
+                                                               , ByRef NumberOfRow As Long)
     Logger.Log TRACE_LOG, "Enter LetStepManager.GetRowAndColumnDetails"
     FirstColumnIndex = LBound(LetParts, 2)
     LastRowIndex = UBound(LetParts, 1)
@@ -384,9 +389,9 @@ Private Sub GetRowAndColumnDetails(ByVal LetParts As Variant, ByRef FirstColumnI
 End Sub
 
 Private Sub GetStepNames(ByVal LetParts As Variant, ByVal LastRowIndex As Long _
-                                             , ByVal FirstColumnIndex As Long _
-                                              , ByRef LastStepName As String _
-                                               , ByRef SecondLastStepName As String)
+                                                   , ByVal FirstColumnIndex As Long _
+                                                    , ByRef LastStepName As String _
+                                                     , ByRef SecondLastStepName As String)
     Logger.Log TRACE_LOG, "Enter LetStepManager.GetStepNames"
     LastStepName = LetParts(LastRowIndex, FirstColumnIndex)
     SecondLastStepName = LetParts(LastRowIndex - 1, FirstColumnIndex)
@@ -592,11 +597,11 @@ Private Sub ValidateFormulaCellParam(ByVal FormulaCell As Range, ByVal ErrorSour
 End Sub
 
 Private Sub Class_Initialize()
-    Set This.AllNamedRanges = New Collection
+    Set this.AllNamedRanges = New Collection
 End Sub
 
 Private Sub Class_Terminate()
-    Set This.AllNamedRanges = Nothing
+    Set this.AllNamedRanges = Nothing
 End Sub
 
 

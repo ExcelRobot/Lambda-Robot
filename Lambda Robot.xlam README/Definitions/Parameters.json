@@ -4,39 +4,54 @@
       "Name": "FormulaFormat_AddPrefixOnParam",
       "Description": "Add Let Var Prefix in the parameter as well or not.",
       "Type": "DefaultParameter",
-      "Value": "false",
       "DataType": "Boolean",
+      "DefaultValue": "false",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_BoMode",
       "Description": "Set formula formatting option as Bo does.",
       "Type": "DefaultParameter",
-      "Value": "false",
-      "DataType": "Boolean"
+      "DataType": "Boolean",
+      "DefaultValue": "false"
+    },
+    {
+      "Name": "FormulaFormat_ClearInputFormatting",
+      "Description": "Clear Input Cells formatting automatically on LAMBDA or LET generation",
+      "Type": "DefaultParameter",
+      "DataType": "Boolean",
+      "DefaultValue": "false",
+      "IsUserParameter": true
+    },
+    {
+      "Name": "FormulaFormat_IncludeResultStep",
+      "Description": "Control creating step for final result of LAMBDA/LET statement or not.",
+      "Type": "DefaultParameter",
+      "DataType": "Boolean",
+      "DefaultValue": "true"
     },
     {
       "Name": "FormulaFormat_IndentChar",
       "Description": "Indent Char option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": " ",
       "DataType": "String",
+      "DefaultValue": " ",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_IndentSize",
       "Description": "Indent Size option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "3",
       "DataType": "Integer",
+      "DefaultValue": "3",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_LambdaParamStyle",
       "Description": "Lambda Parameter naming convention. Allowed values are \"Pascal\", \"Camel\" or \"Snake_Case\".",
       "Type": "DefaultParameter",
-      "Value": "Snake_Case",
       "DataType": "String",
+      "DefaultValue": "Snake_Case",
       "IsUserParameter": true
     },
     {
@@ -51,56 +66,56 @@
       "Name": "FormulaFormat_Multiline",
       "Description": "Multiline option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "true",
       "DataType": "Boolean",
+      "DefaultValue": "true",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_OnlyWrapFunctionAfterNChars",
       "Description": "OnlyWrapFunctionAfterNChars option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "80",
       "DataType": "Integer",
+      "DefaultValue": "80",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_SpacesAfterArgumentSeparators",
       "Description": "SpacesAfterArgumentSeparators option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "true",
       "DataType": "Boolean",
+      "DefaultValue": "true",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_SpacesAfterArrayColumnSeparators",
       "Description": "SpacesAfterArrayColumnSeparators option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "true",
       "DataType": "Boolean",
+      "DefaultValue": "true",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_SpacesAfterArrayRowSeparators",
       "Description": "SpacesAfterArrayRowSeparators option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "true",
       "DataType": "Boolean",
+      "DefaultValue": "true",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_SpacesAroundInfixOperators",
       "Description": "SpacesAroundInfixOperators option for Format Formula.",
       "Type": "DefaultParameter",
-      "Value": "true",
       "DataType": "Boolean",
+      "DefaultValue": "true",
       "IsUserParameter": true
     },
     {
       "Name": "FormulaFormat_VariableStyle",
       "Description": "Let Variable or Parameter naming convention. Allowed values are \"Pascal\", \"Camel\" or \"Snake_Case\".",
       "Type": "DefaultParameter",
-      "Value": "Pascal",
       "DataType": "String",
+      "DefaultValue": "Pascal",
       "IsUserParameter": true
     }
   ]

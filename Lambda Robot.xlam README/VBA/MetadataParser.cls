@@ -24,43 +24,43 @@ Private Type TMetadataParser
     LetParts As Variant
 End Type
 
-Private This  As TMetadataParser
+Private this  As TMetadataParser
 
 Public Property Get LetParts() As Variant
     Logger.Log TRACE_LOG, "Enter MetadataParser.LetParts"
-    If IsObject(This.LetParts) Then
-        Set LetParts = This.LetParts
+    If IsObject(this.LetParts) Then
+        Set LetParts = this.LetParts
     Else
-        LetParts = This.LetParts
+        LetParts = this.LetParts
     End If
     Logger.Log TRACE_LOG, "Exit MetadataParser.LetParts"
 End Property
 
 Public Property Get ForCell() As Range
-    Set ForCell = This.ForCell
+    Set ForCell = this.ForCell
 End Property
 
 Public Property Set ForCell(ByVal RHS As Range)
-    Set This.ForCell = RHS
+    Set this.ForCell = RHS
 End Property
 
 Public Property Get IsCellHasLambdaFormula() As Boolean
-    IsCellHasLambdaFormula = This.IsCellHasLambdaFormula
+    IsCellHasLambdaFormula = this.IsCellHasLambdaFormula
 End Property
 
 Public Property Let IsCellHasLambdaFormula(ByVal RHS As Boolean)
-    This.IsCellHasLambdaFormula = RHS
+    this.IsCellHasLambdaFormula = RHS
 End Property
 
 Public Property Get StartFormulaText() As String
-    StartFormulaText = This.StartFormulaText
+    StartFormulaText = this.StartFormulaText
 End Property
 
 Public Property Let StartFormulaText(ByVal RHS As String)
     
     Logger.Log TRACE_LOG, "Enter MetadataParser.StartFormulaText"
-    This.StartFormulaText = RHS
-    With This
+    this.StartFormulaText = RHS
+    With this
         .LetParts = GetDependencyFunctionResult(.StartFormulaText, LET_PARTS)
         ' Retrieve lambda parts for processing
         .LambdaParts = GetDependencyFunctionResult(.StartFormulaText, LAMBDA_PARTS)
@@ -70,45 +70,45 @@ Public Property Let StartFormulaText(ByVal RHS As String)
 End Property
 
 Public Property Get IsNeedToUpdateNameManager() As Boolean
-    IsNeedToUpdateNameManager = This.IsNeedToUpdateNameManager
+    IsNeedToUpdateNameManager = this.IsNeedToUpdateNameManager
 End Property
 
 Public Property Let IsNeedToUpdateNameManager(ByVal RHS As Boolean)
-    This.IsNeedToUpdateNameManager = RHS
+    this.IsNeedToUpdateNameManager = RHS
 End Property
 
 Public Property Get OldLambdaName() As String
-    OldLambdaName = This.OldLambdaName
+    OldLambdaName = this.OldLambdaName
 End Property
 
 Public Property Let OldLambdaName(ByVal RHS As String)
-    This.OldLambdaName = RHS
+    this.OldLambdaName = RHS
 End Property
 
 Public Property Get AllNameInNameManager() As Collection
-    Set AllNameInNameManager = This.AllNameInNameManager
+    Set AllNameInNameManager = this.AllNameInNameManager
 End Property
 
 Public Property Set AllNameInNameManager(ByVal RHS As Collection)
-    Set This.AllNameInNameManager = RHS
+    Set this.AllNameInNameManager = RHS
 End Property
 
 Public Property Get LambdaParts() As Variant
     Logger.Log TRACE_LOG, "Enter MetadataParser.LambdaParts"
-    If IsObject(This.LambdaParts) Then
-        Set LambdaParts = This.LambdaParts
+    If IsObject(this.LambdaParts) Then
+        Set LambdaParts = this.LambdaParts
     Else
-        LambdaParts = This.LambdaParts
+        LambdaParts = this.LambdaParts
     End If
     Logger.Log TRACE_LOG, "Exit MetadataParser.LambdaParts"
 End Property
 
 Public Property Let LambdaParts(ByVal RHS As Variant)
-    This.LambdaParts = RHS
+    this.LambdaParts = RHS
 End Property
 
 Public Property Set LambdaParts(ByVal RHS As Variant)
-    Set This.LambdaParts = RHS
+    Set this.LambdaParts = RHS
 End Property
 
 Public Property Get Self() As MetadataParser
@@ -146,21 +146,9 @@ Private Sub FillNameCollection(ByVal LambdaFormulaCell As Range _
                                , ByVal CurrentMetadataFormulaParser As MetadataParser)
     
     Logger.Log TRACE_LOG, "Enter MetadataParser.FillNameCollection"
-    With CurrentMetadataFormulaParser
-        Dim LambdaInBook As Workbook
-        Set LambdaInBook = LambdaFormulaCell.Worksheet.Parent
-        
-        Dim CurrentName As name
-        ' Looping through all Names in Workbook
-        For Each CurrentName In LambdaInBook.Names
-            
-            If CurrentName.Visible Then
-                .AllNameInNameManager.Add CurrentName, CStr(CurrentName.name)
-            End If
-        
-        Next CurrentName
-
-    End With
+    Dim LambdaInBook As Workbook
+    Set LambdaInBook = LambdaFormulaCell.Worksheet.Parent
+    Set CurrentMetadataFormulaParser.AllNameInNameManager = Context.GetAllNamedRangeCollectionFromBook(LambdaInBook)
     Logger.Log TRACE_LOG, "Exit MetadataParser.FillNameCollection"
     
 End Sub
@@ -171,7 +159,7 @@ Private Sub UpdateInCellOrNamedRangeRelatedLambdaProperties(ByVal ForCell As Ran
     Logger.Log TRACE_LOG, "Enter MetadataParser.UpdateInCellOrNamedRangeRelatedLambdaProperties"
     
     Dim FormulaText As String
-    FormulaText = ForCell.Formula2
+    FormulaText = GetCellFormula(ForCell)
     
     ' Set IsCellHasLambdaFormula flag to True
     CurrentMetadataFormulaParser.IsCellHasLambdaFormula = True
@@ -182,7 +170,7 @@ Private Sub UpdateInCellOrNamedRangeRelatedLambdaProperties(ByVal ForCell As Ran
     ElseIf modUtility.IsCellHasSavedLambdaFormula(ForCell) Then
         ' If cell has only lambda formula, update NameManager and store OldLambdaName
         CurrentMetadataFormulaParser.IsNeedToUpdateNameManager = True
-        CurrentMetadataFormulaParser.OldLambdaName = modUtility.ExtractStartFormulaName(ForCell.Formula2)
+        CurrentMetadataFormulaParser.OldLambdaName = modUtility.ExtractStartFormulaName(GetCellFormula(ForCell))
     Else
         CurrentMetadataFormulaParser.IsCellHasLambdaFormula = False
     End If
@@ -203,10 +191,10 @@ Private Function GetFormulaTextFromCellOrNamedRange(ByVal LambdaFormulaCell As R
     ' Retrieve the formula text from either the NameManager or directly from the cell
     If IsNeedToUpdateNameManager Then
         Dim LambdaName As String
-        LambdaName = modUtility.ExtractStartFormulaName(LambdaFormulaCell.Formula2)
+        LambdaName = modUtility.ExtractStartFormulaName(GetCellFormula(LambdaFormulaCell))
         FormulaText = LambdaInBook.Names(LambdaName).RefersTo
     Else
-        FormulaText = LambdaFormulaCell.Formula2
+        FormulaText = GetCellFormula(LambdaFormulaCell)
     End If
     
     GetFormulaTextFromCellOrNamedRange = FormulaText
@@ -218,14 +206,14 @@ End Function
 Private Sub Class_Initialize()
     Logger.Log TRACE_LOG, "Enter MetadataParser.Class_Initialize"
     ' Initialization of Collection objects at class initialization
-    Set This.AllNameInNameManager = New Collection
+    Set this.AllNameInNameManager = New Collection
     Logger.Log TRACE_LOG, "Exit MetadataParser.Class_Initialize"
 End Sub
 
 Private Sub Class_Terminate()
     Logger.Log TRACE_LOG, "Enter MetadataParser.Class_Terminate"
     ' Cleanup of Collection objects at class termination
-    Set This.AllNameInNameManager = Nothing
+    Set this.AllNameInNameManager = Nothing
     Logger.Log TRACE_LOG, "Exit MetadataParser.Class_Terminate"
 End Sub
 

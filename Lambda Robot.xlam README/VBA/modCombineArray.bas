@@ -8,25 +8,32 @@ Option Private Module
 ' Macro Expression:       modCombineArray.PasteCombineArrays([[Clipboard]],[[ActiveCell]])
 ' Generated:              09/15/2024 06:06 PM
 '----------------------------------------------------------------------------------------------------
-Sub PasteCombineArrays(SourceRange As Range, cellDestination As Range)
+Public Sub PasteCombineArrays(SourceRange As Range, cellDestination As Range)
+    
+    Const METHOD_NAME As String = "PasteCombineArrays"
+    Context.ExtractContextFromCell SourceRange, METHOD_NAME
     cellDestination.Cells(1, 1).Formula2 = ReplaceInvalidCharFromFormulaWithValid("=" & SplitAreaByAddress(SourceRange, cellDestination))
     AutofitFormulaBar cellDestination.Cells(1, 1)
+    Context.ClearContext METHOD_NAME
+    
 End Sub
 
 Private Sub TestSplitAreaByAddress()
     Debug.Print SplitAreaByAddress(Sheet1.Range("A1:C7"), ActiveCell)
 End Sub
 
-Public Function SplitCombinedCellsOfFormulaDep(ByVal FormulaCell As Range) As String
+Public Function SplitCombinedCellsOfFormulaDep(ByVal FormulaCell As Range _
+                                               , Optional ByVal IgnoreIfInputCell As Boolean = False) As String
     
     If Not FormulaCell.HasFormula Then Exit Function
+    If IgnoreIfInputCell And IsInputCell(FormulaCell, Nothing) Then Exit Function
     
     '    Debug.Assert FormulaCell.Address <> "$B$2"
     'Start the timer for this operation
-    Logger.Log DEBUG_LOG, "Formula To Split Dependency: " & FormulaCell.Cells(1).Formula2
+    Logger.Log DEBUG_LOG, "Formula To Split Dependency: " & GetCellFormula(FormulaCell.Cells(1))
     
     Dim FinalFormula As String
-    FinalFormula = FormulaCell.Cells(1).Formula2
+    FinalFormula = GetCellFormula(FormulaCell.Cells(1))
     
     Dim Dependencies As Variant
     Dependencies = GetDirectPrecedents(FinalFormula, FormulaCell.Worksheet)
@@ -38,9 +45,14 @@ Public Function SplitCombinedCellsOfFormulaDep(ByVal FormulaCell As Range) As St
     Dim CurrentRange As Range
     Dim CurrentDependency As Variant
     For Each CurrentDependency In Dependencies
-        If CurrentDependency <> vbNullString Then
+        If CurrentDependency <> vbNullString And Not Is3DReference(CurrentDependency) Then
             
             Set CurrentRange = RangeResolver.GetRangeForDependency(CStr(CurrentDependency), FormulaCell)
+            
+            ' If input cell then ignore it.
+            If IgnoreIfInputCell And IsInputCell(CurrentRange, Nothing) Then
+                Set CurrentRange = Nothing
+            End If
             
             Dim SplitFormulaRef As String
             If CurrentRange Is Nothing Then
@@ -98,11 +110,11 @@ Private Function SplitAreaByAddress(ByVal AreaRange As Range, ByVal Destination 
         Dim SplittedAddress As String
         
         Dim SplitAreaRange As Range
-        SplittedAddress = ""
+        SplittedAddress = vbNullString
         For Index = LBound(AddressArray) To UBound(AddressArray)
             Set SplitAreaRange = Intersect(AreaRange, AreaRange.Worksheet.Range(AddressArray(Index)))
             ' Here is the recursive call.
-            SplittedAddress = SplittedAddress & IIf(SplittedAddress = "", "", ",") _
+            SplittedAddress = SplittedAddress & IIf(SplittedAddress = vbNullString, vbNullString, ",") _
                               & SplitAreaByAddress(SplitAreaRange, Destination)
         Next
         
@@ -185,7 +197,7 @@ End Function
 Private Function GetRangeRefWithSheetNameIfContextIsDiff(ByVal AreaRange As Range, ByVal ContextCell As Range) As String
     
     Dim Ref As String
-    If AreaRange.Worksheet.name <> ContextCell.Worksheet.name Then
+    If AreaRange.Worksheet.Name <> ContextCell.Worksheet.Name Then
         Ref = GetRangeRefWithSheetName(AreaRange, , False)
     Else
         Ref = AreaRange.Address(False, False)
@@ -221,7 +233,7 @@ Private Function SplitByRows(AreaRange As Range) As String
                 End If
             End If
             
-            RowAreas = RowAreas & IIf(RowAreas = "", "", ",") & AreaAddress
+            RowAreas = RowAreas & IIf(RowAreas = vbNullString, vbNullString, ",") & AreaAddress
             
         End If
     Next
@@ -256,7 +268,7 @@ Private Function SplitByColumns(AreaRange As Range) As String
                 End If
             End If
             
-            ColAreas = ColAreas & IIf(ColAreas = "", "", ",") & AreaAddress
+            ColAreas = ColAreas & IIf(ColAreas = vbNullString, vbNullString, ",") & AreaAddress
             
         End If
     Next ColIndex

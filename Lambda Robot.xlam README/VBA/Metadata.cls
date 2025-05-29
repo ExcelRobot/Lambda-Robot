@@ -26,7 +26,7 @@ Private Type TMetadata
     NameManagerComment As String
 End Type
 
-Private This  As TMetadata
+Private this  As TMetadata
 
 Private CurrentKeyValuePair As ICRUD
 
@@ -35,55 +35,55 @@ Public Property Get NameManagerComment() As String
 End Property
 
 Public Property Let NameManagerComment(ByVal RHS As String)
-    This.NameManagerComment = RHS
+    this.NameManagerComment = RHS
 End Property
 
 Public Property Get SourceName() As String
-    SourceName = This.SourceName
+    SourceName = this.SourceName
 End Property
 
 Public Property Let SourceName(ByVal RHS As String)
-    This.SourceName = RHS
+    this.SourceName = RHS
 End Property
 
 Public Property Get GistURL() As String
-    GistURL = This.GistURL
+    GistURL = this.GistURL
 End Property
 
 Public Property Let GistURL(ByVal RHS As String)
-    This.GistURL = RHS
+    this.GistURL = RHS
 End Property
 
 Public Property Get CommandName() As String
-    CommandName = This.CommandName
+    CommandName = this.CommandName
 End Property
 
 Public Property Let CommandName(ByVal RHS As String)
-    This.CommandName = RHS
+    this.CommandName = RHS
 End Property
 
 Public Property Get LambdaName() As String
-    LambdaName = This.LambdaName
+    LambdaName = this.LambdaName
 End Property
 
 Public Property Let LambdaName(ByVal RHS As String)
-    This.LambdaName = RHS
+    this.LambdaName = RHS
 End Property
 
 Public Property Get Description() As String
-    Description = This.Description
+    Description = this.Description
 End Property
 
 Public Property Let Description(ByVal RHS As String)
-    This.Description = RHS
+    this.Description = RHS
 End Property
 
 Private Sub Class_Initialize()
     
     Logger.Log TRACE_LOG, "Enter Metadata.Class_Initialize"
-    Set This.Parameters = New KeyValuePairCollection
-    Set This.Dependencies = New KeyValuePairCollection
-    Set This.CustomProperties = New KeyValuePairCollection
+    Set this.Parameters = New KeyValuePairCollection
+    Set this.Dependencies = New KeyValuePairCollection
+    Set this.CustomProperties = New KeyValuePairCollection
     Logger.Log TRACE_LOG, "Exit Metadata.Class_Initialize"
     
 End Sub
@@ -91,9 +91,9 @@ End Sub
 Private Sub Class_Terminate()
     
     Logger.Log TRACE_LOG, "Enter Metadata.Class_Terminate"
-    Set This.Parameters = Nothing
-    Set This.Dependencies = Nothing
-    Set This.CustomProperties = Nothing
+    Set this.Parameters = Nothing
+    Set this.Dependencies = Nothing
+    Set this.CustomProperties = Nothing
     Logger.Log TRACE_LOG, "Exit Metadata.Class_Terminate"
 
 End Sub
@@ -135,9 +135,12 @@ Private Sub UpdateCurrentKeyValuePairReference(ByVal ToGroup As Group)
 End Sub
 
 '@Entry
-Public Function CreateLambdaMetadata(ByVal LambdaParts As Variant, ByVal LetParts As Variant _
-                                                             , ByVal DefaultName As String _
-                                                              , ByVal OldLambdaName As String) As Metadata
+'@TODO: Need to remove IsForListing and update our Lambda Properties code. Discuss with Erik.
+Public Function CreateLambdaMetadata(ByVal LambdaParts As Variant _
+                                     , ByVal LetParts As Variant _
+                                      , ByVal DefaultName As String _
+                                       , ByVal OldLambdaName As String _
+                                       , Optional ByVal IsForListing As Boolean = False) As Metadata
 
     Logger.Log TRACE_LOG, "Enter Metadata.CreateLambdaMetadata"
     Dim CurrentMetadata As Metadata
@@ -177,8 +180,8 @@ Public Function CreateLambdaMetadata(ByVal LambdaParts As Variant, ByVal LetPart
     ' Lambda Parameters
     CrudOperator.ApplyOperationOnGroup LAMBDA_PARAMETERS
     CurrentLetVarValue = FindMetadataValue(LetParts, PARAMETERS_LET_VAR)
-    If Text.Trim(CurrentLetVarValue) = vbNullString Then
-        CreateMapperForParametersFromSignature CrudOperator, LambdaParts
+    If Text.Trim(CurrentLetVarValue) = vbNullString Or IsForListing Then
+        CreateMapperForParametersFromSignature CrudOperator, LambdaParts, CurrentLetVarValue
     Else
         CreateMapperFromArrayConstant CrudOperator, CurrentLetVarValue
     End If
@@ -211,20 +214,38 @@ End Function
 
 '@ImpureFunction
 Private Sub CreateMapperForParametersFromSignature(ByRef AddToCrudOperator As ICRUD, _
-                                                   ByVal LambdaParts As Variant)
+                                                   ByVal LambdaParts As Variant, _
+                                                   ByVal ParamMetadataValue As String)
                                                    
     Logger.Log TRACE_LOG, "Enter Metadata.CreateMapperForParametersFromSignature"
     
     If Not IsArrayAllocated(LambdaParts) Then Exit Sub
+    
+    Dim Map As Collection
+    If ParamMetadataValue <> vbNullString Then
+        Set Map = ArrayToCollection(SplitArrayConstantTo2DArray(ParamMetadataValue))
+    Else
+        Set Map = New Collection
+    End If
     
     Dim ParamName As String
     Dim FirstColumnIndex  As Long
     FirstColumnIndex = LBound(LambdaParts, 2)
     Dim CurrentRowIndex As Long
     For CurrentRowIndex = LBound(LambdaParts, 1) To UBound(LambdaParts, 1) - 1
+        
         ParamName = LambdaParts(CurrentRowIndex, FirstColumnIndex)
         ParamName = RemoveEscapeQuotes(ParamName)
-        AddToCrudOperator.AddNew ParamName, vbNullString
+        Dim Value As Variant
+        
+        If IsExistInCollection(Map, ParamName) Then
+            Value = Map.Item(ParamName)
+        Else
+            Value = vbNullString
+        End If
+        
+        AddToCrudOperator.AddNew ParamName, Value
+        
     Next CurrentRowIndex
     Logger.Log TRACE_LOG, "Exit Metadata.CreateMapperForParametersFromSignature"
     
@@ -262,17 +283,16 @@ Private Sub CreateMapperFromArrayConstant(ByRef AddToCrudOperator As ICRUD, ByVa
 
 End Sub
 
-
 Private Function FindCollectionFromGroup(ByVal ToGroup As Group) As ICRUD
     
     Logger.Log TRACE_LOG, "Enter Metadata.FindCollectionFromGroup"
     Select Case ToGroup                          ' Selecting group to perform operations on
         Case Group.LAMBDA_PARAMETERS
-            Set FindCollectionFromGroup = This.Parameters
+            Set FindCollectionFromGroup = this.Parameters
         Case Group.LAMBDA_Dependencies
-            Set FindCollectionFromGroup = This.Dependencies
+            Set FindCollectionFromGroup = this.Dependencies
         Case Group.CUSTOM_PROPERTIES
-            Set FindCollectionFromGroup = This.CustomProperties
+            Set FindCollectionFromGroup = this.CustomProperties
         Case Else
             Set FindCollectionFromGroup = Nothing
     End Select
@@ -283,8 +303,40 @@ End Function
 Public Function GetParameters(Optional ByVal InitialSpace As String = THREE_SPACE _
                               , Optional ByVal ShowBlankValuesKey As Boolean = True) As String
     
-    GetParameters = GetDynamicData(This.Parameters, KEY_VALUE_SEPARATOR, ShowBlankValuesKey, InitialSpace) ' Retrieving parameters using dynamic data method
+    GetParameters = GetDynamicData(this.Parameters, KEY_VALUE_SEPARATOR, ShowBlankValuesKey, InitialSpace) ' Retrieving parameters using dynamic data method
        
+End Function
+
+Public Function GetParametersForLambdaListing()
+    
+    Dim Data As Variant
+    Data = this.Parameters.ReadAll()
+    
+    Dim Result As String
+    If IsArray(Data) Then
+        
+        Dim FirstColumnIndex  As Long
+        FirstColumnIndex = LBound(Data, 2)
+        Dim RowIndex As Long
+        For RowIndex = LBound(Data, 1) To UBound(Data, 1)
+            
+            Dim DescriptionPart As String
+            
+            DescriptionPart = Data(RowIndex, FirstColumnIndex + 1)
+            If DescriptionPart <> vbNullString Then
+                DescriptionPart = ONE_SPACE & FIRST_PARENTHESIS_OPEN & DescriptionPart & FIRST_PARENTHESIS_CLOSE
+            End If
+            
+            Result = Result & Data(RowIndex, FirstColumnIndex) & DescriptionPart & COMMA & ONE_SPACE
+                     
+        Next RowIndex
+        
+        Result = Text.RemoveFromEndIfPresent(Result, COMMA & ONE_SPACE)
+        
+    End If
+    
+    GetParametersForLambdaListing = Result
+    
 End Function
 
 Private Function GetNameManagerComment() As String
@@ -293,8 +345,8 @@ Private Function GetNameManagerComment() As String
     Dim Result As String
 
     ' Create comment for NameManager based on metadata
-    If This.Description <> vbNullString Then
-        Result = Text.PadIfNotPresent(modUtility.RemoveEscapeQuotes(This.Description), ".", FROM_END) & Space(2)
+    If this.Description <> vbNullString Then
+        Result = Text.PadIfNotPresent(modUtility.RemoveEscapeQuotes(this.Description), ".", FROM_end) & Space(2)
     End If
     Dim ParameterData As String
     ParameterData = GetParameters(HASH_SIGN, False)
@@ -311,22 +363,22 @@ End Function
 Public Function GetDependencies(Optional ByVal InitialSpace As String = THREE_SPACE _
                                 , Optional ByVal ShowBlankValuesKey As Boolean = True) As String
     
-    GetDependencies = GetDynamicData(This.Dependencies, KEY_VALUE_SEPARATOR, ShowBlankValuesKey, InitialSpace) ' Retrieving dependencies using dynamic data method
+    GetDependencies = GetDynamicData(this.Dependencies, KEY_VALUE_SEPARATOR, ShowBlankValuesKey, InitialSpace) ' Retrieving dependencies using dynamic data method
        
 End Function
 
 Public Function GetSources() As String
     
     Logger.Log TRACE_LOG, "Enter Metadata.GetSources"
-    GetSources = THREE_SPACE & "Source Name" & KEY_VALUE_SEPARATOR & This.SourceName & NEW_LINE & _
-                 THREE_SPACE & "Gist URL" & KEY_VALUE_SEPARATOR & This.GistURL ' Getting source information
+    GetSources = THREE_SPACE & "Source Name" & KEY_VALUE_SEPARATOR & this.SourceName & NEW_LINE & _
+                 THREE_SPACE & "Gist URL" & KEY_VALUE_SEPARATOR & this.GistURL ' Getting source information
     Logger.Log TRACE_LOG, "Exit Metadata.GetSources"
        
 End Function
 
 Public Function GetCustomProperties() As String
     
-    GetCustomProperties = GetDynamicData(This.CustomProperties, ":  ", True, vbNullString) ' Retrieving custom properties using dynamic data method
+    GetCustomProperties = GetDynamicData(this.CustomProperties, ":  ", True, vbNullString) ' Retrieving custom properties using dynamic data method
        
 End Function
 
@@ -419,3 +471,4 @@ Public Function GetArrayConstant(ByVal ForGroup As Group _
     Logger.Log TRACE_LOG, "Exit Metadata.GetArrayConstant"
    
 End Function
+

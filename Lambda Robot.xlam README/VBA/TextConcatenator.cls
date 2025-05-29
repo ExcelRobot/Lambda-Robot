@@ -21,10 +21,10 @@ Private Type TTextConcatenator
     TotalLength As Long
 End Type
 
-Private This As TTextConcatenator
+Private this As TTextConcatenator
 
 Public Property Get Text() As String
-    Text = Mid$(This.Text, 1, This.SoFarFillIndex)
+    Text = Mid$(this.Text, 1, this.SoFarFillIndex)
 End Property
 
 Public Property Get Self() As TextConcatenator
@@ -46,36 +46,37 @@ Public Sub Concatenate(ByVal JoinText As String)
     TextLength = Len(JoinText)
     If TextLength = 0 Then Exit Sub
     IncreaseCapacityIfNeeded TextLength
-    Mid(This.Text, This.SoFarFillIndex + 1, TextLength) = JoinText
-    This.SoFarFillIndex = This.SoFarFillIndex + TextLength
+    Mid(this.Text, this.SoFarFillIndex + 1, TextLength) = JoinText
+    this.SoFarFillIndex = this.SoFarFillIndex + TextLength
     
 End Sub
 
 Private Sub IncreaseCapacityIfNeeded(ByVal TextLength As Long)
     
-    If This.SoFarFillIndex + TextLength < This.TotalLength Then Exit Sub
+    If this.SoFarFillIndex + TextLength < this.TotalLength Then Exit Sub
     
     ' We are planning to increase 50% but if needed length is more than that then increase differently.
-    If This.SoFarFillIndex + TextLength > (1 + (INCREMENT_PERCENT / 100)) * This.TotalLength Then
+    If this.SoFarFillIndex + TextLength > (1 + (INCREMENT_PERCENT / 100)) * this.TotalLength Then
         
         Dim ExtraBufferSize As Long
-        If This.TotalLength = 0 Then
+        If this.TotalLength = 0 Then
             ExtraBufferSize = BUFFER_SIZE
         Else
-            If This.TotalLength = This.SoFarFillIndex Then
+            If this.TotalLength = this.SoFarFillIndex Then
                 ExtraBufferSize = BUFFER_SIZE
             Else
-                ExtraBufferSize = (INCREMENT_PERCENT / 100) * This.TotalLength
+                ExtraBufferSize = (INCREMENT_PERCENT / 100) * this.TotalLength
             End If
         End If
             
-        This.Text = This.Text + Space(This.SoFarFillIndex + TextLength - This.TotalLength + ExtraBufferSize)
-        This.TotalLength = This.SoFarFillIndex + TextLength + ExtraBufferSize
+        this.Text = this.Text + Space(this.SoFarFillIndex + TextLength - this.TotalLength + ExtraBufferSize)
+        this.TotalLength = this.SoFarFillIndex + TextLength + ExtraBufferSize
             
     Else
-        This.Text = This.Text & Space(This.TotalLength * (INCREMENT_PERCENT / 100))
-        This.TotalLength = This.TotalLength * (1 + (INCREMENT_PERCENT / 100))
+        this.Text = this.Text & Space(this.TotalLength * (INCREMENT_PERCENT / 100))
+        this.TotalLength = this.TotalLength * (1 + (INCREMENT_PERCENT / 100))
     End If
     
     
 End Sub
+

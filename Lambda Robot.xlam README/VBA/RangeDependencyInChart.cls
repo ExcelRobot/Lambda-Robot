@@ -19,38 +19,38 @@ Private Type TRangeDependencyInChart
     PutDependencyOnTable As ListObject
 End Type
 
-Private This As TRangeDependencyInChart
+Private this As TRangeDependencyInChart
 
 Public Property Get PutDependencyOnTable() As ListObject
-    Set PutDependencyOnTable = This.PutDependencyOnTable
+    Set PutDependencyOnTable = this.PutDependencyOnTable
 End Property
 
 Public Property Set PutDependencyOnTable(ByVal RHS As ListObject)
-    Set This.PutDependencyOnTable = RHS
+    Set this.PutDependencyOnTable = RHS
 End Property
 
 Public Property Get AllDependency() As Collection
-    Set AllDependency = This.AllDependency
+    Set AllDependency = this.AllDependency
 End Property
 
 Public Property Set AllDependency(ByVal RHS As Collection)
-    Set This.AllDependency = RHS
+    Set this.AllDependency = RHS
 End Property
 
 Public Property Get Book() As Workbook
-    Set Book = This.Book
+    Set Book = this.Book
 End Property
 
 Public Property Set Book(ByVal RHS As Workbook)
-    Set This.Book = RHS
+    Set this.Book = RHS
 End Property
 
 Public Property Get BeforeRangePrefix() As String
-    BeforeRangePrefix = This.BeforeRangePrefix
+    BeforeRangePrefix = this.BeforeRangePrefix
 End Property
 
 Public Property Let BeforeRangePrefix(ByVal RHS As String)
-    This.BeforeRangePrefix = RHS
+    this.BeforeRangePrefix = RHS
 End Property
 
 Private Sub UpdateBasicStat(ByVal GivenRange As Range)
@@ -58,11 +58,11 @@ Private Sub UpdateBasicStat(ByVal GivenRange As Range)
     Logger.Log TRACE_LOG, "Enter RangeDependencyInChart.UpdateBasicStat"
     ' Set up basic statistics for the given range
     
-    Set This.Book = GivenRange.Worksheet.Parent
-    This.BeforeRangePrefix = Text.RemoveFromEndIfPresent( _
-                             GetSheetRefForRangeReference(GivenRange.Worksheet.name) _
+    Set this.Book = GivenRange.Worksheet.Parent
+    this.BeforeRangePrefix = Text.RemoveFromEndIfPresent( _
+                             GetSheetRefForRangeReference(GivenRange.Worksheet.Name) _
                              , SHEET_NAME_SEPARATOR)
-    Set This.AllDependency = New Collection
+    Set this.AllDependency = New Collection
     Logger.Log TRACE_LOG, "Exit RangeDependencyInChart.UpdateBasicStat"
     
 End Sub
@@ -72,14 +72,14 @@ Private Sub ClearCatches()
     Logger.Log TRACE_LOG, "Enter RangeDependencyInChart.ClearCatches"
     ' Clear all the cached variables and objects
     
-    Set This.Book = Nothing
-    This.BeforeRangePrefix = vbNullString
-    Set This.AllDependency = Nothing
+    Set this.Book = Nothing
+    this.BeforeRangePrefix = vbNullString
+    Set this.AllDependency = Nothing
     Logger.Log TRACE_LOG, "Exit RangeDependencyInChart.ClearCatches"
 
 End Sub
 
-Public Sub ApplyNameRange(ByVal CurrentName As name)
+Public Sub ApplyNameRange(ByVal CurrentName As Name)
     
     Logger.Log TRACE_LOG, "Enter RangeDependencyInChart.ApplyNameRange"
     ' Apply the named range to the charts that reference it
@@ -87,14 +87,14 @@ Public Sub ApplyNameRange(ByVal CurrentName As name)
     Dim RefersToRange As Range
     Set RefersToRange = CurrentName.RefersToRange
     FindAllDependency RefersToRange
-    If This.AllDependency.Count = 0 Then Exit Sub
+    If this.AllDependency.Count = 0 Then Exit Sub
     Dim ReplaceWith As String
     ReplaceWith = GetNamedRangeRefText(CurrentName)
     Dim CurrentItem As ChartInfo
-    For Each CurrentItem In This.AllDependency
+    For Each CurrentItem In this.AllDependency
         If CurrentItem.IsWholeSearchRangeBeingUsed Then
             Dim FindAddress As String
-            If CurrentItem.OnSheet = RefersToRange.Worksheet.name Then
+            If CurrentItem.OnSheet = RefersToRange.Worksheet.Name Then
                 FindAddress = GetSheetRefForRangeReference(CurrentItem.OnSheet) & CurrentItem.RangeAddress
             Else
                 FindAddress = CurrentItem.RangeAddress
@@ -109,7 +109,7 @@ Public Sub ApplyNameRange(ByVal CurrentName As name)
     
 End Sub
 
-Private Function GetNamedRangeRefText(ByVal CurrentName As name) As String
+Private Function GetNamedRangeRefText(ByVal CurrentName As Name) As String
     
     Logger.Log TRACE_LOG, "Enter RangeDependencyInChart.GetNamedRangeRefText"
     ' Get the reference text for the named range based on its scope (local or global)
@@ -119,12 +119,12 @@ Private Function GetNamedRangeRefText(ByVal CurrentName As name) As String
         ReplaceWith = CurrentName.NameLocal
     Else
         Dim WorkbookName As String
-        WorkbookName = CurrentName.RefersToRange.Worksheet.Parent.name
+        WorkbookName = CurrentName.RefersToRange.Worksheet.Parent.Name
         If IsAnyNonAlphanumeric(WorkbookName) Then
             ReplaceWith = SINGLE_QUOTE & EscapeSingeQuote(WorkbookName) _
-                        & SINGLE_QUOTE & EXCLAMATION_SIGN & CurrentName.name
+                          & SINGLE_QUOTE & EXCLAMATION_SIGN & CurrentName.Name
         Else
-            ReplaceWith = WorkbookName & EXCLAMATION_SIGN & CurrentName.name
+            ReplaceWith = WorkbookName & EXCLAMATION_SIGN & CurrentName.Name
         End If
     End If
     GetNamedRangeRefText = ReplaceWith
@@ -152,13 +152,13 @@ Public Sub SendDataToSheet(ByVal GivenRange As Range, ByVal PutToRange As Range)
     ' Send the dependency data to a specified range on a sheet
     
     FindAllDependency GivenRange
-    If This.AllDependency.Count = 0 Then
+    If this.AllDependency.Count = 0 Then
         MsgBox "No Reference found on any chart", vbInformation, "SendDataToSheet"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword RangeDependencyInChart.SendDataToSheet"
         Exit Sub
     End If
     Dim AllData As Variant
-    AllData = GetDependencyData(This.AllDependency, True)
+    AllData = GetDependencyData(this.AllDependency, True)
     Dim PutDependencyDataOnRange As Range
     Set PutDependencyDataOnRange = PutToRange.Resize(AllDependency.Count + 1, UBound(AllData, 2))
     If Not IsAllCellBlank(PutDependencyDataOnRange) Then
@@ -170,11 +170,11 @@ Public Sub SendDataToSheet(ByVal GivenRange As Range, ByVal PutToRange As Range)
     End If
     
     PutDependencyDataOnRange.Value = AllData
-    Set This.PutDependencyOnTable = PutToRange.Worksheet.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
-    This.PutDependencyOnTable.ListColumns(3).Range.ColumnWidth = 50
-    This.PutDependencyOnTable.ListColumns(5).Range.ColumnWidth = 50
-    This.PutDependencyOnTable.Range.WrapText = False
-    ScrollToDependencyDataRange This.PutDependencyOnTable
+    Set this.PutDependencyOnTable = PutToRange.Worksheet.ListObjects.Add(xlSrcRange, PutDependencyDataOnRange, , xlYes)
+    this.PutDependencyOnTable.ListColumns(3).Range.ColumnWidth = 50
+    this.PutDependencyOnTable.ListColumns(5).Range.ColumnWidth = 50
+    this.PutDependencyOnTable.Range.WrapText = False
+    ScrollToDependencyDataRange this.PutDependencyOnTable
     ClearCatches
     Logger.Log TRACE_LOG, "Exit RangeDependencyInChart.SendDataToSheet"
     
@@ -226,7 +226,7 @@ Private Sub ProcessSheetForSeries(ByVal CurrentSheet As Worksheet, ByVal GivenRa
         For Counter = 1 To CurrentChartObject.Chart.SeriesCollection.Count
             Set CurrentSeries = CurrentChartObject.Chart.SeriesCollection.Item(Counter)
             Dim VBASyntax As String
-            VBASyntax = GetChartSeriesProperty(CurrentSheet.CodeName, CurrentChartObject.name, "FormulaLocal", Counter)
+            VBASyntax = GetChartSeriesProperty(CurrentSheet.CodeName, CurrentChartObject.Name, "FormulaLocal", Counter)
             Dim FormulaText As String
             FormulaText = GetSeriesFormulaIfErrorVBNullString(CurrentSeries)
             FindAndCreateDependency FormulaText, GivenRange, CurrentSheet, VBASyntax, CurrentChartObject, CurrentSeries
@@ -246,7 +246,7 @@ Private Sub FindAndCreateDependency(ByVal FormulaText As String, ByVal GivenRang
     Logger.Log TRACE_LOG, "Enter RangeDependencyInChart.FindAndCreateDependency"
     ' Find and create the dependency info for the given formula text
     
-    If Text.Contains(FormulaText, This.BeforeRangePrefix) Then
+    If Text.Contains(FormulaText, this.BeforeRangePrefix) Then
         Dim AllRangeAddress As Variant
         AllRangeAddress = GetDirectPrecedents(FormulaText, GivenRange.Worksheet)
         Dim TempRange As Range
@@ -261,7 +261,7 @@ Private Sub FindAndCreateDependency(ByVal FormulaText As String, ByVal GivenRang
                                                                            , TempRange.Address = GivenRange.Address _
                                                                             , CStr(RangeAddress) _
                                                                              , FoundOnObject, "FormulaLocal", VBASyntax)
-                    This.AllDependency.Add CurrentChartInfo
+                    this.AllDependency.Add CurrentChartInfo
                 End If
             End If
         Next RangeAddress
@@ -285,7 +285,7 @@ Public Sub ProcessSheetForDataLabels(ByVal CurrentSheet As Worksheet, ByVal Give
         Dim CurrentDataLabel As DataLabel
         Set CurrentDataLabel = CurrentSeries.DataLabels(Counter)
         Dim VBASyntax As String
-        VBASyntax = GetChartSeriesProperty(CurrentSheet.CodeName, CurrentChartObject.name _
+        VBASyntax = GetChartSeriesProperty(CurrentSheet.CodeName, CurrentChartObject.Name _
                                                                  , "DataLabels(" & Counter & ").FormulaLocal" _
                                                                   , SeriesCounter)
         FindAndCreateDependency CurrentDataLabel.FormulaLocal, GivenRange _
@@ -323,8 +323,8 @@ Private Function CreateNewChartInfo(ByVal CurrentSheet As Worksheet, ByVal Curre
     Dim CurrentChartInfo As ChartInfo
     Set CurrentChartInfo = New ChartInfo
     With CurrentChartInfo
-        .OnSheet = CurrentSheet.name
-        .ChartObjectName = CurrentChartObject.name
+        .OnSheet = CurrentSheet.Name
+        .ChartObjectName = CurrentChartObject.Name
         .Formula = CallByName(FoundOnObject, PropertyName, VbGet)
         .VBASyntax = VBASyntax
         .IsWholeSearchRangeBeingUsed = IsWholeSearchRangeBeingUsed
@@ -365,3 +365,5 @@ Public Function GetChartProperty(ByVal SheetCodeName As String _
                        & ".Chart." & PropertyName
     Logger.Log TRACE_LOG, "Exit RangeDependencyInChart.GetChartProperty"
 End Function
+
+

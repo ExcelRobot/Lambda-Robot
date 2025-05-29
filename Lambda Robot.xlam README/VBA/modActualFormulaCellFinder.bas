@@ -38,12 +38,15 @@ Private Function LoopBackToCell(ByVal FromCell As Range) As Range
     
     Dim Result As Range
     Dim DirectPrecedents As Variant
-    DirectPrecedents = GetDirectPrecedents(FromCell.Cells(1).Formula2, FromCell.Worksheet)
+    DirectPrecedents = GetDirectPrecedents(GetCellFormula(FromCell.Cells(1)), FromCell.Worksheet)
     
     Dim IsValidToLoopBack As Boolean
     If IsArrayAllocated(DirectPrecedents) Then
-        IsValidToLoopBack = (UBound(DirectPrecedents, 1) = LBound(DirectPrecedents, 1) _
-                             And FromCell.Cells(1).Formula2 = EQUAL_SIGN & DirectPrecedents(1, 1))
+        IsValidToLoopBack = ( _
+                            UBound(DirectPrecedents, 1) = LBound(DirectPrecedents, 1) _
+                            And GetCellFormula(FromCell.Cells(1)) = EQUAL_SIGN & DirectPrecedents(1, 1) _
+                            And Not Is3DReference(CStr(DirectPrecedents(1, 1))) _
+                            )
     End If
     
     If IsValidToLoopBack Then
@@ -83,5 +86,7 @@ ExitFunction:
     Logger.Log TRACE_LOG, "Exit modActualFormulaCellFinder.LoopBackToCell"
     
 End Function
+
+
 
 

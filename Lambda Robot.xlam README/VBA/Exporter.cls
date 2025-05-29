@@ -30,14 +30,14 @@ Private Type TExporter
     LambdaSubFolderPath As String
 End Type
 
-Private This As TExporter
+Private this As TExporter
 
 Public Property Get WorkbookName() As String
-    WorkbookName = This.WorkbookName
+    WorkbookName = this.WorkbookName
 End Property
 
 Public Property Let WorkbookName(ByVal RHS As String)
-    This.WorkbookName = RHS
+    this.WorkbookName = RHS
     UpdateBasicStat RHS
 End Property
 
@@ -47,25 +47,25 @@ Private Sub UpdateBasicStat(ByVal WorkbookName As String)
     ' Updates the basic statistics and paths related to the given workbook.
 
     ' Set the reference to the specified workbook
-    Set This.GivenWorkbook = GetWorkbook(WorkbookName)
+    Set this.GivenWorkbook = GetWorkbook(WorkbookName)
 
     ' Find the cell that contains Lambda Definitions in the workbook
-    Set This.LambdaDefinitionOnCell = FindHelperCell()
+    Set this.LambdaDefinitionOnCell = FindHelperCell()
 
     ' Determine the path of the workbook
-    This.WorkbookPath = This.GivenWorkbook.Path & Application.PathSeparator
+    this.WorkbookPath = this.GivenWorkbook.Path & Application.PathSeparator
 
     ' Check if the workbook has been saved (path is not empty)
-    This.IsWorkbookSaved = (This.WorkbookPath <> vbNullString)
+    this.IsWorkbookSaved = (this.WorkbookPath <> vbNullString)
 
     ' Find the folder path for VBA sub-folder in the workbook
-    This.VBASubFolderPath = FindFolderPath(This.GivenWorkbook, VBA_SUB_FOLDER_NAME)
+    this.VBASubFolderPath = FindFolderPath(this.GivenWorkbook, VBA_SUB_FOLDER_NAME)
 
     ' Find the folder path for Power Query sub-folder in the workbook
-    This.PowerQuerySubFolderPath = FindFolderPath(This.GivenWorkbook, POWER_QUERY_SUB_FOLDER_NAME)
+    this.PowerQuerySubFolderPath = FindFolderPath(this.GivenWorkbook, POWER_QUERY_SUB_FOLDER_NAME)
 
     ' Find the folder path for Lambda sub-folder in the workbook
-    This.LambdaSubFolderPath = FindFolderPath(This.GivenWorkbook, LAMBDA_SUB_FOLDER_NAME)
+    this.LambdaSubFolderPath = FindFolderPath(this.GivenWorkbook, LAMBDA_SUB_FOLDER_NAME)
 
     ' Log entry for exiting the function
     Logger.Log TRACE_LOG, "Exit Exporter.UpdateBasicStat"
@@ -183,98 +183,21 @@ Private Sub SetWorkbookName(ByVal GivenWorkbookName As String)
     ' Me.WorkbookName = GivenWorkbookName
     
     ' Or if you want to use This then use in this way.
-    If This.WorkbookName <> GivenWorkbookName Then
-        This.WorkbookName = GivenWorkbookName
+    If this.WorkbookName <> GivenWorkbookName Then
+        this.WorkbookName = GivenWorkbookName
         UpdateBasicStat GivenWorkbookName
     End If
     Logger.Log TRACE_LOG, "Exit Exporter.SetWorkbookName"
     
 End Sub
 
-Public Sub ExportLambdas(Optional ByVal GivenWorkbookName As String = vbNullString)
-    
-    Logger.Log TRACE_LOG, "Enter Exporter.ExportLambdas"
-    ' Exports lambdas from the given workbook to separate files.
-
-    ' Set the workbook name and initialize the exporter
-    SetWorkbookName GivenWorkbookName
-
-    ' Check if the workbook has any named ranges
-    If This.GivenWorkbook.Names.Count = 0 Then
-        Logger.Log DEBUG_LOG, "No Named range found"
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.ExportLambdas"
-        Exit Sub
-    End If
-
-    ' Find all lambdas in the workbook
-    Dim AllLambda As Collection
-    Set AllLambda = FindLambdas(This.GivenWorkbook)
-
-    ' Check if there are any lambdas to export
-    If AllLambda.Count = 0 Then
-        Logger.Log DEBUG_LOG, "No Lambd found to export"
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.ExportLambdas"
-        Exit Sub
-    End If
-
-    ' Check if the workbook is saved
-    If This.LambdaSubFolderPath = vbNullString Then
-        Logger.Log DEBUG_LOG, "File is not saved : "
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.ExportLambdas"
-        Exit Sub
-    End If
-
-    ' Log the path where lambdas will be exported
-    Logger.Log INFO_LOG, "Lambda will be exported to :" & This.LambdaSubFolderPath
-
-    ' Create the lambda subfolder if it does not exist
-    CreateFolderIfNotExist This.LambdaSubFolderPath
-
-    On Error GoTo ErrorHandler
-    ' Create a FileSystemObject to manage files and folders
-    Dim FileManager As FileSystemObject
-    Set FileManager = New FileSystemObject
-
-    ' Loop through each lambda and export it to a separate file
-    Dim CurrentName As name
-    Dim CurrentFile As TextStream
-    For Each CurrentName In AllLambda
-        Logger.Log DEBUG_LOG, "Currently Processing Lambda : " & CurrentName.name
-        Set CurrentFile = CreateTextFile(This.LambdaSubFolderPath, CurrentName.name _
-                                                                  & LAMBDA_FILE_EXTENSION, FileManager)
-        CurrentFile.Write GenerateGist(CurrentName)
-        CurrentFile.Close
-        Set CurrentFile = Nothing
-    Next CurrentName
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.ExportLambdas"
-    Exit Sub
-
-ErrorHandler:
-    ' Handle errors and release resources
-    Dim errorNumber As Long
-    errorNumber = Err.Number
-    Dim ErrorDescription As String
-    ErrorDescription = Err.Description
-    
-    ' Raise the error again if it occurred
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
-        ' This is only for debugging purposes.
-        Resume
-    End If
-
-    ' Log exiting the function
-    Logger.Log TRACE_LOG, "Exit Exporter.ExportLambdas"
-    
-End Sub
-
-Private Function GenerateGist(ByVal CurrentName As name) As String
+Private Function GenerateGist(ByVal CurrentName As Name) As String
     
     Logger.Log TRACE_LOG, "Enter Exporter.GenerateGist"
     ' Generate a code snippet (gist) for the given lambda (CurrentName).
 
     ' Set the lambda definition on the cell to the formula of the current named range
-    This.LambdaDefinitionOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(CurrentName.RefersTo)
+    this.LambdaDefinitionOnCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(CurrentName.RefersTo)
 
     ' Create a presenter to show the lambda definition
     Dim CurrentPresenter As Presenter
@@ -282,7 +205,7 @@ Private Function GenerateGist(ByVal CurrentName As name) As String
 
     ' Show the lambda definition in the presenter view
     DoEvents
-    CurrentPresenter.ShowView This.LambdaDefinitionOnCell, False, CurrentName.name, False
+    CurrentPresenter.ShowView this.LambdaDefinitionOnCell, InvokedFrom.OTHER, CurrentName.Name, False
 
     ' Get the presenter interface to retrieve the export preview (gist)
     Dim PresenterInterface As IPresenter
@@ -295,7 +218,7 @@ Private Function GenerateGist(ByVal CurrentName As name) As String
     Logger.Log DEBUG_LOG, GenerateGist
 
     ' Clean up and release resources
-    This.LambdaDefinitionOnCell.Formula2 = vbNullString
+    this.LambdaDefinitionOnCell.Formula2 = vbNullString
     Set PresenterInterface = Nothing
     Set CurrentPresenter = Nothing
     Logger.Log TRACE_LOG, "Exit Exporter.GenerateGist"
@@ -308,12 +231,12 @@ Private Function FindHelperCell() As Range
     ' Find and return the helper cell (first unused cell) in the given workbook or active sheet.
 
     ' Check if the active sheet is Nothing (no active sheet)
-    If IsNothing(This.GivenWorkbook.ActiveSheet) Then
+    If IsNothing(this.GivenWorkbook.ActiveSheet) Then
         ' If no active sheet, find the first not used cell in the first worksheet of the given workbook
-        Set FindHelperCell = FindFirstNotUsedCell(This.GivenWorkbook.Worksheets(1))
+        Set FindHelperCell = FindFirstNotUsedCell(this.GivenWorkbook.Worksheets(1))
     Else
         ' If there is an active sheet, find the first not used cell in the active sheet
-        Set FindHelperCell = FindFirstNotUsedCell(This.GivenWorkbook.ActiveSheet)
+        Set FindHelperCell = FindFirstNotUsedCell(this.GivenWorkbook.ActiveSheet)
     End If
     Logger.Log TRACE_LOG, "Exit Exporter.FindHelperCell"
     
@@ -330,7 +253,7 @@ Private Function CreateTextFile(ByVal FolderPath As String, ByVal FileName As St
     Set CreateTextFile = FileManager.CreateTextFile(FolderPath & FileName, True, True)
 
     ' Log exiting the function due to the "Exit Function" statement
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.CreateTextFile"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Exporter.CreateTextFile"
     Exit Function
 
 EncodePath:
@@ -351,9 +274,9 @@ Private Sub Class_Terminate()
     ' This sub is automatically called when the instance of the class is about to be destroyed.
 
     ' Check if the LambdaDefinitionOnCell object is not nothing (i.e., has been initialized)
-    If IsNotNothing(This.LambdaDefinitionOnCell) Then
+    If IsNotNothing(this.LambdaDefinitionOnCell) Then
         ' Set the LambdaDefinitionOnCell to vbNullString (empty string) to release the reference
-        Set This.LambdaDefinitionOnCell = Nothing
+        Set this.LambdaDefinitionOnCell = Nothing
     End If
     Logger.Log TRACE_LOG, "Exit Exporter.Class_Terminate"
     

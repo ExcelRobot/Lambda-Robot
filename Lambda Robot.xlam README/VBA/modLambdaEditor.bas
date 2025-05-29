@@ -16,13 +16,16 @@ Public Sub EditLambda(ByVal OfCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.EditLambda"
     ' Validate if it's appropriate to run the command
-    If IsInvalidToRunCommand(OfCell, "Edit Lambda") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(OfCell, "Edit Lambda") Then Exit Sub
+    
+    Const METHOD_NAME As String = "EditLambda"
+    Context.ExtractContextFromCell OfCell, METHOD_NAME
     
     On Error GoTo ErrorHandler
     
     Dim LambdaName As String
     ' Extract the Lambda function's name
-    LambdaName = modUtility.ExtractStartFormulaName(OfCell.Formula2)
+    LambdaName = modUtility.ExtractStartFormulaName(GetCellFormula(OfCell))
     
     If IsLambdaCreatedInExcelLabs(OfCell.Worksheet.Parent, LambdaName) Then
         Dim Answer As VbMsgBoxResult
@@ -30,8 +33,8 @@ Public Sub EditLambda(ByVal OfCell As Range)
                         , vbYesNoCancel + vbExclamation, "Edit Lambda")
         
         If Answer = vbNo Or Answer = vbCancel Then
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.EditLambda"
-            Exit Sub
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.EditLambda"
+            GoTo ExitMethod
         End If
         
     End If
@@ -39,7 +42,7 @@ Public Sub EditLambda(ByVal OfCell As Range)
     Dim Parameters As String
     
     ' Extract parameters from the formula
-    Parameters = Text.AfterDelimiter(OfCell.Formula2, FIRST_PARENTHESIS_OPEN)
+    Parameters = Text.AfterDelimiter(GetCellFormula(OfCell), FIRST_PARENTHESIS_OPEN)
     ' If parameters exist, format them
     If Parameters <> vbNullString Then Parameters = FIRST_PARENTHESIS_OPEN & Parameters
     
@@ -62,19 +65,24 @@ Public Sub EditLambda(ByVal OfCell As Range)
     RemoveMetadataAndAddNote OfCell, NewFormulaText, LambdaName
     ' Adjust formula bar to fit new formula text
     AutofitFormulaBar OfCell
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.EditLambda"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.EditLambda"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
+    
 ErrorHandler:
-
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    
+    Context.ClearContext METHOD_NAME
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
     ' If an error occurred, raise the error and proceed for debugging
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -98,7 +106,7 @@ Private Sub RemoveMetadataAndAddNote(ByVal ToCell As Range, ByVal LambdaFormula 
     On Error GoTo PutFormulaUsingSendKeys
     FormulaText = ReplaceNewlineWithChar10(FormulaText)
     UpdateFormulaAndCalculate ToCell, FormulaText
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.RemoveMetadataAndAddNote"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.RemoveMetadataAndAddNote"
     Exit Sub
     
 PutFormulaUsingSendKeys:
@@ -149,14 +157,14 @@ Public Sub DeleteComment(ByVal ToCell As Range)
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.DeleteComment"
     Dim CurrentComment As Comment
     Set CurrentComment = ToCell.Comment
-    On Error GoTo ExitSub
+    On Error GoTo ExitMethod
     If Text.IsStartsWith(CurrentComment.Text, LAMBDA_NAME_NOTE_PREFIX) Then
         CurrentComment.Delete
     End If
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.DeleteComment"
     Exit Sub
     
-ExitSub:
+ExitMethod:
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.DeleteComment"
     
 End Sub
@@ -173,12 +181,17 @@ End Sub
 Public Sub SaveLambda(ByVal OfCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.SaveLambda"
+    
+    If Not OfCell.HasFormula Then Exit Sub
     ' Check if the command is valid
-    If IsInvalidToRunCommand(OfCell, "Save Lambda") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(OfCell, "Save Lambda") Then Exit Sub
+    
+    Const METHOD_NAME As String = "SaveLambda"
+    Context.ExtractContextFromCell OfCell, METHOD_NAME
     
     ' Storing the original formula of the cell
     Dim OldFormula As String
-    OldFormula = OfCell.Formula2
+    OldFormula = GetCellFormula(OfCell)
     
     On Error GoTo ErrorHandler
     Application.StatusBar = "Saving Lambda... (please wait)"
@@ -195,21 +208,25 @@ Public Sub SaveLambda(ByVal OfCell As Range)
     ' Resize the formula bar to fit the formula
     AutofitFormulaBar OfCell
     Application.StatusBar = False
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambda"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambda"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
     
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Context.ClearContext METHOD_NAME
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
     Application.StatusBar = False
     
     ' Raising the error to be handled by the calling procedure
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -239,12 +256,12 @@ End Sub
 
 Private Sub SaveAndUpdateLambdaMetadata(ByVal ForCell As Range _
                                         , Optional ByVal AppendMetadata As Boolean = True _
-                                         , Optional ByVal OldFormulaIfPopUpCancelled As String = vbNullString)
+                                         , Optional ByVal OldFormulaIfPopupCancelled As String = vbNullString)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.SaveAndUpdateLambdaMetadata"
     ' Retrieving the old formula
     Dim OldFormulaText As String
-    OldFormulaText = ForCell.Formula2
+    OldFormulaText = GetCellFormula(ForCell)
     
     ' Checking if the formula is a Lambda
     If Not IsLambdaFunction(OldFormulaText) Or Not Text.IsStartsWith(OldFormulaText, EQUAL_SIGN) Then Exit Sub
@@ -256,7 +273,7 @@ Private Sub SaveAndUpdateLambdaMetadata(ByVal ForCell As Range _
     ' Checking if the Lambda name is empty
     If LambdaName = vbNullString Then
         ' Saving Lambda if no name was previously defined
-        SaveLambdaAsAfterTakingUserInput ForCell, OldFormulaIfPopUpCancelled
+        SaveLambdaAsAfterTakingUserInput ForCell, InvokedFrom.SAVE_LAMBDA, OldFormulaIfPopupCancelled
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveAndUpdateLambdaMetadata"
         Exit Sub
     End If
@@ -271,7 +288,7 @@ Private Sub SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined(ByVal ForCel
                                                                     , Optional ByVal AppendMetadata As Boolean = True)
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined"
     Dim NewLambdaFormulaText As String
-    NewLambdaFormulaText = ForCell.Formula2
+    NewLambdaFormulaText = GetCellFormula(ForCell)
     
     ' Getting the old Lambda name from the cell comment
     Dim LambdaName As String
@@ -303,8 +320,8 @@ Private Sub SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined(ByVal ForCel
     
     ' Add new name referring to the new lambda formula text
     On Error Resume Next
-    Dim CurrentName As name
-    Set CurrentName = ForCell.Worksheet.Parent.Names.Add(name:=LambdaName, RefersTo:=DefPart)
+    Dim CurrentName As Name
+    Set CurrentName = ForCell.Worksheet.Parent.Names.Add(Name:=LambdaName, RefersTo:=DefPart)
     
     ' We have noticed that sometimes changing comment change the RefersTo of the Lambda (Portuguese/Brazil).
     ' That's why we are resetting it again to the original.
@@ -368,7 +385,7 @@ Private Function AddMetadataFromNameManager(ByVal NewFormula As String _
         End If
     End If
     AddMetadataFromNameManager = NewFormula
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.AddMetadataFromNameManager"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.AddMetadataFromNameManager"
     Exit Function
     
 NoMetadata:
@@ -390,19 +407,19 @@ Private Function GetCommentForNameManager(ByVal LambdaName As String _
         GetCommentForNameManager = GetCommentForNameManagerFromFormulaText(NewFormulaText)
     Else
         
-        Dim CurrentName As name
+        Dim CurrentName As Name
         Set CurrentName = FromCell.Worksheet.Parent.Names(LambdaName)
         ' If comment already exists, return it as the result
         If CurrentName.Comment <> vbNullString Then
             GetCommentForNameManager = CurrentName.Comment
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.GetCommentForNameManager"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.GetCommentForNameManager"
             Exit Function
         End If
         
         GetCommentForNameManager = GetCommentForNameManagerFromFormulaText(CurrentName.RefersTo)
     End If
     
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.GetCommentForNameManager"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.GetCommentForNameManager"
     Exit Function
 
     ' If no metadata is found, return null string
@@ -459,14 +476,17 @@ End Function
 ' Macro Expression:       modLambdaEditor.SaveLambdaAs()
 ' Generated:              03/06/2022 05:51
 '-----------------------------------------------------------------------------------------------------
-Public Sub SaveLambdaAs(ByVal OfCell As Range, Optional ByVal OldFormulaIfPopUpCancelled As String = vbNullString)
+Public Sub SaveLambdaAs(ByVal OfCell As Range, Optional ByVal OldFormulaIfPopupCancelled As String = vbNullString)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.SaveLambdaAs"
     ' Check for command validity, if invalid then exit
-    If IsInvalidToRunCommand(OfCell, "Save Lambda As") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(OfCell, "Save Lambda As") Then Exit Sub
+    
+    Const METHOD_NAME As String = "SaveLambdaAs"
+    Context.ExtractContextFromCell OfCell, METHOD_NAME
     
     ' If old formula not provided, take the current cell formula
-    If OldFormulaIfPopUpCancelled = vbNullString Then OldFormulaIfPopUpCancelled = OfCell.Formula2
+    If OldFormulaIfPopupCancelled = vbNullString Then OldFormulaIfPopupCancelled = GetCellFormula(OfCell)
 
     On Error GoTo ErrorHandler
 
@@ -479,20 +499,25 @@ Public Sub SaveLambdaAs(ByVal OfCell As Range, Optional ByVal OldFormulaIfPopUpC
     TryToGenerateLambdaIfNotGeneratedAlready OfCell
     
     ' Perform save operation considering the available resources
-    SaveLambdaAsAfterTakingUserInput OfCell, OldFormulaIfPopUpCancelled
+    SaveLambdaAsAfterTakingUserInput OfCell, InvokedFrom.SAVE_LAMBDA_AS, OldFormulaIfPopupCancelled
 
     ' Auto-fit the formula bar for the cell
     AutofitFormulaBar OfCell
 
     ' Reset the status bar
     Application.StatusBar = False
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAs"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAs"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
+    
+    Context.ClearContext METHOD_NAME
     ' Record error number and description if an error occurs
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
 
@@ -500,8 +525,8 @@ ErrorHandler:
     Application.StatusBar = False
     
     ' If error occurred, raise it
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -510,30 +535,30 @@ ErrorHandler:
 End Sub
 
 Public Sub SaveLambdaAsAfterTakingUserInput(ByVal OfCell As Range _
-                                            , Optional ByVal OldFormulaIfPopUpCancelled As String = vbNullString)
+                                            , ByVal CallFrom As InvokedFrom _
+                                            , Optional ByVal OldFormulaIfPopupCancelled As String = vbNullString)
 
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
     Dim OldFormulaText As String
-    OldFormulaText = OfCell.Formula2
-    Dim DefaultName As String
-    DefaultName = modUtility.FindLetVarName(OfCell)
-    DefaultName = modUtility.MakeValidLetVarName(DefaultName, GetNamingConv(False))
-
+    
     ' Ensure that the formula starts with "=LAMBDA("
-    OldFormulaText = RemoveSpaceBetweenEqualAndLambdaText(OldFormulaText)
+    OldFormulaText = RemoveSpaceBetweenEqualAndLambdaText(GetCellFormula(OfCell))
     ' If not, log the absence of a lambda and exit the subroutine
     If Not IsLambdaFunction(OldFormulaText) Then
         Logger.Log DEBUG_LOG, OfCell.Address & " has no Lambda"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
         Exit Sub
     End If
+    
+    Dim DefaultName As String
+    DefaultName = GetDefaultLambdaNameFromCell(OfCell)
 
     ' Create a Presenter object to handle metadata editing
     Dim CurrentPresenter As Presenter
-    Set CurrentPresenter = EditMetadataForCell(OfCell, True, DefaultName)
+    Set CurrentPresenter = EditMetadataForCell(OfCell, CallFrom, DefaultName)
     ' If the Presenter was cancelled, revert to the old formula and exit
     If CurrentPresenter.IsProcessCancelled Then
-        OfCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormulaIfPopUpCancelled)
+        OfCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormulaIfPopupCancelled)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
         Exit Sub
     End If
@@ -546,6 +571,9 @@ Public Sub SaveLambdaAsAfterTakingUserInput(ByVal OfCell As Range _
         MsgBox "Unable to save Lambda formula.  Lambda Name is not valid.", vbExclamation + vbOKOnly, APP_NAME
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
         Exit Sub
+    ElseIf Not IsValidDefinedName(NewName) Then
+        MsgBox "Unable to save Lambda formula. '" & NewName & "' is not valid lambda name.", vbExclamation + vbOKOnly, APP_NAME
+        Exit Sub
     End If
 
     ' Update or add a note containing the lambda name
@@ -555,6 +583,38 @@ Public Sub SaveLambdaAsAfterTakingUserInput(ByVal OfCell As Range _
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
 
 End Sub
+
+Private Function GetDefaultLambdaNameFromCell(LambdaCell As Range) As String
+    
+    Dim DefaultName As String
+    
+    Dim DirectPrecedents As Variant
+    DirectPrecedents = GetDirectPrecedents(GetCellFormula(LambdaCell), LambdaCell.Worksheet)
+    
+    ' We can have cell ref in lambda invocation or in the def. We need to ignore those cells when finding the Default name.
+    Dim InWorksheetRange As Range
+    Dim CurrentPrecedent As Variant
+    For Each CurrentPrecedent In DirectPrecedents
+        
+        If CurrentPrecedent <> vbNullString And Not Is3DReference(CurrentPrecedent) Then
+            Dim TempRange As Range
+            Set TempRange = RangeResolver.GetRangeForDependency(CurrentPrecedent, LambdaCell)
+            If IsNotNothing(TempRange) Then
+                If TempRange.Worksheet.Name = LambdaCell.Worksheet.Name Then
+                    Set InWorksheetRange = UnionOfNonExistableRange(InWorksheetRange, TempRange)
+                End If
+            End If
+        End If
+        
+    Next CurrentPrecedent
+    
+    
+    DefaultName = modUtility.FindLetVarName(LambdaCell, InWorksheetRange)
+    DefaultName = modUtility.MakeValidLetVarName(DefaultName, GetNamingConv(False))
+    
+    GetDefaultLambdaNameFromCell = DefaultName
+    
+End Function
 
 '--------------------------------------------< OA HOTKEY >--------------------------------------------
 ' Command Name:           Remove Lambda
@@ -567,8 +627,12 @@ End Sub
 Public Sub RemoveLambda(ByVal OfCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.RemoveLambda"
+    
     ' Check if the command is valid for the cell
-    If IsInvalidToRunCommand(OfCell, "Remove Lambda") Then Exit Sub
+    If modUtility.IsWorkbookOrWorksheetProtected(OfCell, "Remove Lambda") Then Exit Sub
+    
+    Const METHOD_NAME As String = "RemoveLambda"
+    Context.ExtractContextFromCell OfCell, METHOD_NAME
     
     ' Get the formula name from the cell's comment
     Dim FormulaName As String
@@ -585,7 +649,7 @@ Public Sub RemoveLambda(ByVal OfCell As Range)
     ' If still not found, exit the subroutine
     If FormulaName = vbNullString Then
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.RemoveLambda"
-        Exit Sub
+        GoTo ExitMethod
     End If
 
     ' Delete the named range matching the lambda name
@@ -599,6 +663,10 @@ Public Sub RemoveLambda(ByVal OfCell As Range)
     AutofitFormulaBar OfCell
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.RemoveLambda"
     
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
+    
 End Sub
 
 '--------------------------------------------< OA HOTKEY >--------------------------------------------
@@ -610,9 +678,13 @@ End Sub
 Public Sub CancelEditLambda(ByVal OfCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.CancelEditLambda"
+    
     ' Check if the command is valid for the cell
-    If IsInvalidToRunCommand(OfCell, "Cancel Edit Lambda") Then Exit Sub
-
+    If modUtility.IsWorkbookOrWorksheetProtected(OfCell, "Cancel Edit Lambda") Then Exit Sub
+    
+    Const METHOD_NAME As String = "CancelEditLambda"
+    Context.ExtractContextFromCell OfCell, METHOD_NAME
+    
     ' Creating a Resource Handler to manage Excel resources and adding resource
     On Error GoTo ErrorHandler
 
@@ -630,21 +702,25 @@ Public Sub CancelEditLambda(ByVal OfCell As Range)
     
     ' Replace the Lambda formula with the Lambda name and get the invocation part
     Dim NewFormula As String
-    NewFormula = EQUAL_SIGN & LambdaName & GetLambdaInvocationPart(OfCell.Formula2)
+    NewFormula = EQUAL_SIGN & LambdaName & GetLambdaInvocationPart(GetCellFormula(OfCell))
     NewFormula = FormatFormula(NewFormula)
     
     ' Update the formula in the active cell and recalculate it
     UpdateFormulaAndCalculate OfCell, NewFormula
     ' Resize formula bar to fit new formula
     AutofitFormulaBar OfCell
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.CancelEditLambda"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.CancelEditLambda"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
-
+    
+    Context.ClearContext METHOD_NAME
     ' Collect error info if any
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     
@@ -652,8 +728,8 @@ ErrorHandler:
     Debug.Print "New Formula : " & NewFormula
 
     ' Re-raise error for debugging
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         'This is only for debugging purpose.
         Resume
     End If
@@ -690,7 +766,7 @@ Public Sub AutofitFormulaBar(ByVal FormulaCell As Range)
     Else
         Application.FormulaBarHeight = NewLineCount
     End If
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.AutofitFormulaBar"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.AutofitFormulaBar"
     Exit Sub
     
 TryOnceAgain:

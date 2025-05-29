@@ -14,6 +14,8 @@ Option Private Module
 Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
+    Const METHOD_NAME As String = "GenerateMultiColumnLookUpLambda"
+    Context.ExtractContextFromCell FromRange, METHOD_NAME
     ' Generate the multi-column lookup lambda formula for the specified FromRange.
     
     ' Static variables to store old formula and the cell containing the formula
@@ -25,20 +27,24 @@ Public Sub GenerateMultiColumnLookUpLambda(ByVal FromRange As Range, Optional By
         FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         AutofitFormulaBar FormulaInCell
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
-        Exit Sub
+        GoTo ExitMethod
     End If
     
     Dim LambdaFormula As String
     LambdaFormula = GetMultiColumnLookUpLambda(FromRange)
-    If LambdaFormula = vbNullString Then Exit Sub
+    If LambdaFormula = vbNullString Then GoTo ExitMethod
     
     ' Set the formula in the specified cell
     Set FormulaInCell = FromRange.SpillParent
-    OldFormula = FromRange.Formula2
+    OldFormula = GetCellFormula(FromRange)
     FormulaInCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(LambdaFormula)
     AutofitFormulaBar FormulaInCell
     AssingOnUndo "GenerateMultiColumnLookUpLambda"
     Logger.Log TRACE_LOG, "Exit MultiColumnLookupLambda.GenerateMultiColumnLookUpLambda"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
     
 End Sub
 
@@ -63,7 +69,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
     With FilterPartFormula
         ' Get the table or named range ref. Formula need to be like =TableOrNamedRangeOrSpillRangeRef
         .Concatenate THREE_SPACE & "_Table" & LIST_SEPARATOR _
-                     & Mid$(FromRange.SpillParent.Formula2, 2) _
+                     & Mid$(GetCellFormula(FromRange.SpillParent), 2) _
                      & LIST_SEPARATOR & vbNewLine
                      
         .Concatenate THREE_SPACE & "_LastColumnData" & LIST_SEPARATOR & ONE_SPACE _
@@ -167,6 +173,5 @@ Public Function GetValueForInvocation(ByVal FromCell As Range) As String
     Logger.Log TRACE_LOG, "Exit MultiColumnLookupLambda.GetValueForInvocation"
     
 End Function
-
 
 

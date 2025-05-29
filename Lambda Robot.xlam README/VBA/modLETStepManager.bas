@@ -30,12 +30,21 @@ End Sub
 ' Macro Expression:       modLETStepManager.CycleLETSteps([ActiveCell],[ActiveCell])
 ' Generated:              08/07/2023 08:09 PM
 '----------------------------------------------------------------------------------------------------
-Public Sub CycleLETSteps(ByVal FormulaCell As Range, Optional ByVal TargetCell As Range = Nothing _
-                                                    , Optional ByVal IsReset As Boolean = False)
+Public Sub CycleLETSteps(ByVal FormulaCell As Range _
+                         , Optional ByVal TargetCell As Range = Nothing _
+                          , Optional ByVal IsReset As Boolean = False)
+    
+    Const METHOD_NAME As String = "CycleLETSteps"
+    Context.ExtractContextFromCell FormulaCell, METHOD_NAME
+    If IsCellHasSavedLambdaFormula(FormulaCell) Then
+        EditLambda FormulaCell
+    End If
     
     LetStepManager.CycleLETSteps FormulaCell, TargetCell, IsReset
+    Context.ClearContext METHOD_NAME
     
 End Sub
+
 
 
 

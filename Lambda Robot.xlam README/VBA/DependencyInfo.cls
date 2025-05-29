@@ -28,7 +28,7 @@ Private Type TDependencyInfo
     HasFormula As Boolean
     IsInsideNamedRangeOrTable As Boolean
     IsReferByNamedRange As Boolean
-    ForName As name
+    ForName As Name
     IsMarkAsNotLetStatementByUser As Boolean
     IsDemotedFromParameterCellToLetStep As Boolean
     IsUserMarkAsParameterCell As Boolean
@@ -40,252 +40,260 @@ Private Type TDependencyInfo
     BookName As String
     IsTableRef As Boolean
     RangeLabelCell As Range
+    Is3DRangeRef As Boolean
 End Type
-Private This As TDependencyInfo
+Private this As TDependencyInfo
+
+Public Property Get Is3DRangeRef() As Boolean
+    Is3DRangeRef = this.Is3DRangeRef
+End Property
+
+Public Property Let Is3DRangeRef(ByVal RHS As Boolean)
+    this.Is3DRangeRef = RHS
+End Property
 
 Public Property Get RangeLabelCell() As Range
-    Set RangeLabelCell = This.RangeLabelCell
+    Set RangeLabelCell = this.RangeLabelCell
 End Property
 
 Public Property Set RangeLabelCell(ByVal RHS As Range)
-    Set This.RangeLabelCell = RHS
+    Set this.RangeLabelCell = RHS
 End Property
 
 Public Property Get IsTableRef() As Boolean
-    IsTableRef = This.IsTableRef
+    IsTableRef = this.IsTableRef
 End Property
 
 Public Property Let IsTableRef(ByVal RHS As Boolean)
-    This.IsTableRef = RHS
+    this.IsTableRef = RHS
 End Property
 
 Public Property Get SheetName() As String
-    SheetName = This.SheetName
+    SheetName = this.SheetName
 End Property
 
 Public Property Let SheetName(ByVal RHS As String)
-    This.SheetName = RHS
+    this.SheetName = RHS
 End Property
 
 Public Property Get BookName() As String
-    BookName = This.BookName
+    BookName = this.BookName
 End Property
 
 Public Property Let BookName(ByVal RHS As String)
-    This.BookName = RHS
+    this.BookName = RHS
 End Property
 
 Public Property Get IsLocalScopeNamedRange() As Boolean
-    IsLocalScopeNamedRange = This.IsLocalScopeNamedRange
+    IsLocalScopeNamedRange = this.IsLocalScopeNamedRange
 End Property
 
 Public Property Let IsLocalScopeNamedRange(RHS As Boolean)
-    This.IsLocalScopeNamedRange = RHS
+    this.IsLocalScopeNamedRange = RHS
 End Property
 
 Public Property Get IsUserSpecifiedName() As Boolean
-    IsUserSpecifiedName = This.IsUserSpecifiedName
+    IsUserSpecifiedName = this.IsUserSpecifiedName
 End Property
 
 Public Property Let IsUserSpecifiedName(ByVal RHS As Boolean)
-    This.IsUserSpecifiedName = RHS
+    this.IsUserSpecifiedName = RHS
 End Property
 
 Public Property Get NewValidVarName() As String
-    NewValidVarName = This.NewValidVarName
+    NewValidVarName = this.NewValidVarName
 End Property
 
 Public Property Let NewValidVarName(ByVal RHS As String)
-    This.NewValidVarName = RHS
+    this.NewValidVarName = RHS
 End Property
 
 Public Property Get IsExpandByUser() As Boolean
-    IsExpandByUser = This.IsExpandByUser
+    IsExpandByUser = this.IsExpandByUser
 End Property
 
 Public Property Let IsExpandByUser(ByVal RHS As Boolean)
-    This.IsExpandByUser = RHS
+    this.IsExpandByUser = RHS
 End Property
 
 Public Property Get IsUserMarkAsValue() As Boolean
-    IsUserMarkAsValue = This.IsUserMarkAsValue
+    IsUserMarkAsValue = this.IsUserMarkAsValue
 End Property
 
 Public Property Let IsUserMarkAsValue(ByVal RHS As Boolean)
-    This.IsUserMarkAsValue = RHS
+    this.IsUserMarkAsValue = RHS
 End Property
 
 Public Property Get IsUserMarkAsParameterCell() As Boolean
-    IsUserMarkAsParameterCell = This.IsUserMarkAsParameterCell
+    IsUserMarkAsParameterCell = this.IsUserMarkAsParameterCell
 End Property
 
 Public Property Let IsUserMarkAsParameterCell(ByVal RHS As Boolean)
-    This.IsUserMarkAsParameterCell = RHS
+    this.IsUserMarkAsParameterCell = RHS
 End Property
 
 Public Property Get IsDemotedFromParameterCellToLetStep() As Boolean
-    IsDemotedFromParameterCellToLetStep = This.IsDemotedFromParameterCellToLetStep
+    IsDemotedFromParameterCellToLetStep = this.IsDemotedFromParameterCellToLetStep
 End Property
 
 Public Property Let IsDemotedFromParameterCellToLetStep(RHS As Boolean)
-    This.IsDemotedFromParameterCellToLetStep = RHS
+    this.IsDemotedFromParameterCellToLetStep = RHS
 End Property
 
 Public Property Get IsMarkAsNotLetStatementByUser() As Boolean
-    IsMarkAsNotLetStatementByUser = This.IsMarkAsNotLetStatementByUser
+    IsMarkAsNotLetStatementByUser = this.IsMarkAsNotLetStatementByUser
 End Property
 
 Public Property Let IsMarkAsNotLetStatementByUser(ByVal RHS As Boolean)
-    This.IsMarkAsNotLetStatementByUser = RHS
+    this.IsMarkAsNotLetStatementByUser = RHS
 End Property
 
-Public Property Get ForName() As name
-    Set ForName = This.ForName
+Public Property Get ForName() As Name
+    Set ForName = this.ForName
 End Property
 
-Public Property Set ForName(ByVal RHS As name)
+Public Property Set ForName(ByVal RHS As Name)
     
     Logger.Log TRACE_LOG, "Enter DependencyInfo.ForName"
-    Set This.ForName = RHS
+    Set this.ForName = RHS
     If Not RHS Is Nothing Then
-        This.IsLocalScopeNamedRange = modUtility.IsLocalScopeNamedRange(RHS.name)
+        this.IsLocalScopeNamedRange = modUtility.IsLocalScopeNamedRange(RHS.Name)
     End If
     Logger.Log TRACE_LOG, "Exit DependencyInfo.ForName"
     
 End Property
 
 Public Property Get IsReferByNamedRange() As Boolean
-    IsReferByNamedRange = This.IsReferByNamedRange
+    IsReferByNamedRange = this.IsReferByNamedRange
 End Property
 
 Public Property Let IsReferByNamedRange(ByVal RHS As Boolean)
-    This.IsReferByNamedRange = RHS
+    this.IsReferByNamedRange = RHS
 End Property
 
 Public Property Get IsInsideNamedRangeOrTable() As Boolean
-    IsInsideNamedRangeOrTable = This.IsInsideNamedRangeOrTable
+    IsInsideNamedRangeOrTable = this.IsInsideNamedRangeOrTable
 End Property
 
 Public Property Let IsInsideNamedRangeOrTable(RHS As Boolean)
-    This.IsInsideNamedRangeOrTable = RHS
+    this.IsInsideNamedRangeOrTable = RHS
 End Property
 
 Public Property Get HasFormula() As Boolean
-    HasFormula = This.HasFormula
+    HasFormula = this.HasFormula
 End Property
 
 Public Property Let HasFormula(ByVal RHS As Boolean)
-    This.HasFormula = RHS
+    this.HasFormula = RHS
 End Property
 
 Public Property Get IsOptional() As Boolean
-    IsOptional = This.IsOptional
+    IsOptional = this.IsOptional
 End Property
 
 Public Property Let IsOptional(ByVal RHS As Boolean)
-    This.IsOptional = RHS
+    this.IsOptional = RHS
 End Property
 
 Public Property Get LetVarReference() As String
-    LetVarReference = This.LetVarReference
+    LetVarReference = this.LetVarReference
 End Property
 
 Public Property Let LetVarReference(ByVal RHS As String)
-    This.LetVarReference = RHS
+    this.LetVarReference = RHS
 End Property
 
 Public Property Get RowNumber() As Long
-    RowNumber = This.RowNumber
+    RowNumber = this.RowNumber
 End Property
 
 Public Property Let RowNumber(RHS As Long)
-    This.RowNumber = RHS
+    this.RowNumber = RHS
 End Property
 
 Public Property Get NameInFormulaLength() As Long
-    NameInFormulaLength = Len(This.NameInFormula)
+    NameInFormulaLength = Len(this.NameInFormula)
 End Property
 
 Public Property Get ColumnNumber() As Long
-    ColumnNumber = This.ColumnNumber
+    ColumnNumber = this.ColumnNumber
 End Property
 
 Public Property Let ColumnNumber(RHS As Long)
-    This.ColumnNumber = RHS
+    this.ColumnNumber = RHS
 End Property
 
 Public Property Get ValidVarName() As String
-    ValidVarName = This.ValidVarName
+    ValidVarName = this.ValidVarName
 End Property
 
 Public Property Let ValidVarName(RHS As String)
-    This.ValidVarName = RHS
+    this.ValidVarName = RHS
 End Property
 
 Public Property Get IsLabelAsInputCell() As Boolean
-    IsLabelAsInputCell = This.IsLabelAsInputCell
+    IsLabelAsInputCell = this.IsLabelAsInputCell
 End Property
 
 Public Property Let IsLabelAsInputCell(ByVal RHS As Boolean)
-    This.IsLabelAsInputCell = RHS
+    this.IsLabelAsInputCell = RHS
 End Property
 
 Public Property Get NameInFormula() As String
-    NameInFormula = This.NameInFormula
+    NameInFormula = this.NameInFormula
 End Property
 
 Public Property Let NameInFormula(ByVal RHS As String)
-    This.NameInFormula = RHS
+    this.NameInFormula = RHS
 End Property
 
 Public Property Get HasAnyDependency() As Boolean
-    HasAnyDependency = This.HasAnyDependency
+    HasAnyDependency = this.HasAnyDependency
 End Property
 
 Public Property Let HasAnyDependency(ByVal RHS As Boolean)
-    This.HasAnyDependency = RHS
+    this.HasAnyDependency = RHS
 End Property
 
 Public Property Get RangeLabel() As String
-    RangeLabel = This.RangeLabel
+    RangeLabel = this.RangeLabel
 End Property
 
 Public Property Let RangeLabel(ByVal RHS As String)
-    This.RangeLabel = RHS
+    this.RangeLabel = RHS
 End Property
 
 Public Property Get RangeReference() As String
-    RangeReference = This.RangeReference
+    RangeReference = this.RangeReference
 End Property
 
 Public Property Let RangeReference(ByVal RHS As String)
-    This.RangeReference = RHS
+    this.RangeReference = RHS
 End Property
 
 Public Property Get Level() As Long
-    Level = This.Level
+    Level = this.Level
 End Property
 
 Public Property Let Level(ByVal RHS As Long)
-    If RHS > This.Level Then This.Level = RHS
+    If RHS > this.Level Then this.Level = RHS
 End Property
 
 Public Property Get FormulaText() As String
     
     Logger.Log TRACE_LOG, "Enter DependencyInfo.FormulaText"
-    If Not This.HasFormula And Not IsNumeric(This.FormulaText) And This.FormulaText <> vbNullString Then
-        FormulaText = Text.PadIfNotPresent(This.FormulaText, QUOTES, FROM_BOTH)
+    If Not this.HasFormula And Not IsNumeric(this.FormulaText) And this.FormulaText <> vbNullString Then
+        FormulaText = Text.PadIfNotPresent(this.FormulaText, QUOTES, FROM_BOTH)
     Else
-        FormulaText = This.FormulaText
+        FormulaText = this.FormulaText
     End If
     Logger.Log TRACE_LOG, "Exit DependencyInfo.FormulaText"
     
 End Property
 
 Public Property Let FormulaText(ByVal RHS As String)
-    This.FormulaText = RHS
+    this.FormulaText = RHS
 End Property
-
 
 Private Function IsTableRefUsedInFormula(ByVal NameInFormula As String) As Boolean
     
@@ -315,41 +323,41 @@ Public Function StepOrArgumentCalcFunction(ByVal ContextCell As Range) As String
     ' workbook.
     
     Dim ContextSheetName As String
-    ContextSheetName = ContextCell.Worksheet.name
+    ContextSheetName = ContextCell.Worksheet.Name
     
     Dim ContextBookName As String
-    ContextBookName = ContextCell.Worksheet.Parent.name
+    ContextBookName = ContextCell.Worksheet.Parent.Name
     
     Dim Result As String
     
-    If Not This.IsLabelAsInputCell Then
+    If Not this.IsLabelAsInputCell Then
         Result = vbNullString
-    ElseIf This.IsUserMarkAsValue Then
-        Result = Text.RemoveFromStartIfPresent(This.FormulaText, EQUAL_SIGN)
-    ElseIf This.BookName <> ContextBookName Then
-        Result = This.NameInFormula
-    ElseIf This.IsReferByNamedRange Then
+    ElseIf this.IsUserMarkAsValue Then
+        Result = Text.RemoveFromStartIfPresent(this.FormulaText, EQUAL_SIGN)
+    ElseIf this.BookName <> ContextBookName Then
+        Result = this.NameInFormula
+    ElseIf this.IsReferByNamedRange Then
         
-        If This.IsLocalScopeNamedRange Then
-            If This.SheetName <> ContextSheetName Then
-                Result = GetSheetRefForRangeReference(This.SheetName) _
-                       & RemoveSheetQualifierIfPresent(This.NameInFormula)
+        If this.IsLocalScopeNamedRange Then
+            If this.SheetName <> ContextSheetName Then
+                Result = GetSheetRefForRangeReference(this.SheetName) _
+                         & RemoveSheetQualifierIfPresent(this.NameInFormula)
             Else
-                Result = RemoveSheetQualifierIfPresent(This.NameInFormula)
+                Result = RemoveSheetQualifierIfPresent(this.NameInFormula)
             End If
         Else
-            Result = This.NameInFormula
+            Result = this.NameInFormula
         End If
         
-    ElseIf IsTableRefUsedInFormula(This.NameInFormula) Then
-        Result = This.NameInFormula
-    ElseIf This.SheetName <> ContextSheetName Then
-        Result = GetSheetRefForRangeReference(This.SheetName) _
-               & RemoveSheetQualifierIfPresent(This.NameInFormula)
-    ElseIf This.SheetName = ContextSheetName Then
-        Result = RemoveSheetQualifierIfPresent(This.NameInFormula)
+    ElseIf IsTableRefUsedInFormula(this.NameInFormula) Then
+        Result = this.NameInFormula
+    ElseIf this.SheetName <> ContextSheetName Then
+        Result = GetSheetRefForRangeReference(this.SheetName) _
+                 & RemoveSheetQualifierIfPresent(this.NameInFormula)
+    ElseIf this.SheetName = ContextSheetName Then
+        Result = RemoveSheetQualifierIfPresent(this.NameInFormula)
     Else
-        Result = This.NameInFormula
+        Result = this.NameInFormula
     End If
     
     StepOrArgumentCalcFunction = Result
@@ -362,15 +370,15 @@ Public Sub UpdateNameInFormula(ByVal UpdatedName As String)
     Logger.Log TRACE_LOG, "Enter DependencyInfo.UpdateNameInFormula"
     ' Updates the "NameInFormula" property with the given "UpdatedName."
     
-    If This.NameInFormula = vbNullString Then
-        This.NameInFormula = UpdatedName
+    If this.NameInFormula = vbNullString Then
+        this.NameInFormula = UpdatedName
     Else
-        If RemoveDollarSign(This.NameInFormula) = RemoveDollarSign(UpdatedName) Then
+        If RemoveDollarSign(this.NameInFormula) = RemoveDollarSign(UpdatedName) Then
             If Text.Contains(UpdatedName, DOLLAR_SIGN) Then
-                This.NameInFormula = UpdatedName
+                this.NameInFormula = UpdatedName
             End If
         Else
-            This.NameInFormula = UpdatedName
+            this.NameInFormula = UpdatedName
         End If
     End If
     Logger.Log TRACE_LOG, "Exit DependencyInfo.UpdateNameInFormula"

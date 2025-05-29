@@ -30,7 +30,7 @@ Public Function GetOrAskForParameterValue(ByVal ParameterCell As Range _
             If UserGivenValue = False Then
                 ParameterCell.ClearContents
                 GetOrAskForParameterValue = vbNullString
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
+                Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
                 Exit Function
             End If
         Else
@@ -49,7 +49,7 @@ Public Function GetOrAskForParameterValue(ByVal ParameterCell As Range _
         If Not UserGivenValue Is Nothing Then
             ParameterCell.ClearContents
             GetOrAskForParameterValue = vbNullString
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
             Exit Function
         End If
         ' Reset error handling to default behavior
@@ -62,7 +62,7 @@ Public Function GetOrAskForParameterValue(ByVal ParameterCell As Range _
         If UserGivenValue = False Then
             ParameterCell.ClearContents
             GetOrAskForParameterValue = vbNullString
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.GetOrAskForParameterValue"
             Exit Function
         End If
     End If
@@ -255,7 +255,7 @@ Private Function IsWholeNumber(ByVal GivenValue As Variant) As Boolean
     If IsNumeric(GivenValue) Then
         IsWholeNumber = (GivenValue = CStr(Int(GivenValue)))
     End If
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.IsWholeNumber"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modUserParameter.IsWholeNumber"
     Exit Function
     
 ErrorHandler:

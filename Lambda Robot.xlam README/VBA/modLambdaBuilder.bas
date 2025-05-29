@@ -8,18 +8,24 @@ Option Private Module
 Public Sub TestGenerateDependencyInfo()
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.TestGenerateDependencyInfo"
+    Dim StartTime As Double
+    StartTime = Timer
     Dim PutOn As Range
     Set PutOn = ActiveCell
     modLambdaBuilder.GenerateLambdaStatement ActiveCell, PutOn
+    Debug.Print "Total time to gen lambda: " & Timer - StartTime
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.TestGenerateDependencyInfo"
     
 End Sub
 
-Public Sub GenerateDependencyInfo(ByVal FormulaRange As Range, ByVal PutOnRange As Range _
-                                                              , Optional ByVal DependencySearchInRegion As Range _
-                                                               , Optional ByVal IsUndo As Boolean = False)
+Public Sub GenerateDependencyInfo(ByVal FormulaRange As Range _
+                                  , ByVal PutOnRange As Range _
+                                   , Optional ByVal DependencySearchInRegion As Range _
+                                    , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.GenerateDependencyInfo"
+    Const METHOD_NAME As String = "GenerateDependencyInfo"
+    Context.ExtractContextFromCell FormulaRange, METHOD_NAME
     ' Keep the data in a static ListObject
     Static Table As ListObject
     ' Keep track of the formula range to use for undo
@@ -31,17 +37,17 @@ Public Sub GenerateDependencyInfo(ByVal FormulaRange As Range, ByVal PutOnRange 
         ' If undo, select the previously stored formula range
         If IsNotNothing(Table) Then PutFormulaOnUndo.Select
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateDependencyInfo"
-        Exit Sub
+        GoTo ExitMethod
     Else
         ' If not undo, store the formula range for future use
         Set PutFormulaOnUndo = FormulaRange
     End If
 
     ' Generate the information about the lambda formula
-    Dim CurrentLambdaInfo As LambdaInfo
+    Dim CurrentLambdaInfo As LetOrLambdaInfo
     Set CurrentLambdaInfo = GetLambdaInfo(FormulaRange, PutOnRange _
-                                           , OperationType.DEPENDENCY_INFO_GENERATION _
-                                            , DependencySearchInRegion)
+                                                       , OperationType.DEPENDENCY_INFO_GENERATION _
+                                                        , DependencySearchInRegion)
     
     ' If the operation is not undo, then set the table to hold the dependency information and assign the current procedure to undo stack
     If Not IsUndo Then
@@ -49,6 +55,10 @@ Public Sub GenerateDependencyInfo(ByVal FormulaRange As Range, ByVal PutOnRange 
         AssingOnUndo "GenerateDependencyInfo"
     End If
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.GenerateDependencyInfo"
+
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
 
 End Sub
 
@@ -61,25 +71,32 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
                                                              , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.GenerateLetStatement"
-    
+    Const METHOD_NAME As String = "GenerateLetStatement"
     ' Keep track of the formula range and old formula for undo operation
     Static PutFormulaOnUndo As Range
+    Static InputCells As Collection
     Static OldFormula As String
-
+    
+    Context.ExtractContextFromCell FormulaRange, METHOD_NAME
+    
     If IsUndo Then
         ' If undo, restore the old formula
         If IsNotNothing(PutFormulaOnUndo) Then
             PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
             AutofitFormulaBar PutFormulaOnUndo
         End If
+        MarkInputCellsAgain InputCells
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLetStatement"
-        Exit Sub
+        GoTo ExitMethod
     Else
         OldFormula = FormulaRange.Formula2
     End If
-
+    
+    Dim FormulaResultBeforCommand As Variant
+    FormulaResultBeforCommand = GetFormulaResult(FormulaRange)
+    
     ' Generate the information about the lambda formula
-    Dim CurrentLambdaInfo As LambdaInfo
+    Dim CurrentLambdaInfo As LetOrLambdaInfo
     Set CurrentLambdaInfo = GetLambdaInfo(FormulaRange, Nothing, OperationType.LET_STATEMENT_GENERATION _
                                                                 , DependencySearchInRegion)
     
@@ -91,6 +108,9 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
         PutLetOnCell.Calculate
         AutofitFormulaBar PutLetOnCell
         
+        Dim FormulaResultAfterCommand As Variant
+        FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        
         If Not IsUndo Then
             ' Check if FormulaRange and PutLetOnCell are the same, if so, store FormulaRange for future use, otherwise store PutLetOnCell
             If GetRangeRefWithSheetName(FormulaRange) = GetRangeRefWithSheetName(PutLetOnCell) Then
@@ -99,12 +119,29 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
                 Set PutFormulaOnUndo = PutLetOnCell
             End If
             
+            If FormulaFormatConfig.ClearInputFormatting Then
+                Set InputCells = CurrentLambdaInfo.UserMarkedInputCells
+                RemoveInputCellsMark InputCells
+            Else
+                Set InputCells = New Collection
+            End If
+            
+            ShowAlertIfBeforeAndAfterCommandResultIsDifferent FormulaResultBeforCommand _
+                                                              , FormulaResultAfterCommand _
+                                                               , "Generate LET Statement" _
+                                                                  , GetLETStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList)
+            
             ' Assign the current procedure to undo stack
             AssingOnUndo "GenerateLetStatement"
+            
         End If
     End If
 
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.GenerateLetStatement"
+    
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
     
 End Sub
 
@@ -120,9 +157,13 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
                                        , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.GenerateLambdaStatement"
-
+    Dim StartTime As Double
+    StartTime = Timer()
+    Const METHOD_NAME As String = "GenerateLambdaStatement"
+    Context.ExtractContextFromCell FormulaRange, METHOD_NAME
     ' Keeping track of previous state for undo functionality
     Static PutFormulaOnUndo As Range
+    Static InputCells As Collection
     Static OldFormula As String
 
     If IsUndo Then
@@ -130,19 +171,22 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
             PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
             AutofitFormulaBar PutFormulaOnUndo
         End If
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GenerateLambdaStatement"
-        Exit Sub
+        MarkInputCellsAgain InputCells
+        GoTo ExitMethod
     Else
         OldFormula = FormulaRange.Cells(1).Formula2
     End If
 
     ' Exit if there is no formula
-    If FormulaRange.Cells(1).Formula2 = vbNullString Then Exit Sub
+    If FormulaRange.Cells(1).Formula2 = vbNullString Then GoTo ExitMethod
+    
+    Dim FormulaResultBeforCommand As Variant
+    FormulaResultBeforCommand = GetFormulaResult(FormulaRange)
     
     Dim FormulaRangeFullAddress As String
     FormulaRangeFullAddress = GetRangeRefWithSheetName(PutLambdaOnCell)
 
-    Dim CurrentLambdaInfo As LambdaInfo
+    Dim CurrentLambdaInfo As LetOrLambdaInfo
     Set CurrentLambdaInfo = GetLambdaInfo(FormulaRange, Nothing _
                                                        , LAMBDA_STATEMENT_GENERATION _
                                                         , DependencySearchInRegion _
@@ -165,6 +209,9 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
         PutLambdaOnCell.Calculate
         PutLambdaOnCell.Activate
         
+        Dim FormulaResultAfterCommand As Variant
+        FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        
         ' Handle undo state
         If Not IsUndo Then
             If GetRangeRefWithSheetName(FormulaRange) = GetRangeRefWithSheetName(PutLambdaOnCell) Then
@@ -172,11 +219,52 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
             Else
                 Set PutFormulaOnUndo = PutLambdaOnCell
             End If
+            
+            If FormulaFormatConfig.ClearInputFormatting Then
+                Set InputCells = CurrentLambdaInfo.UserMarkedInputCells
+                RemoveInputCellsMark InputCells
+            Else
+                Set InputCells = New Collection
+            End If
+            
+            ShowAlertIfBeforeAndAfterCommandResultIsDifferent FormulaResultBeforCommand _
+                                                              , FormulaResultAfterCommand _
+                                                               , "Generate LAMBDA Statement" _
+                                                                , GetLAMBDAStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList)
+            
             AssingOnUndo "GenerateLambdaStatement"
         End If
     End If
+    
+    '    Debug.Print "Total Run Time To Generate Lambda: " & Timer - StartTime
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.GenerateLambdaStatement"
     
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
+    
+End Sub
+
+Private Sub MarkInputCellsAgain(ByVal InputCells As Collection)
+    
+    If InputCells Is Nothing Then Exit Sub
+    
+    Dim CurrentCell As Range
+    For Each CurrentCell In InputCells
+        MarkAsInputCells CurrentCell
+    Next CurrentCell
+    
+End Sub
+
+Private Sub RemoveInputCellsMark(ByVal InputCells As Collection)
+    
+    If InputCells Is Nothing Then Exit Sub
+    
+    Dim CurrentCell As Range
+    For Each CurrentCell In InputCells
+        ClearInputFormatting CurrentCell
+    Next CurrentCell
+
 End Sub
 
 Private Sub GenerateLambdaStatement_Undo()
@@ -195,7 +283,7 @@ Private Function GetLambdaInfo(ByVal FormulaRange As Range _
                                 , ByVal TypeOfOperation As OperationType _
                                  , ByVal DependencySearchInRegion As Range _
                                   , Optional ByVal IsCreateInNameManager As Boolean = False _
-                                   , Optional ByVal IsExportable As Boolean = False) As LambdaInfo
+                                   , Optional ByVal IsExportable As Boolean = False) As LetOrLambdaInfo
 
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.GetLambdaInfo"
 
@@ -238,7 +326,7 @@ Private Function GetLambdaInfo(ByVal FormulaRange As Range _
     
     ' Release the parser object
     Set CurrentParser = Nothing
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GetLambdaInfo"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.GetLambdaInfo"
     Exit Function
 
 ErrorHandler:
@@ -285,7 +373,8 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
                                                      , Optional ByVal IsUndo As Boolean = False)
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.LetToLambda"
-    
+    Const METHOD_NAME As String = "LetToLambda"
+    Context.ExtractContextFromCell LetFormulaCell, METHOD_NAME
     ' If PutLambdaOnCell is not defined, set it to LetFormulaCell
     If IsNothing(PutLambdaOnCell) Then Set PutLambdaOnCell = LetFormulaCell
 
@@ -297,7 +386,7 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
     If IsUndo Then
         If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = ReplaceInvalidCharFromFormulaWithValid(OldFormula)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.LetToLambda"
-        Exit Sub
+        GoTo ExitMethod
     Else
         Dim InvalidReason As String
         InvalidReason = LetToLambdaInvalidMessage(LetFormulaCell, PutLambdaOnCell)
@@ -306,7 +395,7 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
             OldFormula = PutLambdaOnCell.Formula2
         Else
             MsgBox InvalidReason, vbExclamation + vbOKOnly, "LET To LAMBDA"
-            Exit Sub
+            GoTo ExitMethod
         End If
         
     End If
@@ -314,7 +403,7 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
     On Error GoTo ErrorHandler
     ' Convert LetFormula to Lambda and assign it to target cell
     Dim FormulaText As String
-    FormulaText = LETToLAMBDAConverter.ConvertLetToLambda(LetFormulaCell.Formula2)
+    FormulaText = LETToLAMBDAConverter.ConvertLetToLambda(GetCellFormula(LetFormulaCell))
     AssignFormulaIfErrorPrintIntoDebugWindow PutLambdaOnCell, FormulaText, "Formula : "
     
     If Not IsUndo Then
@@ -327,17 +416,20 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
         ' Saving the current action for potential future undo
         AssingOnUndo "LetToLambda"
     End If
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.LetToLambda"
+    Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.LetToLambda"
+
+ExitMethod:
+    Context.ClearContext METHOD_NAME
     Exit Sub
     
 ErrorHandler:
-    Dim errorNumber As Long
-    errorNumber = Err.Number
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
     Dim ErrorDescription As String
     ErrorDescription = Err.Description
     ' Raise the error again for further processing
-    If errorNumber <> 0 Then
-        Err.Raise errorNumber, Err.Source, ErrorDescription
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
         ' This is only for debugging purpose.
         Resume
     End If
@@ -361,7 +453,7 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
                  & ". Only one cell at a time allowed."
     ElseIf Not LetFormulaCell.HasFormula Then
         Reason = "No formula found on " & LetFormulaCell.Address
-    ElseIf Not IsLetFunction(LetFormulaCell.Formula2) Then
+    ElseIf Not IsLetFunction(GetCellFormula(LetFormulaCell)) Then
         Reason = "The formula is not a LET formula.  Procedure aborted."
     ElseIf PutLambdaOnCell.Address(, , , True) <> LetFormulaCell.Address(, , , True) Then
         ' Check if the address of PutLambdaOnCell is different from the LetFormulaCell
@@ -369,10 +461,10 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
         ' If it's not empty or contains a formula, display a message box and exit the function
         If IsError(PutLambdaOnCell) Then
             Reason = "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
-                   & ".  Destination range is not empty."
+                     & ".  Destination range is not empty."
         ElseIf PutLambdaOnCell.Value <> vbNullString Or PutLambdaOnCell.HasFormula Then
             Reason = "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
-                   & ".  Destination range is not empty."
+                     & ".  Destination range is not empty."
         End If
     End If
 
@@ -381,169 +473,8 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
 
 End Function
 
-'Public Function ConvertLetToLambda(ByVal LetFormula As String) As String
-'
-'    Logger.Log TRACE_LOG, "Enter modLambdaBuilder.ConvertLetToLambda"
-'    ' Check if the formula in the cell starts with "LAMBDA", if so, no conversion is needed
-'    If IsLambdaFunction(LetFormula) Then
-'        ConvertLetToLambda = LetFormula
-'        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.ConvertLetToLambda"
-'        Exit Function
-'    End If
-'
-'    Dim LetParts As Variant
-'    LetParts = GetDependencyFunctionResult(LetFormula, LET_PARTS)
-'    ' If the returned result is not an array, that means no LET function was found in the cell, hence a message box pops up to notify the user
-'    If Not IsArray(LetParts) Then
-'        MsgBox "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
-'               & ".  No " & LET_FX_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
-'        ' Since no LET function was found, the function logs its exit and terminates
-'        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.ConvertLetToLambda"
-'        Exit Function
-'    End If
-'
-'
-'    ' Retrieve the index of the first column of the "LetParts" array
-'    Dim FirstColIndex As Long
-'    FirstColIndex = LBound(LetParts, 2)
-'
-'    ' Initialize the lambda argument part of the final string to be built
-'    Dim LambdaArgumentPart As String
-'    LambdaArgumentPart = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
-'
-'    ' Initialize the lambda invocation part of the final string to be built
-'    Dim LambdaInvocationPart As String
-'    LambdaInvocationPart = FIRST_PARENTHESIS_OPEN
-'
-'    ' Initialize the LET statement of the final lambda to be built
-'    Dim LetOfFinalLambda As String
-'    LetOfFinalLambda = LET_AND_OPEN_PAREN
-'
-'    ' Create a WorksheetFunction object to be able to use Excel worksheet functions in VBA
-'    Dim AppFunction As WorksheetFunction
-'    Set AppFunction = Application.WorksheetFunction
-'
-'    Dim CountOfNonInputStep As Long
-'
-'    ' Extract the address of the first LET variable and check if it is an input cell
-'    Dim VarName As String
-'    Dim CellAddress As String
-'    Dim CurrentRowIndex As Long
-'    Dim IsFirstLetVarIsInputCell As Boolean
-'    CellAddress = LetParts(FirstColIndex, FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1)
-'    IsFirstLetVarIsInputCell = IsRangeAddress(CellAddress)
-'
-'    ' If the first LET variable is a reference to a cell, determine if it's an input cell
-'    If IsFirstLetVarIsInputCell Then IsFirstLetVarIsInputCell = IsInputCell(RangeResolver.GetRange(CellAddress), Nothing)
-'
-'
-'    ' Iterate through the "LetParts" array
-'    For CurrentRowIndex = LBound(LetParts, 1) To UBound(LetParts, 1)
-'        ' Clean and trim the current variable name
-'        VarName = VBA.LTrim$(AppFunction.Clean(AppFunction.Trim(LetParts(CurrentRowIndex, FirstColIndex))))
-'
-'        ' Trim the current cell address
-'        CellAddress = Trim$(LetParts(CurrentRowIndex _
-'                                     , FirstColIndex + modSharedConstant.LET_PARTS_VALUE_COL_INDEX - 1))
-'
-'        ' Check if the cell address is a range address
-'        If modUtility.IsRangeAddress(CellAddress) Then
-'
-'            If IsFirstLetVarIsInputCell Then
-'                ' If the current cell is an input cell, add it to the lambda argument and invocation part
-'                If IsInputCell(RangeResolver.GetRange(CellAddress), Nothing) Then
-'                    LambdaArgumentPart = LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
-'                    LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
-'                    ' If it's not an input cell, increment the non-input step counter and add the LET variable to the final lambda
-'                Else
-'                    CountOfNonInputStep = CountOfNonInputStep + 1
-'                    LetOfFinalLambda = LetOfFinalLambda & NEW_LINE & THREE_SPACE & VarName & _
-'                                       LIST_SEPARATOR & _
-'                                       Text.PadIfNotPresent(CellAddress, ONE_SPACE, FROM_START) & LIST_SEPARATOR
-'                End If
-'                ' If the first LET variable was not an input cell, add it to the lambda argument and invocation part
-'            Else
-'                LambdaArgumentPart = LambdaArgumentPart & UpdateForOptionalArgument(LetFormula, VarName)
-'                LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
-'            End If
-'            ' If the variable is an optional argument, create it and add it to the lambda argument and invocation part
-'        ElseIf modUtility.IsOptionalArgument(LetFormula, VarName) Then
-'            LambdaArgumentPart = LambdaArgumentPart & CreateOptionalArgument(VarName)
-'            LambdaInvocationPart = LambdaInvocationPart & CellAddress & LIST_SEPARATOR
-'            ' If it's not an optional argument or a range address, increment the non-input step counter and add the LET variable to the final lambda
-'        Else
-'            CountOfNonInputStep = CountOfNonInputStep + 1
-'            LetOfFinalLambda = LetOfFinalLambda & NEW_LINE & THREE_SPACE & VarName & _
-'                               LIST_SEPARATOR & _
-'                               Text.PadIfNotPresent(CellAddress, ONE_SPACE, FROM_START) & LIST_SEPARATOR
-'        End If
-'    Next CurrentRowIndex
-'
-'    ' Remove trailing comma from the LambdaInvocationPart
-'    LambdaInvocationPart = modUtility.RemoveEndingText(LambdaInvocationPart, LIST_SEPARATOR)
-'
-'    ' Remove trailing comma from the LetOfFinalLambda
-'    LetOfFinalLambda = VBA.RTrim$(Text.RemoveFromEndIfPresent(LetOfFinalLambda, LIST_SEPARATOR))
-'
-'    ' If only one non-input step was encountered, remove the opening parenthesis from LetOfFinalLambda
-'    If CountOfNonInputStep = 1 Then
-'        LetOfFinalLambda = VBA.Mid$(LetOfFinalLambda, Len(LET_AND_OPEN_PAREN) + 1)
-'        ' Otherwise, append closing parenthesis to LetOfFinalLambda
-'    Else
-'        LetOfFinalLambda = LetOfFinalLambda & NEW_LINE & THREE_SPACE & FIRST_PARENTHESIS_CLOSE
-'    End If
-'
-'    LambdaInvocationPart = LambdaInvocationPart & FIRST_PARENTHESIS_CLOSE
-'
-'    ' Form the final lambda function by concatenating LambdaArgumentPart, LetOfFinalLambda and LambdaInvocationPart
-'    ConvertLetToLambda = LambdaArgumentPart & LetOfFinalLambda & Chr$(10) _
-'                         & FIRST_PARENTHESIS_CLOSE & LambdaInvocationPart
-'
-'    ' Replace new line character with line feed in the final lambda function so that we can use in cell.
-'    ConvertLetToLambda = ReplaceNewlineWithChar10(ConvertLetToLambda)
-'
-'    Logger.Log DEBUG_LOG, "Result Lambda : " & ConvertLetToLambda
-'    Logger.Log TRACE_LOG, "Exit modLambdaBuilder.ConvertLetToLambda"
-'
-'    Logger.Log TRACE_LOG, "Exit modLambdaBuilder.ConvertLetToLambda"
-'
-'End Function
-
-'Private Function UpdateForOptionalArgument(ByVal LetFormula As String, ByVal VarName As String) As String
-'
-'    Logger.Log TRACE_LOG, "Enter modLambdaBuilder.UpdateForOptionalArgument"
-'    If modUtility.IsOptionalArgument(LetFormula, VarName) Then
-'        ' If it is an optional argument, create an optional argument
-'        UpdateForOptionalArgument = CreateOptionalArgument(VarName)
-'    Else
-'        ' If not, return a cleaned and trimmed VarName, followed by a comma and a space
-'        UpdateForOptionalArgument = Application.WorksheetFunction.Trim(Application.WorksheetFunction.Clean(VarName)) _
-'                                    & LIST_SEPARATOR & ONE_SPACE
-'    End If
-'
-'    Logger.Log TRACE_LOG, "Exit modLambdaBuilder.UpdateForOptionalArgument"
-'
-'End Function
-
-'Private Function CreateOptionalArgument(ByVal VarName As String) As String
-'
-'    Logger.Log TRACE_LOG, "Enter modLambdaBuilder.CreateOptionalArgument"
-'
-'    ' Establish a reference to Application.WorksheetFunction
-'    Dim AppFunction As WorksheetFunction
-'    Set AppFunction = Application.WorksheetFunction
-'
-'    ' Create an optional argument by adding parentheses around a cleaned and trimmed VarName,
-'    ' followed by a comma and a space
-'    CreateOptionalArgument = LEFT_BRACKET & _
-'                             AppFunction.Trim(AppFunction.Clean(VarName)) & _
-'                             RIGHT_BRACKET & LIST_SEPARATOR & ONE_SPACE
-'    Logger.Log TRACE_LOG, "Exit modLambdaBuilder.CreateOptionalArgument"
-'
-'End Function
-
 Private Function ConcatenateArray(ByVal GivenArray As Variant, ByVal StartFromIndex As Long _
-                                                             , ByVal Delimiter As String) As String
+                                                              , ByVal Delimiter As String) As String
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.ConcatenateArray"
 
@@ -598,6 +529,32 @@ Public Sub MarkAsInputCells(ByVal GivenRange As Range, Optional ByVal InteriorOn
     
 End Sub
 
+'--------------------------------------------< OA Robot >--------------------------------------------
+' Command Name:           Clear Input Formatting
+' Description:            Clear back color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command.
+' Macro Expression:       modLambdaBuilder.ClearInputFormatting([Selection])
+' Generated:              11/14/2024 05:52 PM
+'----------------------------------------------------------------------------------------------------
+Public Sub ClearInputFormatting(ByVal GivenRange As Range)
+    
+    If GivenRange Is Nothing Then Exit Sub
+    
+    Set GivenRange = Intersect(GivenRange.Worksheet.UsedRange, GivenRange)
+        
+    Dim CurrentCell As Range
+    For Each CurrentCell In GivenRange.Cells
+        If IsInputCell(CurrentCell, Nothing) Then
+            With CurrentCell
+                .Font.Color = 0
+                .Interior.Pattern = xlNone
+                .Interior.TintAndShade = 0
+                .Interior.PatternTintAndShade = 0
+            End With
+        End If
+    Next CurrentCell
+    
+End Sub
+
 ' --------------------------------------------< OA Robot >--------------------------------------------
 '  Command Name:           Mark Lambda As LET Step
 '  Description:            Create LETStep_FX and LETStepRef_FX named range for activecell formula so that we can use them for further calculation for generating lambda statement.
@@ -607,8 +564,10 @@ End Sub
 Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
     
     Logger.Log TRACE_LOG, "Enter modLambdaBuilder.MarkLambdaAsLETStep"
+    Const METHOD_NAME As String = "MarkLambdaAsLETStep"
+    Context.ExtractContextFromCell ForCell, METHOD_NAME
     Dim FormulaText As String
-    FormulaText = ForCell.Formula2
+    FormulaText = GetCellFormula(ForCell)
     Dim FxName As String
     Dim RangeReference As String
     RangeReference = GetRangeRefWithSheetName(ForCell, True)
@@ -619,7 +578,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
         MsgBox ForCell.Address & " doesn't contains any " & LAMBDA_FX_NAME & " def." _
                , vbCritical + vbInformation, "Mark Lambda As LET Step"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.MarkLambdaAsLETStep"
-        Exit Sub
+        GoTo ExitMethod
     End If
     
     ' Retrieve the function name associated with the range
@@ -631,7 +590,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
         MsgBox "Couldn't find proper label for the LAMBDA. Please add a label and run again." _
                , vbCritical + vbInformation, "Mark Lambda As LET Step"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.MarkLambdaAsLETStep"
-        Exit Sub
+        GoTo ExitMethod
     End If
     
     ' Remove any leading underscore from the function name
@@ -643,12 +602,12 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
     
     ' Clean up any errors in LETStep named ranges
     DeleteLETStepNamedRangesHavingError AddToBook
-    FormulaText = ConvertDependencisToFullyQualifiedRef(ForCell.Formula2, ForCell.Worksheet)
+    FormulaText = ConvertDependencisToFullyQualifiedRef(GetCellFormula(ForCell), ForCell.Worksheet)
     FormulaText = GetLambdaDefPart(FormulaText)
     ' Working with named ranges in the workbook
     With AddToBook
         ' Check if a named range exists for the LETStep function
-        If IsNamedRangeExist(AddToBook, LETSTEP_UNDERSCORE_PREFIX & FxName) Then
+        If Context.IsNamedRangeExist(AddToBook, LETSTEP_UNDERSCORE_PREFIX & FxName) Then
             ' If it exists, update the reference
             .Names(LETSTEP_UNDERSCORE_PREFIX & FxName).RefersTo = FormulaText
         Else
@@ -657,7 +616,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
         End If
         
         ' Repeat the process for the LETStepRef named range
-        If IsNamedRangeExist(AddToBook, LETSTEPREF_UNDERSCORE_PREFIX & FxName) Then
+        If Context.IsNamedRangeExist(AddToBook, LETSTEPREF_UNDERSCORE_PREFIX & FxName) Then
             .Names(LETSTEPREF_UNDERSCORE_PREFIX & FxName).RefersTo = EQUAL_SIGN & RangeReference
         Else
             .Names.Add LETSTEPREF_UNDERSCORE_PREFIX & FxName, EQUAL_SIGN & RangeReference
@@ -666,5 +625,10 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
     End With
     Logger.Log TRACE_LOG, "Exit modLambdaBuilder.MarkLambdaAsLETStep"
     
+ExitMethod:
+    Context.ClearContext METHOD_NAME
+    Exit Sub
+    
 End Sub
+
 

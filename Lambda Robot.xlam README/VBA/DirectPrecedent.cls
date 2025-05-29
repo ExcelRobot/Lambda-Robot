@@ -10,28 +10,27 @@ Attribute VB_Exposed = False
 '@PredeclaredId
 Option Explicit
 
-
 Private Type TDirectPrecedent
     RangeRef As String
     NameInFormula As String
 End Type
 
-Private This As TDirectPrecedent
+Private this As TDirectPrecedent
 
 Public Property Get RangeRef() As String
-    RangeRef = This.RangeRef
+    RangeRef = this.RangeRef
 End Property
 
 Public Property Let RangeRef(ByVal RHS As String)
-    This.RangeRef = RHS
+    this.RangeRef = RHS
 End Property
 
 Public Property Get NameInFormula() As String
-    NameInFormula = This.NameInFormula
+    NameInFormula = this.NameInFormula
 End Property
 
 Public Property Let NameInFormula(ByVal RHS As String)
-    This.NameInFormula = RHS
+    this.NameInFormula = RHS
 End Property
 
 Public Property Get Self() As DirectPrecedent
@@ -50,6 +49,5 @@ Public Function Create(ByVal RangeRef As String _
     Logger.Log TRACE_LOG, "Exit DirectPrecedent.Create"
 
 End Function
-
 
 

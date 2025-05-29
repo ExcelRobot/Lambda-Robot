@@ -43,11 +43,14 @@ Public Function ExtractOneColumnOfA2DArray(ByVal GivenArray As Variant, ByVal Co
 End Function
 
 ' This function checks if GivenCell is an input cell based on color values.
-Public Function IsInputCell(ByVal GivenCell As Range, ByVal DependencySearchInRegion As Range) As Boolean
+Public Function IsInputCell(ByVal GivenCell As Range _
+                            , ByVal DependencySearchInRegion As Range) As Boolean
     
     ' Check if GivenCell is an input cell based on color values.
     Dim Result As Boolean
-    If (GivenCell.Interior.Color = INPUT_CELL_BACKGROUND_COLOR) Then
+    If IsNothing(GivenCell) Then
+        Result = False
+    ElseIf (GivenCell.Interior.Color = INPUT_CELL_BACKGROUND_COLOR) Then
         Result = True
     ElseIf GivenCell.Font.Color = INPUT_CELL_FONT_COLOR Then
         Result = True
@@ -78,11 +81,12 @@ NotExist:
     
 End Function
 
-Public Function FindLetVarName(ByVal FromRange As Range, Optional ByVal InvalidRegionForNameCell As Range) As String
+Public Function FindLetVarName(ByVal FromRange As Range _
+                               , Optional ByVal InvalidRegionForNameCell As Range) As String
     
     ' Find a suitable name for a variable based on the input FromRange.
     If FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
-        FindLetVarName = FromRange.Worksheet.name
+        FindLetVarName = FromRange.Worksheet.Name
         Exit Function
     End If
         
@@ -99,8 +103,9 @@ End Function
 Public Function FindLetVarNameCell(ByVal FromRange As Range, Optional ByVal InvalidRegionForNameCell As Range) As Range
     
     ' Find a suitable name for a variable based on the input FromRange.
-    If FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
-        Set FindLetVarNameCell = Nothing
+    If IsNothing(FromRange) Then
+        Exit Function
+    ElseIf FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
         Exit Function
     End If
         
@@ -153,12 +158,19 @@ End Function
 
 Private Function IsValidToCheckOnLeftCellForLabel(ByVal InvalidRegionForNameCell As Range, ByVal OneCellLeft As Range) As Boolean
     
+    If IsNotNothing(InvalidRegionForNameCell) Then
+        If IsInsideInvalidRegion(InvalidRegionForNameCell, OneCellLeft) Then
+            IsValidToCheckOnLeftCellForLabel = False
+            Exit Function
+        End If
+    End If
+        
     Dim Result As Boolean
+    
     Result = ( _
              IsCellBlank(OneCellLeft) _
              And OneCellLeft.Column > 1 _
              And Not IsCellHidden(OneCellLeft) _
-             And Not IsInsideInvalidRegion(InvalidRegionForNameCell, OneCellLeft) _
              )
     
     IsValidToCheckOnLeftCellForLabel = Result
@@ -172,7 +184,7 @@ Private Function IsInsideInvalidRegion(ByVal InvalidRegion As Range, ByVal Check
         Result = False
     ElseIf IsNothing(CheckCell) Then
         Result = False
-    ElseIf InvalidRegion.Worksheet.name <> CheckCell.Worksheet.name Then
+    ElseIf InvalidRegion.Worksheet.Name <> CheckCell.Worksheet.Name Then
         Result = False
     Else
         Result = IsNotNothing(Intersect(InvalidRegion, CheckCell))
@@ -206,7 +218,7 @@ Private Function IsProbableLetVarName(ByVal CurrentCell As Range, ByVal InvalidR
     ' Check if CurrentCell is a probable variable name.
     
     If IsNotNothing(CurrentCell) And IsNotNothing(InvalidRegionForNameCell) Then
-        If CurrentCell.Worksheet.name = InvalidRegionForNameCell.Worksheet.name Then
+        If CurrentCell.Worksheet.Name = InvalidRegionForNameCell.Worksheet.Name Then
             If IsNotNothing(Intersect(InvalidRegionForNameCell, CurrentCell)) Then
                 IsProbableLetVarName = False
                 Exit Function
@@ -314,7 +326,7 @@ Public Function ConvertToValidLetVarName(ByVal GivenName As String) As String
 End Function
 
 Public Function MakeValidName(ByVal GivenInvalidName As String _
-                               , NamingConv As VarNamingStyle) As String
+                              , NamingConv As VarNamingStyle) As String
     
     Dim ValidName As String
     ' Replace Newline with space.
@@ -347,7 +359,7 @@ Public Function MakeValidName(ByVal GivenInvalidName As String _
     End Select
     
     ' If the name is a range reference, split it and add underscores.
-    If IsRangeReference(ValidName) Then
+    If IsA1C1RangeAddress(ValidName) Then
         Dim ColRefAndRowRef As Collection
         Set ColRefAndRowRef = Text.SplitDigitAndNonDigit(ValidName)
         ValidName = ColRefAndRowRef.Item(1) & UNDER_SCORE & ColRefAndRowRef.Item(2)
@@ -363,11 +375,19 @@ Public Function MakeValidName(ByVal GivenInvalidName As String _
 End Function
 
 Public Function IsValidLetVarName(ByVal NameToCheck As String) As Boolean
-    IsValidLetVarName = (NameToCheck = RemoveInvalidCharcters(NameToCheck, False))
+    IsValidLetVarName = ( _
+                        NameToCheck = RemoveInvalidCharcters(NameToCheck, False) _
+                        And Not IsA1C1RangeAddress(NameToCheck) _
+                        And Trim$(NameToCheck) <> vbNullString _
+                        )
 End Function
 
 Public Function IsValidDefinedName(ByVal NameToCheck As String) As Boolean
-    IsValidDefinedName = (NameToCheck = RemoveInvalidCharcters(NameToCheck, False))
+    IsValidDefinedName = ( _
+                         NameToCheck = RemoveInvalidCharcters(NameToCheck, False) _
+                         And Not IsA1C1RangeAddress(NameToCheck) _
+                         And Trim$(NameToCheck) <> vbNullString _
+                         )
 End Function
 
 Private Function ReplaceLineBreak(ByVal Text As String, ReplaceWith As String) As String
@@ -619,7 +639,6 @@ Public Function IsValidFirstChar(ByVal GivenChar As String) As Boolean
 
 End Function
 
-
 ' Get the valid characters from the given name starting from the second character.
 Public Function GetValidCharForSecondToOnward(ByVal GivenName As String, KeepSpace As Boolean) As String
 
@@ -677,6 +696,7 @@ Public Function IsValidSecondChar(ByVal GivenChar As String) As Boolean
     IsValidSecondChar = (Not IsExistInCollection(InvalidChars, CStr(Asc(GivenChar))))
 
 End Function
+
 Private Sub AddCharsToColl(ByRef ToColl As Collection, ByVal StartCodeIndex As Long, ByVal EndCodeIndex As Long)
     
     Dim CodeIndex As Long
@@ -1055,13 +1075,57 @@ Private Function RemoveStartingChar(ByVal GivenText As String, ByVal GivenChar A
     
 End Function
 
+Public Function IsA1C1RangeAddress(ByVal GivenRangeAddress As String) As Boolean
+    
+    Dim Result As Boolean
+    If Is3DReference(GivenRangeAddress) Then
+        Result = True
+    ElseIf Text.IsEndsWith(GivenRangeAddress, DYNAMIC_CELL_REFERENCE_SIGN) Then
+        Result = True
+    ElseIf IsRangeAddress(GivenRangeAddress) Then
+        
+        Dim CurrentRange As Range
+        Set CurrentRange = RangeResolver.GetRange(GivenRangeAddress)
+        
+        If Text.Contains(GivenRangeAddress, SHEET_NAME_SEPARATOR) _
+           And Text.Contains(GivenRangeAddress, CurrentRange.Worksheet.Name) Then
+            
+            Dim SheetName As String
+            SheetName = Text.BeforeDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_end)
+            SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
+            
+            Dim CellAddress As String
+            CellAddress = RemoveDollarSign(Text.AfterDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_end))
+            
+            Result = ( _
+                     Text.IsEqual(SheetName, CurrentRange.Worksheet.Name, IGNORE_CASE) _
+                     And Text.IsEqual(CurrentRange.Address(False, False), CellAddress, IGNORE_CASE) _
+                     )
+            
+        Else
+            Result = Text.IsEqual(CurrentRange.Address(False, False), RemoveDollarSign(GivenRangeAddress), IGNORE_CASE)
+        End If
+        
+    End If
+    
+    IsA1C1RangeAddress = Result
+    
+End Function
+
 Public Function IsRangeAddress(ByVal GivenRangeAddress As String) As Boolean
     
     ' Check if the given address is a valid range address.
     On Error GoTo NotRangeAddress
-    Dim CurrentRange As Range
-    Set CurrentRange = RangeResolver.GetRange(GivenRangeAddress)
-    IsRangeAddress = IsNotNothing(CurrentRange)
+    Dim Result As Boolean
+    If Is3DReference(GivenRangeAddress) Then
+        Result = True
+    Else
+        Dim CurrentRange As Range
+        Set CurrentRange = RangeResolver.GetRange(GivenRangeAddress)
+        Result = IsNotNothing(CurrentRange)
+    End If
+    
+    IsRangeAddress = Result
 
 Cleanup:
     Exit Function
@@ -1103,32 +1167,25 @@ End Function
 Public Function IsInsideNamedRange(ByVal GivenRange As Range) As Boolean
     
     ' Check if the given range is inside a named range.
-    Dim CurrentName As name
+    Dim CurrentName As Name
     Set CurrentName = FindNamedRangeFromSubCell(GivenRange)
     IsInsideNamedRange = IsNotNothing(CurrentName)
     
 End Function
 
-Public Function FindNamedRangeFromSubCell(ByVal GivenRange As Range) As name
+Public Function FindNamedRangeFromSubCell(ByVal GivenRange As Range) As Name
     
     ' Find the named range containing the given range.
-    Dim CurrentNameRange As name
+    Dim CurrentNameRange As Name
     Dim NameOfCurrentNamedRange As String
     Dim ReferredRange As Range
-    For Each CurrentNameRange In GivenRange.Worksheet.Parent.Names
-        If CurrentNameRange.Visible Then
-            NameOfCurrentNamedRange = Replace(CurrentNameRange.name, EQUAL_SIGN, vbNullString)
-            On Error Resume Next
-            Set ReferredRange = CurrentNameRange.RefersToRange
-            On Error GoTo 0
-            If IsNothing(ReferredRange) Then
-                ' Logger.Log DEBUG_LOG, NameOfCurrentNamedRange & " not found"
-                ' Debug.Assert NameOfCurrentNamedRange <> "_xlpm.side1"
-            ElseIf GivenRange.Worksheet.name = ReferredRange.Worksheet.name Then
-                If HasIntersection(ReferredRange, GivenRange) Then
-                    Set FindNamedRangeFromSubCell = CurrentNameRange
-                    Exit Function
-                End If
+    For Each CurrentNameRange In Context.GetAllRangeRefNamedRangeFromBook(GivenRange.Worksheet.Parent)
+        NameOfCurrentNamedRange = Replace(CurrentNameRange.Name, EQUAL_SIGN, vbNullString)
+        Set ReferredRange = CurrentNameRange.RefersToRange
+        If GivenRange.Worksheet.Name = ReferredRange.Worksheet.Name Then
+            If HasIntersection(ReferredRange, GivenRange) Then
+                Set FindNamedRangeFromSubCell = CurrentNameRange
+                Exit Function
             End If
         End If
     Next CurrentNameRange
@@ -1234,7 +1291,7 @@ End Function
 Private Function IndexOf(ByVal SearchInArray As Variant, ByVal SearchFor As Variant _
                                                         , Optional ByVal IsSearchFromTop As Boolean = True _
                                                          , Optional ByVal SearchInColumn As Long = -1 _
-                                                         , Optional ByVal IsMustEqual As Boolean = False) As Long
+                                                          , Optional ByVal IsMustEqual As Boolean = False) As Long
     
     If SearchInColumn = -1 Then
         SearchInColumn = LBound(SearchInArray, 2)
@@ -1312,7 +1369,7 @@ Public Function ExtractStartFormulaName(ByVal FormulaText As String) As String
 
     ' Remove the equal sign if present at the beginning and trim any leading/trailing spaces.
     Result = Text.RemoveFromStartIfPresent(Result, EQUAL_SIGN)
-    
+    Result = Text.RemoveFromStartIfPresent(Result, PLUS_SIGN)
     ExtractStartFormulaName = Text.Trim(Result)
 
 End Function
@@ -1321,7 +1378,7 @@ Public Function IsCellHasSavedLambdaFormula(ByVal FromCell As Range) As Boolean
     
     ' Checks if the given cell contains a Lambda formula.
     Dim LambdaFormulaName As String
-    LambdaFormulaName = ExtractStartFormulaName(FromCell.Formula2)
+    LambdaFormulaName = ExtractStartFormulaName(GetCellFormula(FromCell))
 
     ' If the cell contains a valid formula name, retrieve the formula text from the defined name.
     If LambdaFormulaName <> vbNullString Then
@@ -1356,7 +1413,8 @@ Public Function IsMetadataLetVarName(ByVal GivenText As String) As Boolean
     IsMetadataLetVarName = Text.IsStartsWith(GivenText, METADATA_IDENTIFIER)
 End Function
 
-Public Function FindMetadataValue(ByVal LetParts As Variant, ByVal MetadataVarName As String) As String
+Public Function FindMetadataValue(ByVal LetParts As Variant _
+                                  , ByVal MetadataVarName As String) As String
     
     ' Finds and returns the value of the given metadata variable in the TokenizedFormula.
     MetadataVarName = Text.RemoveFromEndIfPresent(MetadataVarName, LIST_SEPARATOR)
@@ -1422,7 +1480,7 @@ NoComment:
     
 End Function
 
-Public Sub UpdateNameComment(ByVal GivenName As name, ByVal NewComment As String)
+Public Sub UpdateNameComment(ByVal GivenName As Name, ByVal NewComment As String)
     GivenName.Comment = NewComment
 End Sub
 
@@ -1431,7 +1489,7 @@ Public Function ExtractNameFromLocalNameRange(ByVal LocalName As String) As Stri
     ' Extracts the name from a local named range.
     Dim Result As String
     If Text.Contains(LocalName, SHEET_NAME_SEPARATOR) Then
-        Result = Text.AfterDelimiter(LocalName, SHEET_NAME_SEPARATOR, , FROM_END)
+        Result = Text.AfterDelimiter(LocalName, SHEET_NAME_SEPARATOR, , FROM_end)
     Else
         Result = LocalName
     End If
@@ -1450,7 +1508,20 @@ Public Function SplitArrayConstantTo2DArray(ByVal ArrayConstant As String) As Va
     
     ' Splits the ArrayConstant string to a 2D array.
     Dim SplittedArrayConstant As Variant
-    SplittedArrayConstant = Evaluate(EQUAL_SIGN & ArrayConstant)
+    If Text.IsStartsWith(ArrayConstant, LEFT_BRACE) And Text.IsEndsWith(ArrayConstant, RIGHT_BRACE) Then
+        Const MAX_FX_LENGTH_FOR_EVALUATE As Long = 255
+        If Len(EQUAL_SIGN & ArrayConstant) <= 255 Then
+            SplittedArrayConstant = Evaluate(EQUAL_SIGN & ArrayConstant)
+        Else
+            Dim HelperName As Name
+            Set HelperName = ThisWorkbook.Names.Add("HelperName", EQUAL_SIGN & ReplaceNewlineWithChar10(ArrayConstant))
+            SplittedArrayConstant = Evaluate(EQUAL_SIGN & "'" & ThisWorkbook.Name & "'!" & HelperName.Name)
+            HelperName.Delete
+        End If
+    Else
+        SplittedArrayConstant = ArrayConstant
+    End If
+    
     If Not IsArray(SplittedArrayConstant) Then SplittedArrayConstant = Array(SplittedArrayConstant)
     Dim Result As Variant
     If DimensionOfAnArray(SplittedArrayConstant) = 1 Then
@@ -1496,7 +1567,7 @@ Public Function FindUniqueNameByIncrementingNumber(ByVal AllNameMap As Collectio
     End If
 
     If Text.ExtractNumberFromEnd(StartName) = vbNullString Then
-        StartName = Text.PadIfNotPresent(StartName, "_2", FROM_END)
+        StartName = Text.PadIfNotPresent(StartName, "_2", FROM_end)
     End If
 
     Do While modUtility.IsExistInCollection(AllNameMap, StartName)
@@ -1534,9 +1605,9 @@ Public Function ConvertToFullyQualifiedCellRef(ByVal ForCell As Range) As String
     ' Converts a cell reference to a fully qualified cell reference with book name and sheet names.
     ' Example output: '[Different Locale Functions Map.xlsm]Keywords Locale Map'!$H$6
     ConvertToFullyQualifiedCellRef = SINGLE_QUOTE & LEFT_BRACKET _
-                                   & EscapeSingeQuote(ForCell.Worksheet.Parent.name) _
-                                   & RIGHT_BRACKET & EscapeSingeQuote(ForCell.Worksheet.name) & SINGLE_QUOTE _
-                                   & SHEET_NAME_SEPARATOR & ForCell.Address
+                                     & EscapeSingeQuote(ForCell.Worksheet.Parent.Name) _
+                                     & RIGHT_BRACKET & EscapeSingeQuote(ForCell.Worksheet.Name) & SINGLE_QUOTE _
+                                     & SHEET_NAME_SEPARATOR & ForCell.Address
                                      
 End Function
 
@@ -1575,8 +1646,8 @@ Public Function GetSheetRefForRangeReference(ByVal SheetName As String _
     If IsSingleQuoteNeeded Then
         ' for single quote we need to escape with double single quote
         Result = SINGLE_QUOTE _
-               & EscapeSingeQuote(SheetName) _
-               & SINGLE_QUOTE & SHEET_NAME_SEPARATOR
+                 & EscapeSingeQuote(SheetName) _
+                 & SINGLE_QUOTE & SHEET_NAME_SEPARATOR
     Else
         Result = SheetName & SHEET_NAME_SEPARATOR
     End If
@@ -1609,7 +1680,7 @@ Public Function RemoveSheetQualifierIfPresent(ByVal RangeRef As String) As Strin
     Dim Result As String
     
     If Text.Contains(RangeRef, SHEET_NAME_SEPARATOR) Then
-        Result = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        Result = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
     Else
         Result = RangeRef
     End If
@@ -1626,28 +1697,9 @@ Public Function GetRangeRefWithSheetName(ByVal GivenRange As Range _
     ' If IsAbsolute is True, the reference is absolute; otherwise, it's relative.
     Dim SheetRef As Worksheet
     Set SheetRef = GivenRange.Worksheet
-    GetRangeRefWithSheetName = GetSheetRefForRangeReference(SheetRef.name, IsSingleQuoteMandatory) _
+    GetRangeRefWithSheetName = GetSheetRefForRangeReference(SheetRef.Name, IsSingleQuoteMandatory) _
                                & GetRangeReference(GivenRange, IsAbsolute)
                                
-End Function
-
-Public Function FindLambdas(ByVal FromBook As Workbook) As Collection
-    
-    ' Finds all lambda functions in the given workbook and returns a collection of their names.
-    Logger.Log TRACE_LOG, "Enter modUtility.FindLambdas"
-    Dim CurrentName As name
-    Dim AllLambda As Collection
-    Set AllLambda = New Collection
-    For Each CurrentName In FromBook.Names
-        ' Check if the name refers to a lambda function.
-        If IsLambdaFunction(CurrentName.RefersTo) Then
-            ' Add the name to the collection of lambda functions.
-            AllLambda.Add CurrentName, CStr(CurrentName.name)
-        End If
-    Next CurrentName
-    Set FindLambdas = AllLambda
-    Logger.Log TRACE_LOG, "Exit modUtility.FindLambdas"
-    
 End Function
 
 Public Function IsAllCellBlank(ByVal NeededRange As Range) As Boolean
@@ -1665,8 +1717,8 @@ End Function
 ' @ExampleCall : Set ArrayToCollectionMapping = ArrayToCollection(SUTArray, IsSuppressDuplicateError:=True) >> It will skip duplicate item.
 Public Function ArrayToCollection(ByVal GivenArray As Variant _
                                   , Optional ByVal KeyColumnIndex As Long = -1 _
-                                  , Optional ByVal ItemColumnIndex As Long = -1 _
-                                  , Optional ByVal IsSuppressDuplicateError As Boolean = True) As Variant
+                                   , Optional ByVal ItemColumnIndex As Long = -1 _
+                                    , Optional ByVal IsSuppressDuplicateError As Boolean = True) As Variant
 
 
     Dim FirstColumnIndex  As Long
@@ -1735,28 +1787,6 @@ Public Function VectorToArray(ByVal Vector As Variant, Optional ByVal IsInColumn
     
 End Function
 
-Public Function FindAllNamedRange(ByVal FromBook As Workbook, ByVal IsRefersToRange As Boolean) As Collection
-    
-    Dim Result As Collection
-    Set Result = New Collection
-    Dim CurrentName As name
-    For Each CurrentName In FromBook.Names
-        
-        If CurrentName.Visible Then
-            If IsRefersToRange Then
-                If Not IsRefersToRangeIsNothing(CurrentName) Then
-                    Result.Add CurrentName, CStr(CurrentName.name)
-                End If
-            Else
-                Result.Add CurrentName, CStr(CurrentName.name)
-            End If
-        End If
-        
-    Next CurrentName
-    Set FindAllNamedRange = Result
-    
-End Function
-
 Public Function IsLocalScopeNamedRange(ByVal LocalName As String) As Boolean
     
     Dim FoundAt As Long
@@ -1797,8 +1827,8 @@ Public Sub AssingOnUndo(ByVal UndoForMethod As String)
     
     ' Assigns an Undo method for the specified action.
     Dim UndoSubName As String
-    UndoSubName = SINGLE_QUOTE & EscapeSingeQuote(ThisWorkbook.name) _
-                & SINGLE_QUOTE & EXCLAMATION_SIGN & UndoForMethod & "_Undo"
+    UndoSubName = SINGLE_QUOTE & EscapeSingeQuote(ThisWorkbook.Name) _
+                  & SINGLE_QUOTE & EXCLAMATION_SIGN & UndoForMethod & "_Undo"
     Application.OnUndo "Undo " & UndoForMethod & " Action", UndoSubName
     
 End Sub
@@ -1852,7 +1882,7 @@ Public Function UpdateForIsOmitted(ByVal GivenFormula As String) As String
     ' Updates the formula to replace occurrences of ISOMITTED with OR(ISOMITTED(VarName), AND(ISBLANK(VarName))).
     ' GivenFormula: The original formula to update.
     
-     Const VAR_PLACE_HOLDER As String = "{VarName}"
+    Const VAR_PLACE_HOLDER As String = "{VarName}"
     Dim IsOmittedWithBlank As String
     IsOmittedWithBlank = OR_FX_NAME & FIRST_PARENTHESIS_OPEN & ISOMITTED_FX_NAME _
                          & "(" & VAR_PLACE_HOLDER & ")" & LIST_SEPARATOR & AND_FX_NAME _
@@ -1931,24 +1961,6 @@ Public Function GetMatchingVarNameDependency(ByVal VarName As String _
     
 End Function
 
-Public Function GetNamedRangeToDictionary(ByVal FromBook As Workbook) As Dictionary
-    
-    ' Returns a dictionary that maps named range names to their respective named ranges in the specified workbook.
-    ' FromBook: The workbook to extract the named ranges from.
-
-    Dim NamedRangeNameToNamedRangeMap As Dictionary
-    Set NamedRangeNameToNamedRangeMap = New Scripting.Dictionary
-
-    Dim CurrentName As name
-    For Each CurrentName In FromBook.Names
-        If CurrentName.Visible Then
-            NamedRangeNameToNamedRangeMap.Add CStr(CurrentName.name), CurrentName
-        End If
-    Next CurrentName
-    Set GetNamedRangeToDictionary = NamedRangeNameToNamedRangeMap
-    
-End Function
-
 Public Function IsInsideTableOrNamedRange(ByVal CurrentCell As Range) As Boolean
     
     ' Checks if the given cell is inside a table or a named range.
@@ -1978,12 +1990,12 @@ End Function
 Public Function IsBothRangeEqual(ByVal FirstRange As Range, ByVal SecondRange As Range) As Boolean
     IsBothRangeEqual = ( _
                        FirstRange.Address = SecondRange.Address _
-                       And FirstRange.Worksheet.name = SecondRange.Worksheet.name _
+                       And FirstRange.Worksheet.Name = SecondRange.Worksheet.Name _
                        )
 End Function
 
 Public Function ConvertToValueFormula(ByVal AllData As Variant _
-                                       , Optional ByVal DefaultIfBlank As Variant = 0) As String
+                                      , Optional ByVal DefaultIfBlank As Variant = 0) As String
     
     ' Converts a 2D array to a string representation of an array constant.
     ' If single cell value then return the value.
@@ -2018,7 +2030,7 @@ Public Function ConvertToValueFormula(ByVal AllData As Variant _
     Value = Left$(Value, Len(Value) - Len(ARRAY_CONST_ROW_SEPARATOR))
     Value = Value & RIGHT_BRACE
     
-    ConvertToValueFormula = Value               ' Return the final array constant string.
+    ConvertToValueFormula = Value                ' Return the final array constant string.
     
 End Function
 
@@ -2034,7 +2046,7 @@ Private Function GetFormattedValueForArrayConst(ByVal Value As Variant _
     ElseIf Value = vbNullString Then
         Result = DefaultIfBlank                  ' Return the default value for blank data.
     Else
-        Result = QUOTES & Value & QUOTES        ' Wrap non-numeric values with quotes.
+        Result = QUOTES & Value & QUOTES         ' Wrap non-numeric values with quotes.
     End If
     
     GetFormattedValueForArrayConst = Result
@@ -2090,7 +2102,6 @@ Public Function GetErrorText(ByVal ErrData As Variant) As String
 
 End Function
 
-
 Public Function FindFormulaText(ByVal FromBook As Workbook _
                                 , ByVal StartFormulaInSheet As Worksheet _
                                  , ByVal RangeReference As String) As String
@@ -2106,7 +2117,7 @@ Public Function FindFormulaText(ByVal FromBook As Workbook _
         If CurrentRange.Cells.Count = 1 Or CurrentRange.HasSpill Then
             Dim Formula As String
             On Error Resume Next
-            Formula = CurrentRange.Cells(1).Formula2
+            Formula = GetCellFormula(CurrentRange.Cells(1))
             Formula = GetLambdaDefIfLETStepRefCell(CurrentRange, Formula, StartFormulaInSheet)
             FindFormulaText = Formula            ' Return the formula if it's a single cell range.
             On Error GoTo 0
@@ -2118,9 +2129,9 @@ End Function
 ' Replace LETStepRef cell with LETStep_FX RefersTo
 Public Function GetLambdaDefIfLETStepRefCell(ByVal ForCell As Range _
                                              , ByVal FormulaIfNotLETStepRefCell As String _
-                                             , ByVal StartFormulaInSheet As Worksheet) As String
+                                              , ByVal StartFormulaInSheet As Worksheet) As String
     
-    Dim CurrentName As name
+    Dim CurrentName As Name
     Set CurrentName = FindNamedRangeFromSubCell(ForCell)
     
     If IsNothing(CurrentName) Then
@@ -2131,13 +2142,13 @@ Public Function GetLambdaDefIfLETStepRefCell(ByVal ForCell As Range _
     Dim FinalFormula As String
     FinalFormula = FormulaIfNotLETStepRefCell
     
-    If Text.IsStartsWith(CurrentName.name, LETSTEPREF_UNDERSCORE_PREFIX) Then
-        Dim name As String
-        name = VBA.Replace(CurrentName.name, LETSTEPREF_UNDERSCORE_PREFIX, LETSTEP_UNDERSCORE_PREFIX, , 1)
-        Set CurrentName = FindNamedRange(ForCell.Worksheet.Parent, name)
+    If Text.IsStartsWith(CurrentName.Name, LETSTEPREF_UNDERSCORE_PREFIX) Then
+        Dim Name As String
+        Name = VBA.Replace(CurrentName.Name, LETSTEPREF_UNDERSCORE_PREFIX, LETSTEP_UNDERSCORE_PREFIX, , 1)
+        Set CurrentName = FindNamedRange(ForCell.Worksheet.Parent, Name)
         If IsNotNothing(CurrentName) Then
             FinalFormula = CurrentName.RefersTo
-            FinalFormula = RemoveSheetNameIfPresent(FinalFormula, StartFormulaInSheet.name)
+            FinalFormula = RemoveSheetNameIfPresent(FinalFormula, StartFormulaInSheet.Name)
         End If
     End If
     
@@ -2158,14 +2169,26 @@ Public Function FindRangeLabel(ByVal RangeReference As String _
                                 , ByVal IsJustCheckLabel As Boolean) As String
     
     ' Finds the label for the given range reference.
-
+    
+    Dim UpdatedRangeRef As String
+    If Is3DReference(RangeReference) Then
+        UpdatedRangeRef = GetStartSheetRangeRefIf3DRef(RangeReference)
+        ' Only update if 3D ref
+        If IsNothing(CurrentCell) Then
+            Set CurrentCell = RangeResolver.GetRange(UpdatedRangeRef)
+        End If
+        
+    Else
+        UpdatedRangeRef = RangeReference
+    End If
+    
     Dim FindFromRange As Range
     Dim MatchToRange As Range
 
-    If IsSpilledRangeRef(RangeReference) Then
+    If IsSpilledRangeRef(UpdatedRangeRef) Then
         ' The range reference is dynamic, remove the trailing '$' sign to get the actual range.
-        Set FindFromRange = CurrentCell.Worksheet.Range(Text.RemoveFromEnd(RangeReference, 1))
-        Set MatchToRange = CurrentCell.Worksheet.Range(RangeReference)
+        Set FindFromRange = CurrentCell.Worksheet.Range(Text.RemoveFromEnd(UpdatedRangeRef, 1))
+        Set MatchToRange = CurrentCell.Worksheet.Range(UpdatedRangeRef)
     Else
         ' The range reference is not dynamic, use the current cell' s first cell as the base for finding the range.
         Set FindFromRange = CurrentCell.Cells(1, 1)
@@ -2181,6 +2204,27 @@ LogErrorAndExit:
     FindRangeLabel = vbNullString                ' Return an empty string if an error occurs and log the error.
     Logger.Log ERROR_LOG, Err.Number & Err.Description
     Err.Clear
+    
+End Function
+
+Public Function GetStartSheetRangeRefIf3DRef(ByVal RangeReference As String) As String
+    
+    Dim UpdatedRangeRef As String
+    If Is3DReference(RangeReference) Then
+        
+        UpdatedRangeRef = Text.BeforeDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end)
+        UpdatedRangeRef = Text.BeforeDelimiter(UpdatedRangeRef, ":", , FROM_end)
+        If Text.IsStartsWith(UpdatedRangeRef, SINGLE_QUOTE) Then
+            UpdatedRangeRef = UpdatedRangeRef & SINGLE_QUOTE
+        End If
+        
+        UpdatedRangeRef = UpdatedRangeRef & SHEET_NAME_SEPARATOR _
+                          & Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end)
+    Else
+        UpdatedRangeRef = RangeReference
+    End If
+    
+    GetStartSheetRangeRefIf3DRef = UpdatedRangeRef
     
 End Function
 
@@ -2204,13 +2248,13 @@ Public Function GetRangeLabelFromNameOrLabel(ByVal FindFromRange As Range _
         Result = modUtility.FindLetVarName(FindFromRange)
     Else
 
-        Dim CurrentName As name
+        Dim CurrentName As Name
         Set CurrentName = modUtility.FindNamedRangeFromSubCell(FindFromRange)
 
         If IsNotNothing(CurrentName) Then
             ' Use the named range label only if it matches the MatchToRange and the MatchToRange is a multi-cell range.
             If IsBothRangeEqual(CurrentName.RefersToRange, MatchToRange) And MatchToRange.Cells.Count > 1 Then
-                Result = modUtility.ExtractNameFromLocalNameRange(CurrentName.name)
+                Result = modUtility.ExtractNameFromLocalNameRange(CurrentName.Name)
             Else
                 Result = modUtility.FindLetVarName(FindFromRange) ' Otherwise, get the variable name.
             End If
@@ -2474,9 +2518,18 @@ Public Function GetNonInputLetStepsVarNameAndRangeReference(ByVal DependencyObje
         If Not CurrentDependencyInfo.IsLabelAsInputCell _
            And Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
             ' Add the current dependency info to the collection of non-input let step cells.
-            LetStepsVarName.Add CurrentDependencyInfo
+            LetStepsVarName.Add CurrentDependencyInfo, CurrentDependencyInfo.RangeReference
         End If
     Next CurrentDependencyInfo
+    
+    Dim LastDependency As DependencyInfo
+    Set LastDependency = DependencyObjects.Item(DependencyObjects.Count)
+    
+    If IsExistInCollection(LetStepsVarName, LastDependency.RangeReference) Then
+        If Not FormulaFormatConfig.IncludeResultStep Then
+            LetStepsVarName.Remove LastDependency.RangeReference
+        End If
+    End If
 
     ' Get the variable names and range references for the non-input let step cells.
     GetNonInputLetStepsVarNameAndRangeReference = GetVarNameAndRangeReference(LetStepsVarName)
@@ -2493,11 +2546,20 @@ Public Function GetLetStepsVarNameAndRangeReference(ByVal DependencyObjects As C
         ' Check if the current dependency info represents a non-input let step cell.
         If Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
             ' Add the current dependency info to the collection of non-input let step cells.
-'            Debug.Print CurrentDependencyInfo.ValidVarName
-            LetStepsVarName.Add CurrentDependencyInfo
+            '            Debug.Print CurrentDependencyInfo.ValidVarName
+            LetStepsVarName.Add CurrentDependencyInfo, CurrentDependencyInfo.RangeReference
         End If
     Next CurrentDependencyInfo
-
+    
+    Dim LastDependency As DependencyInfo
+    Set LastDependency = DependencyObjects.Item(DependencyObjects.Count)
+    
+    If IsExistInCollection(LetStepsVarName, LastDependency.RangeReference) Then
+        If Not FormulaFormatConfig.IncludeResultStep Then
+            LetStepsVarName.Remove LastDependency.RangeReference
+        End If
+    End If
+    
     ' Get the variable names and range references for the non-input let step cells.
     GetLetStepsVarNameAndRangeReference = GetVarNameAndRangeReference(LetStepsVarName)
     
@@ -2562,11 +2624,12 @@ Public Function IsWorkbookProtected(ByVal CheckForWorkbook As Workbook) As Boole
     
 End Function
 
-Public Function IsInvalidToRunCommand(ByVal ForCell As Range, ByVal CommandName As String) As Boolean
+Public Function IsWorkbookOrWorksheetProtected(ByVal ForCell As Range, ByVal CommandName As String) As Boolean
     
     ' Checks if it is invalid to run the specified command on the given cell.
-
-    IsInvalidToRunCommand = True
+    
+    Dim Result As Boolean
+    Result = True
 
     If IsWorkbookProtected(ForCell.Worksheet.Parent) Then
         ' Display a message if the workbook is protected.
@@ -2578,8 +2641,10 @@ Public Function IsInvalidToRunCommand(ByVal ForCell As Range, ByVal CommandName 
                , vbExclamation + vbOKOnly, CommandName
     Else
         ' If all conditions are met, the command can be executed.
-        IsInvalidToRunCommand = False
+        Result = False
     End If
+    
+    IsWorkbookOrWorksheetProtected = Result
     
 End Function
 
@@ -2639,63 +2704,22 @@ Public Sub DeleteLETStepNamedRangesHavingError(Optional ByVal FromWorkbook As Wo
         Set FromWorkbook = ActiveWorkbook
     End If
     
-    Dim CurrentName As name
-    For Each CurrentName In FromWorkbook.Names
-        If CurrentName.Visible Then
-            If Text.Contains(CurrentName.RefersTo, REF_ERR_KEYWORD) _
-               And Text.IsStartsWith(CurrentName.name, LETSTEPREF_PREFIX) Then
-                On Error Resume Next
-                Dim LetStep_FX_Name As String
-                LetStep_FX_Name = LETSTEP_UNDERSCORE_PREFIX _
-                                  & Text.AfterDelimiter(CurrentName.name, UNDER_SCORE)
-                CurrentName.Delete
-                Set CurrentName = FromWorkbook.Names(LetStep_FX_Name)
-                CurrentName.Delete
-                On Error GoTo 0
-            End If
+    Dim CurrentName As Name
+    For Each CurrentName In Context.GetAllNamedRangeCollectionFromBook(FromWorkbook)
+        If Text.Contains(CurrentName.RefersTo, REF_ERR_KEYWORD) _
+           And Text.IsStartsWith(CurrentName.Name, LETSTEPREF_PREFIX) Then
+            On Error Resume Next
+            Dim LetStep_FX_Name As String
+            LetStep_FX_Name = LETSTEP_UNDERSCORE_PREFIX _
+                              & Text.AfterDelimiter(CurrentName.Name, UNDER_SCORE)
+            CurrentName.Delete
+            Set CurrentName = FromWorkbook.Names(LetStep_FX_Name)
+            CurrentName.Delete
+            On Error GoTo 0
         End If
     Next CurrentName
     
 End Sub
-
-Public Function IsNamedRangeExist(ByVal SearchInBook As Workbook _
-                                  , ByVal NameOfTheNamedRange As String) As Boolean
-    
-    ' Checks if a named range exists in the given workbook.
-
-    Dim IsExist As Boolean
-    Dim CurrentName As name
-    For Each CurrentName In SearchInBook.Names
-        If CurrentName.name = NameOfTheNamedRange Then
-            IsExist = True
-            Exit For
-        End If
-    Next CurrentName
-    IsNamedRangeExist = IsExist
-    
-End Function
-
-Public Function IsLocalScopedNamedRangeExist(ScopeSheet As Worksheet _
-                                             , NamedRangeName As String) As Boolean
-    
-    Dim SheetQualifiedName As String
-    SheetQualifiedName = NamedRangeName
-    If Not Text.Contains(NamedRangeName, SHEET_NAME_SEPARATOR) Then
-        SheetQualifiedName = GetSheetRefForRangeReference(ScopeSheet.name, False) & NamedRangeName
-    End If
-    
-    Dim CurrentName As name
-    For Each CurrentName In ScopeSheet.Names
-        If CurrentName.name = SheetQualifiedName Then
-            IsLocalScopedNamedRangeExist = True
-            Exit Function
-        End If
-    Next CurrentName
-    
-    IsLocalScopedNamedRangeExist = False
-    
-End Function
-
 
 Public Function AddNRowsTo2DArray(ByVal SourceArray As Variant, ByVal N As Long) As Variant
     
@@ -2714,7 +2738,6 @@ Public Function AddNRowsTo2DArray(ByVal SourceArray As Variant, ByVal N As Long)
     AddNRowsTo2DArray = ResultArray
     
 End Function
-
 
 Public Function ConvertDependencisToFullyQualifiedRef(ByVal FormulaText As String _
                                                       , ByVal FormulaInSheet As Worksheet) As String
@@ -2740,7 +2763,7 @@ Public Function ConvertDependencisToFullyQualifiedRef(ByVal FormulaText As Strin
                 Dim FullyQualifiedRef As String
                 FullyQualifiedRef = GetRangeRefWithSheetName(TempRange, True)
                 UpdatedFormula = ReplaceCellRefWithStepName(UpdatedFormula, FullyQualifiedRef _
-                                                                       , CStr(CurrentPrecedency), FormulaInSheet.name)
+                                                                           , CStr(CurrentPrecedency), FormulaInSheet.Name)
             End If
             
         End If
@@ -2877,7 +2900,7 @@ Public Function IsExpandAble(ByVal ForCell As Range) As Boolean
     ' Check if the input cell is not null
     If IsNothing(ForCell) Then Exit Function
 
-    Dim CurrentName As name
+    Dim CurrentName As Name
     ' Find the named range that includes the input cell
     Set CurrentName = FindNamedRangeFromSubCell(ForCell)
     ' Check if the current named range is not null
@@ -3008,20 +3031,6 @@ Public Function IsAlphabet(Char As String) As Boolean
     
 End Function
 
-Public Function GetOAParamValue(ParamName As String, DefaultValue As Variant) As Variant
-    
-    Dim OARobotAddIn As Object
-    Set OARobotAddIn = CreateObject("OARobot.ExcelAddin")
-    On Error GoTo ReturnDefaultValue
-    GetOAParamValue = OARobotAddIn.GetParamValueByName(ParamName)
-    Set OARobotAddIn = Nothing
-    Exit Function
-    
-ReturnDefaultValue:
-    GetOAParamValue = DefaultValue
-    
-End Function
-
 Public Function IsSpillParentIncluded(ByVal CheckOnCell As Range) As Boolean
     
     If Not CheckOnCell.HasSpill Then
@@ -3044,7 +3053,7 @@ Public Function IsFullSpillingRangeIncluded(ByVal SpillCells As Range) As Boolea
     
 End Function
 
-Public Function IsRefersToRangeIsNothing(ByVal CurrentName As name) As Boolean
+Public Function IsRefersToRangeIsNothing(ByVal CurrentName As Name) As Boolean
     
     On Error GoTo ErrorHandler
     IsRefersToRangeIsNothing = IsNothing(CurrentName.RefersToRange)
@@ -3056,15 +3065,15 @@ ErrorHandler:
 End Function
 
 Public Function FindNamedRange(ByVal FromWorkbook As Workbook _
-                               , ByVal NameOfTheNamedRange As String) As name
+                               , ByVal NameOfTheNamedRange As String) As Name
     
     ' Logs entering the function
     Logger.Log TRACE_LOG, "Enter FindNamedRange"
     
     ' Iterates over all names in the workbook
-    Dim CurrentNamedRange As name
-    For Each CurrentNamedRange In FromWorkbook.Names
-        Logger.Log DEBUG_LOG, CurrentNamedRange.name
+    Dim CurrentNamedRange As Name
+    For Each CurrentNamedRange In Context.GetAllNamedRangeCollectionFromBook(FromWorkbook)
+        Logger.Log DEBUG_LOG, CurrentNamedRange.Name
         ' If the current name is a local scope name and matches the target name (case insensitive), return it
         If IsLocalScopeNamedRange(CurrentNamedRange.NameLocal) Then
             If VBA.UCase$(NameOfTheNamedRange) = VBA.UCase$(ExtractNameFromLocalNameRange(CurrentNamedRange.NameLocal)) Then
@@ -3075,7 +3084,7 @@ Public Function FindNamedRange(ByVal FromWorkbook As Workbook _
             End If
             
             ' If the current name matches the target name (case insensitive), return it
-        ElseIf VBA.UCase$(NameOfTheNamedRange) = VBA.UCase$(CurrentNamedRange.name) Then
+        ElseIf VBA.UCase$(NameOfTheNamedRange) = VBA.UCase$(CurrentNamedRange.Name) Then
             Set FindNamedRange = CurrentNamedRange
             ' Logs exiting the function due to finding the target name
             Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FindNamedRange"
@@ -3115,7 +3124,7 @@ End Function
 
 Public Function DuplicateCollection(ByVal FromCollection As Collection _
                                     , ByVal IsShallowCopy As Boolean _
-                                    , Optional ByVal IsKeyAndItemSame As Boolean) As Collection
+                                     , Optional ByVal IsKeyAndItemSame As Boolean) As Collection
         
     ' If both key and value are not same and need shallow copy then it will lost the key
     ' as key is not readable from Collection
@@ -3157,7 +3166,7 @@ Public Function FilterUsingSpecialCells(ByVal FromRange As Range _
 End Function
 
 Public Sub AddToCollectionIfNotExist(ByRef ToCollection As Collection _
-                                      , ByVal Key As String, ByVal Item As Variant)
+                                     , ByVal Key As String, ByVal Item As Variant)
     
     If Not IsExistInCollection(ToCollection, Key) Then
         ToCollection.Add Item, Key
@@ -3165,7 +3174,7 @@ Public Sub AddToCollectionIfNotExist(ByRef ToCollection As Collection _
     
 End Sub
 
-Public Function IsBuiltInName(ByVal CurrentName As name) As Boolean
+Public Function IsBuiltInName(ByVal CurrentName As Name) As Boolean
     
     ' We need to use Name.MacroType to identify if it's built in or not.
     ' Checking visible or not is not ideal scenario. We may have a custom named range but hidden.
@@ -3188,7 +3197,8 @@ Public Function IsFilePath(ByVal GivenPath As String) As Boolean
     '@PossibleError:
 
     IsFilePath = (Dir(GivenPath, vbNormal) = Dir(GivenPath, vbDirectory) _
-                  And Dir(GivenPath, vbNormal) <> vbNullString)
+                  And Dir(GivenPath, vbNormal) <> vbNullString And _
+                  InStr(1, GivenPath, ":\") > 0)
 
 End Function
 
@@ -3230,7 +3240,7 @@ Public Function IsOpenWorkbookExists(ByVal BookName As String) As Boolean
     Dim Result As Boolean
     Dim CurrentBook As Workbook
     For Each CurrentBook In Application.Workbooks
-        If CurrentBook.name = BookName Then
+        If CurrentBook.Name = BookName Then
             Result = True
             Exit For
         End If
@@ -3243,7 +3253,7 @@ Public Function IsOpenWorkbookExists(ByVal BookName As String) As Boolean
     
     Dim CurrentAddIn As AddIn
     For Each CurrentAddIn In Application.AddIns
-        If CurrentAddIn.IsOpen And CurrentAddIn.name = BookName Then
+        If CurrentAddIn.IsOpen And CurrentAddIn.Name = BookName Then
             Result = True
             Exit For
         End If
@@ -3253,7 +3263,7 @@ Public Function IsOpenWorkbookExists(ByVal BookName As String) As Boolean
     
 End Function
 
-Public Function IsClosedWorkbookRef(ByVal RangeRef As String) As String
+Public Function IsClosedWorkbookRef(ByVal RangeRef As String) As Boolean
     
     Dim Result As Boolean
     ' One drive or share point location.
@@ -3273,30 +3283,39 @@ Public Function IsClosedWorkbookRef(ByVal RangeRef As String) As String
 End Function
 
 Public Function IsReferenceFromDifferentBook(ByVal PrecedentsRef As String _
-                                              , ByVal CheckAgainstBook As Workbook) As Boolean
+                                             , ByVal CheckAgainstBook As Workbook) As Boolean
     
     Dim Result As Boolean
     Result = False
     
     If IsClosedWorkbookRef(PrecedentsRef) Then
         Result = True
+    ElseIf Is3DReference(PrecedentsRef) Then
+        
+        Dim BookAndSheetsNamePart As String
+        BookAndSheetsNamePart = Text.RemoveFromStartIfPresent(Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_end), SINGLE_QUOTE)
+        If Text.IsStartsWith(BookAndSheetsNamePart, LEFT_BRACKET) Then
+            BookAndSheetsNamePart = Text.BetweenDelimiter(BookAndSheetsNamePart, LEFT_BRACKET, RIGHT_BRACKET)
+            Result = (CheckAgainstBook.Name <> BookAndSheetsNamePart)
+        End If
+        
     ElseIf Text.Contains(PrecedentsRef, SHEET_NAME_SEPARATOR) Then
         
         Dim SheetName As String
-        SheetName = Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_END)
+        SheetName = Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_end)
         SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
         SheetName = UnEscapeSingleQuote(SheetName)
         
         Dim ResolvedRange As Range
         Set ResolvedRange = RangeResolver.GetRange(PrecedentsRef, CheckAgainstBook)
         If ResolvedRange Is Nothing Then
-            If IsNamedRangeExist(CheckAgainstBook, PrecedentsRef) Then
+            If Context.IsNamedRangeExist(CheckAgainstBook, PrecedentsRef) Then
                 Result = False
             Else
                 Err.Raise 13, "Range Resolver", "Can't find range from PrecedentsRef"
             End If
         Else
-            Result = (ResolvedRange.Worksheet.Parent.name <> CheckAgainstBook.name)
+            Result = (ResolvedRange.Worksheet.Parent.Name <> CheckAgainstBook.Name)
         End If
         
     End If
@@ -3359,4 +3378,312 @@ Public Sub TryAdaptingScrollBarHeight(ByVal ForListBox As MSForms.ListBox)
     
 End Sub
 
+Public Function GetCellFormula(ByVal FormulaCell As Range, Optional ByVal IsR1C1 As Boolean = False) As String
+    
+    ' This will remove + or space after equal sign like =+ HSTACK(A1,A2) > =HSTACK(A1,A2)
+    
+    Dim Result As String
+    If IsNothing(FormulaCell) Then
+        Result = vbNullString
+    ElseIf FormulaCell.Cells.CountLarge > 1 Then
+        Result = vbNullString
+    ElseIf FormulaCell.HasFormula Then
+        
+        If IsR1C1 Then
+            Result = FormulaCell.Formula2R1C1
+        Else
+            Result = FormulaCell.Formula2
+        End If
+        
+        If Text.IsStartsWith(Result, EQUAL_SIGN & PLUS_SIGN) Then
+            Result = EQUAL_SIGN & Mid(Result, Len(EQUAL_SIGN & PLUS_SIGN) + 1)
+        ElseIf Text.IsStartsWith(Result, EQUAL_SIGN & ONE_SPACE) Then
+            Result = EQUAL_SIGN & Mid(Result, Len(EQUAL_SIGN & ONE_SPACE) + 1)
+        End If
+        
+    End If
+    
+    GetCellFormula = Result
+    
+End Function
 
+Public Function Is3DReference(ByVal Ref As String) As Boolean
+    
+    ' Ref will be only the Cell Ref part. For below formula it will be 'Sheet 1:She!et''3'!A1:B2
+    
+    ' Active Workbook Formula Example: =SUM('Sheet 1:She!et''3'!A1:B2)
+    ' Closed Workbook Formula Example: =SUM('[3D Reference- Generate LET Statement.xlsx]Sheet 1:She!et''3'!$A$1)
+    ' 3D ref can only have range address, It can't use named range or table or spilled range.
+    
+    Dim Result As Boolean
+    If Not Text.Contains(Ref, SHEET_NAME_SEPARATOR) Then
+        Result = False
+    Else
+        
+        Dim SheetsName As String
+        SheetsName = Text.RemoveFromBothEndIfPresent(Text.BeforeDelimiter(Ref, SHEET_NAME_SEPARATOR, 1, FROM_end), SINGLE_QUOTE)
+        SheetsName = UnEscapeSingleQuote(SheetsName)
+        Result = Text.Contains(SheetsName, ":")
+        
+    End If
+    
+    Is3DReference = Result
+    
+End Function
+
+Public Function GetFormulaResult(ByVal FormulaCell As Range) As Variant
+    
+    Dim Result As Variant
+    If FormulaCell.HasSpill Then
+        Result = FormulaCell.Cells(1).SpillParent.SpillingToRange.Value
+    Else
+        Result = FormulaCell.Value
+    End If
+    
+    GetFormulaResult = Result
+    
+End Function
+
+Public Sub ShowAlertIfBeforeAndAfterCommandResultIsDifferent(ByVal FormulaResultBeforCommand As Variant _
+                                                             , ByVal FormulaResultAfterCommand As Variant _
+                                                               , ByVal CommandName As String _
+                                                               , ByVal Message As String)
+    
+    Dim IsShow As Boolean
+    If Not IsArray(FormulaResultBeforCommand) And IsArray(FormulaResultAfterCommand) Then
+        IsShow = True
+    ElseIf IsArray(FormulaResultBeforCommand) And Not IsArray(FormulaResultAfterCommand) Then
+        IsShow = True
+    ElseIf IsArray(FormulaResultBeforCommand) And IsArray(FormulaResultAfterCommand) Then
+        IsShow = (Not IsTwoArrayEqual(FormulaResultBeforCommand, FormulaResultAfterCommand))
+    Else
+        If IsError(FormulaResultBeforCommand) And Not IsError(FormulaResultAfterCommand) Then
+            IsShow = True
+        ElseIf Not IsError(FormulaResultBeforCommand) And IsError(FormulaResultAfterCommand) Then
+            IsShow = True
+        ElseIf IsError(FormulaResultBeforCommand) And IsError(FormulaResultAfterCommand) Then
+            IsShow = (GetErrorText(FormulaResultBeforCommand) <> GetErrorText(FormulaResultAfterCommand))
+        Else
+            IsShow = (FormulaResultBeforCommand <> FormulaResultAfterCommand)
+        End If
+        
+    End If
+    
+    If IsShow Then
+        MsgBox Message, vbOKOnly + vbExclamation, CommandName
+    End If
+    
+End Sub
+
+Private Function IsTwoArrayEqual(ByVal FirstArr As Variant, ByVal SecondArr As Variant) As Boolean
+    
+    Dim Result As Boolean
+    Result = True
+    If NumberOfRowIn2DArray(FirstArr) <> NumberOfRowIn2DArray(SecondArr) Or _
+       NumberOfColumnIn2DArray(FirstArr) <> NumberOfColumnIn2DArray(SecondArr) Then
+        Result = False
+    Else
+    
+        Dim FirstColumnIndex  As Long
+        FirstColumnIndex = LBound(FirstArr, 2)
+        Dim FirstRowIndex As Long
+        FirstRowIndex = LBound(FirstArr, 1)
+    
+        Dim RowIndex As Long
+        For RowIndex = LBound(FirstArr, 1) To UBound(FirstArr, 1)
+            Dim ColumnIndex As Long
+            For ColumnIndex = LBound(FirstArr, 2) To UBound(FirstArr, 2)
+            
+                Dim FirstArrItem As Variant
+                FirstArrItem = FirstArr(RowIndex, ColumnIndex)
+            
+                If IsError(FirstArrItem) Then FirstArrItem = GetErrorText(FirstArrItem)
+            
+                Dim SecondArrItem As Variant
+                SecondArrItem = SecondArr(LBound(SecondArr, 1) + RowIndex - FirstRowIndex, LBound(SecondArr, 2) + ColumnIndex - FirstColumnIndex)
+            
+                If IsError(SecondArrItem) Then SecondArrItem = GetErrorText(SecondArrItem)
+            
+                If FirstArrItem <> SecondArrItem Then
+                    Result = False
+                    Exit For
+                End If
+            
+            Next ColumnIndex
+            
+            If Not Result Then Exit For
+            
+        Next RowIndex
+        
+    End If
+    
+    IsTwoArrayEqual = Result
+    
+End Function
+
+Public Function NumberOfColumnIn2DArray(ByVal GivenArray As Variant) As Long
+
+    '@Description("This will calculate the number of column of a 2D Array")
+    '@Dependency("No Dependency")
+    '@ExampleCall : NumberOfColumnIn2DArray(GivenArray)
+    '@Date : 26 December 2021 01:38:56 AM
+
+    NumberOfColumnIn2DArray = UBound(GivenArray, 2) - LBound(GivenArray, 2) + 1
+
+End Function
+
+Public Function NumberOfRowIn2DArray(ByVal GivenArray As Variant) As Long
+
+    '@Description("This will calculate the number of row of a 2D Array")
+    '@Dependency("No Dependency")
+    '@ExampleCall : NumberOfRowIn2DArray(GivenArray)
+    '@Date : 26 December 2021 01:38:56 AM
+
+    NumberOfRowIn2DArray = UBound(GivenArray, 1) - LBound(GivenArray, 1) + 1
+
+End Function
+
+Public Function GetUsedRangeRequiredFXsName(ByVal OnFormula As String) As Collection
+    
+    Dim UsedFXs As Variant
+    UsedFXs = GetUsedFunctions(OnFormula)
+    
+    Dim RangeRequiredFXsName As Collection
+    Set RangeRequiredFXsName = GetRangeRequiredFXsName()
+    
+    Dim RangeRequiredUsedFXsName As Collection
+    Set RangeRequiredUsedFXsName = New Collection
+    
+    Dim CurrentFX As Variant
+    For Each CurrentFX In UsedFXs
+        If IsExistInCollection(RangeRequiredFXsName, CStr(CurrentFX)) Then
+            RangeRequiredUsedFXsName.Add CurrentFX
+        End If
+    Next CurrentFX
+    
+    Set GetUsedRangeRequiredFXsName = RangeRequiredUsedFXsName
+    
+End Function
+
+Public Function IsTableExist(ByVal InBook As Workbook, ByVal TableName As String) As Boolean
+    
+    Dim Sheet As Worksheet
+    For Each Sheet In InBook.Worksheets
+        Dim Table As ListObject
+        For Each Table In Sheet.ListObjects
+            If Table.Name = TableName Then
+                IsTableExist = True
+                Exit Function
+            End If
+        Next Table
+    Next Sheet
+    
+End Function
+
+Public Function IsImplicitColumnRef(ByVal ColRef As String, ByVal InBook As Workbook) As Boolean
+    
+    Dim Result As Boolean
+    If Text.IsStartsWith(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
+        Result = True
+    ElseIf Text.Contains(ColRef, "[@") And Text.IsEndsWith(ColRef, "]") Then
+        ' So we have table name along with implicit col ref.
+        ' Let's check if we have a table or not.
+        Dim TableName As String
+        TableName = Text.BeforeDelimiter(ColRef, "[@")
+        Result = IsTableExist(InBook, TableName)
+    End If
+    
+    IsImplicitColumnRef = Result
+    
+End Function
+
+
+Public Function IsFileExist(ByVal FilePath As String) As Boolean
+
+    '@Description("This will check if file is found or not. Sometimes Dir function gives false result specially for temp/appdata folder")
+    '@Dependency("No Dependency")
+    '@ExampleCall :
+    '@Date : 05 February 2023 12:00:18 PM
+    '@PossibleError:
+
+    #If Mac Then
+        IsFileExist = IsFileOrFolderExistsOnMac(FilePath, True)
+    #Else
+        Dim FileManager As Object
+        Set FileManager = CreateObject("Scripting.FileSystemObject")
+        IsFileExist = FileManager.FileExists(FilePath)
+        Set FileManager = Nothing
+    #End If
+
+End Function
+
+'@See "Computer\HKEY_CURRENT_USER\SOFTWARE\SyncEngines\Providers\OneDrive\Personal" in registry editor if personal drive
+'@Example URL : https://d.docs.live.net/6edd704b8f8c537b/Metropolitan Project-2/ALAP TAOMMDIARF.xlsm
+'@Example URL : https://oehmauto-my.sharepoint.com/personal/erik_oehmautomation_com/Documents/Metropolitan/Accounting/AMEX 202207 Statement_Formatted.xlsx
+'@Pass Path if you want path, Pass FullName If you want FullName
+
+Public Function GetLocalPathFromOneDrivePath(OneDrivePath As String) As String
+    
+    'Set default return
+    Const HTTP_PREFIX As String = "https://"
+    If Left$(OneDrivePath, Len(HTTP_PREFIX)) <> HTTP_PREFIX Then
+        GetLocalPathFromOneDrivePath = OneDrivePath
+        Exit Function
+    End If
+    
+    Const HKEY_CURRENT_USER As Long = &H80000001
+
+    Dim WindowsManagementInstructionObject As Object
+    Set WindowsManagementInstructionObject = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\default:StdRegProv")
+    
+    Dim OneDriveRegistryPath As String
+    OneDriveRegistryPath = "Software\SyncEngines\Providers\OneDrive\"
+    
+    Dim SubKeys As Variant
+    WindowsManagementInstructionObject.EnumKey HKEY_CURRENT_USER, OneDriveRegistryPath, SubKeys
+
+    If IsNull(SubKeys) Then
+        GetLocalPathFromOneDrivePath = vbNullString
+        Exit Function
+    End If
+
+    Dim SubKey As Variant
+    For Each SubKey In SubKeys
+        Dim HttpURL As String
+        ' check if this key has a value named "UrlNamespace", and save the value to HttpURL
+        WindowsManagementInstructionObject.GetStringValue HKEY_CURRENT_USER, OneDriveRegistryPath & SubKey, "UrlNamespace", HttpURL
+        
+        ' If the namespace is in FullName, then we know we have a URL and need to get the path on disk
+        If Text.Contains(OneDrivePath, HttpURL) Then
+            
+            ' MountPoint is the Base Folder Path for OneDrive
+            ' C:\Users\USER\OneDrive = MountPointValue
+            Dim MountPointValue As String
+            ' Get the mount point for OneDrive
+            WindowsManagementInstructionObject.GetStringValue HKEY_CURRENT_USER, OneDriveRegistryPath & SubKey, "MountPoint", MountPointValue
+        
+            '6edd704b8f8c537b=CID for sample URL.
+            Dim CIDValue As String
+            ' Get the CID
+            WindowsManagementInstructionObject.GetStringValue HKEY_CURRENT_USER, OneDriveRegistryPath & SubKey, "CID", CIDValue
+            
+            ' Add a slash, if the CID returned something
+            If CIDValue = vbNullString Then
+                '                CIDValue = Mid(MountPointValue, InStrRev(MountPointValue, " - ") + Len(" - "))
+            Else
+                CIDValue = "/" & CIDValue
+            End If
+        
+            Dim PathAfterBase As String
+            ' strip off the namespace and CID
+            PathAfterBase = Mid$(OneDrivePath, Len(HttpURL & CIDValue) + 1)
+            
+            If Left$(PathAfterBase, 1) <> "/" Then PathAfterBase = "/" & PathAfterBase
+        
+            ' replace all forward slashes with backslashes
+            GetLocalPathFromOneDrivePath = MountPointValue & Replace(PathAfterBase, "/", "\")
+            Exit Function
+        End If
+    Next
+    
+End Function

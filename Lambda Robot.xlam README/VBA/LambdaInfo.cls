@@ -2,70 +2,84 @@ VERSION 1.0 CLASS
 BEGIN
   MultiUse = -1  'True
 END
-Attribute VB_Name = "LambdaInfo"
+Attribute VB_Name = "LAMBDAInfo"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
-Attribute VB_PredeclaredId = False
+Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-'@IgnoreModule UndeclaredVariable, ProcedureNotUsed
-'@Folder "Lambda.Editor.DependencyInfo"
+'@PredeclaredId
 Option Explicit
 
-Private Type TLambdaInfo
-    LetFormula As String
-    LambdaFormula As String
-    AFEScriptCode As Variant
-    InvocationArgument As String
-    PutDependencyOnTable As ListObject
+Private Type TLAMBDAInfo
+    Lambda As Name
+    Name As String
+    Comment As String
+    Parameters As String
+    CommandName As String
+    CommandDescription As String
+    Definition As String
 End Type
 
-Private This  As TLambdaInfo
+Private this As TLAMBDAInfo
 
-Public Property Get PutDependencyOnTable() As ListObject
-    Set PutDependencyOnTable = This.PutDependencyOnTable
+Public Property Get Lambda() As Name
+    Set Lambda = this.Lambda
 End Property
 
-Public Property Set PutDependencyOnTable(ByVal RHS As ListObject)
-    Set This.PutDependencyOnTable = RHS
+Public Property Set Lambda(ByVal RHS As Name)
+    
+    Set this.Lambda = RHS
+    
+    With this
+        .Name = .Lambda.Name
+        .Comment = .Lambda.Comment
+        Dim MetadataInfo As Metadata
+        Set MetadataInfo = Metadata.CreateLambdaMetadata( _
+                           GetDependencyFunctionResult(.Lambda.RefersTo, LAMBDA_PARTS) _
+                           , GetDependencyFunctionResult(.Lambda.RefersTo, LET_PARTS) _
+                            , .Name, .Name, True)
+        .CommandName = MetadataInfo.CommandName
+        .CommandDescription = MetadataInfo.Description
+        .Parameters = MetadataInfo.GetParametersForLambdaListing()
+        .Definition = SINGLE_QUOTE & RemoveMetadataFromFormula(.Lambda.RefersTo)
+    End With
+    
 End Property
 
-Public Property Get InvocationArgument() As String
-    InvocationArgument = This.InvocationArgument
+Public Property Get Self() As LAMBDAInfo
+    Set Self = Me
 End Property
 
-Public Property Let InvocationArgument(ByVal RHS As String)
-    This.InvocationArgument = RHS
+Public Function Create(ByVal Lambda As Name) As LAMBDAInfo
+
+    With New LAMBDAInfo
+        Set .Lambda = Lambda
+        Set Create = .Self
+    End With
+
+End Function
+
+Public Property Get Name() As String
+    Name = this.Name
 End Property
 
-Public Property Get AFEScriptCode() As Variant
-    If IsObject(This.AFEScriptCode) Then
-        Set AFEScriptCode = This.AFEScriptCode
-    Else
-        AFEScriptCode = This.AFEScriptCode
-    End If
+Public Property Get Comment() As String
+    Comment = this.Comment
 End Property
 
-Public Property Let AFEScriptCode(ByVal RHS As Variant)
-    This.AFEScriptCode = RHS
+Public Property Get Parameters() As String
+    Parameters = this.Parameters
 End Property
 
-Public Property Set AFEScriptCode(ByVal RHS As Variant)
-    Set This.AFEScriptCode = RHS
+Public Property Get CommandName() As String
+    CommandName = this.CommandName
 End Property
 
-Public Property Get LetFormula() As String
-    LetFormula = This.LetFormula
+Public Property Get CommandDescription() As String
+    CommandDescription = this.CommandDescription
 End Property
 
-Public Property Let LetFormula(ByVal RHS As String)
-    This.LetFormula = RHS
-End Property
-
-Public Property Get LambdaFormula() As String
-    LambdaFormula = This.LambdaFormula
-End Property
-
-Public Property Let LambdaFormula(ByVal RHS As String)
-    This.LambdaFormula = RHS
+Public Property Get Definition() As String
+    Definition = this.Definition
 End Property
 

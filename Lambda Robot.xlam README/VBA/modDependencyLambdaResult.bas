@@ -16,12 +16,32 @@ End Enum
 Private Sub Test()
     
     Dim TestFormula As String
-    TestFormula = ActiveCell.Formula2
+    TestFormula = GetCellFormula(ActiveCell)
     Dim V As Variant
-    V = GetDependencyFunctionResult(ActiveCell.Formula2, LAMBDA_PARTS, False)
+    V = GetDependencyFunctionResult(GetCellFormula(ActiveCell), LAMBDA_PARTS, False)
     V = GetDependencyFunctionResult("=LAMBDA(a,a*2)(5)", LET_PARTS, True)
     
 End Sub
+
+Public Function IsBuiltInFunction(ByVal FunctionName As String) As Boolean
+    
+    Dim FXTagEnumValue As Long
+    #If DEVELOPMENT_MODE Then
+        Dim ParseResult As OARobot.FormulaParseResult
+        FXTagEnumValue = TokenTag_ExcelFunction
+    #Else
+        Dim ParseResult As Object
+        FXTagEnumValue = 31
+    #End If
+    
+    Set ParseResult = ParseFormula(EQUAL_SIGN & FunctionName & FIRST_PARENTHESIS_OPEN & FIRST_PARENTHESIS_CLOSE)
+    
+    If Not ParseResult.ParseSuccess Then Err.Raise 13, "IsBuiltInFunction", "Formula parsing failed."
+    
+    IsBuiltInFunction = (ParseResult.Expr.Tokens(0).Tag = FXTagEnumValue)
+    
+    
+End Function
 
 ' Find all the dependency workbook is necessary for removing Lambda which is in the name manager
 Public Function GetDirectPrecedents(ByVal Formula As String, ByVal FormulaInSheet As Worksheet) As Variant
@@ -37,18 +57,19 @@ Public Function GetDirectPrecedents(ByVal Formula As String, ByVal FormulaInShee
         Exit Function
     End If
     
-    Dim Lambdas As Collection
-    Set Lambdas = FindLambdas(FormulaInSheet.Parent)
     Dim ValidDependencies As Collection
     Set ValidDependencies = New Collection
     Dim CurrentDependency As Variant
     Dim QualifiedSheetName As String
-    QualifiedSheetName = GetSheetRefForRangeReference(FormulaInSheet.name, False)
+    QualifiedSheetName = GetSheetRefForRangeReference(FormulaInSheet.Name, False)
+    
+    Const METHOD_NAME As String = "GetDirectPrecedents"
+    Context.ExtractContext FormulaInSheet.Parent, METHOD_NAME
     
     For Each CurrentDependency In Dependencies
         ' Check if local or global lambdas present or not
-        If Not (IsExistInCollection(Lambdas, CStr(CurrentDependency)) _
-                Or IsExistInCollection(Lambdas, QualifiedSheetName & CurrentDependency)) Then
+        If Not (IsExistInCollection(Context.Lambdas, CStr(CurrentDependency)) _
+                Or IsExistInCollection(Context.Lambdas, QualifiedSheetName & CurrentDependency)) Then
             ValidDependencies.Add CurrentDependency
         End If
     Next CurrentDependency
@@ -62,6 +83,8 @@ Public Function GetDirectPrecedents(ByVal Formula As String, ByVal FormulaInShee
     End If
     
     Set ValidDependencies = Nothing
+    
+    Context.ClearContext METHOD_NAME
     
 End Function
 
@@ -101,7 +124,7 @@ Private Function GetDirectPrecedentsFromExpr(ByVal Formula As String _
            
 End Function
 
-Private Function GetUsedFunctions(ByVal Formula As String, Optional ByVal IsR1C1 As Boolean = False) As Variant
+Public Function GetUsedFunctions(ByVal Formula As String, Optional ByVal IsR1C1 As Boolean = False) As Variant
     
     If Formula = vbNullString Then
         GetUsedFunctions = vbEmpty
@@ -125,9 +148,9 @@ End Function
 Private Sub PrintActiveCellDependency()
     
     Debug.Print "Dependencies for : " & ActiveCell.Address
-    Debug.Print "Dependencies for formula : " & ActiveCell.Formula2
+    Debug.Print "Dependencies for formula : " & GetCellFormula(ActiveCell)
     Dim Dependencies As Variant
-    Dependencies = GetDirectPrecedents(ActiveCell.Formula2, ActiveSheet)
+    Dependencies = GetDirectPrecedents(GetCellFormula(ActiveCell), ActiveSheet)
     Dim CurrentDependency As Variant
     For Each CurrentDependency In Dependencies
         Debug.Print CurrentDependency
@@ -142,12 +165,8 @@ Public Function GetDependencyFunctionResult(ByVal Formula As String _
     
     #If DEVELOPMENT_MODE Then
         Dim ParseResult As OARobot.FormulaParseResult
-        Dim Processor As OARobot.ExprProcessing
-        Set Processor = New OARobot.ExprProcessing
     #Else
         Dim ParseResult As Object
-        Dim Processor As Object
-        Set Processor = CreateObject("OARobot.ExprProcessing")
     #End If
     
     Set ParseResult = ParseFormula(Formula)
@@ -156,10 +175,10 @@ Public Function GetDependencyFunctionResult(ByVal Formula As String _
     Select Case DependencyFunctionName
     
         Case DependencyFunctions.LET_PARTS
-            Result = Processor.LetParts(ParseResult.Expr)
+            Result = Context.ExprProcessor.LetParts(ParseResult.Expr)
 
         Case DependencyFunctions.LAMBDA_PARTS
-            Result = Processor.LambdaParts(ParseResult.Expr)
+            Result = Context.ExprProcessor.LambdaParts(ParseResult.Expr)
             
         Case Else
             Err.Raise 13, "Wrong Input Argument"
@@ -190,34 +209,11 @@ End Function
 Public Function FormatFormula(ByVal FormulaText As String) As String
     
     If FormulaText = vbNullString Then Exit Function
-    #If DEVELOPMENT_MODE Then
-        Dim Formatter As OARobot.FormulaFormatter
-    #Else
-        Dim Formatter As Object
-    #End If
     
-    Set Formatter = GetFormulaFormatter()
-    
-    With Formatter
-    
-        ' Set configuration from user context.
-        If GetBoModeParamValue() Then
-            .CompactConfig
-        Else
-            .IndentChar = GetIndentCharParamValue()
-            .IndentSize = GetIndentSizeParamValue()
-            .MultiLine = GetMultilineParamValue()
-            .OnlyWrapFunctionAfterNChars = GetOnlyWrapFunctionAfterNCharsParamValue()
-            .SpacesAfterArgumentSeparators = GetSpacesAfterArgumentSeparatorsParamValue()
-            .SpacesAfterArrayColumnSeparators = GetSpacesAfterArrayColumnSeparatorsParamValue()
-            .SpacesAfterArrayRowSeparators = GetSpacesAfterArrayRowSeparatorsParamValue()
-            .SpacesAroundInfixOperators = GetSpacesAroundInfixOperatorsParamValue()
-        End If
-        
-        ' Format the formula
-        FormatFormula = .Format(FormulaText)
-    End With
-    Set Formatter = Nothing
+    Const METHOD_NAME As String = "FormatFormula"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    FormatFormula = Context.Formatter.Format(FormulaText)
+    Context.ClearContext METHOD_NAME
     
 End Function
 
@@ -261,7 +257,7 @@ End Function
 Private Sub TestSplitLambdaDef()
     
     Dim SplittedDef As Variant
-    SplittedDef = SplitLambdaDef(ActiveCell.Formula2)
+    SplittedDef = SplitLambdaDef(GetCellFormula(ActiveCell))
     Debug.Print "Lambda Def:" & vbNewLine & SplittedDef(LBound(SplittedDef)) & vbNewLine
     Debug.Print "Invocation:" & vbNewLine & SplittedDef(UBound(SplittedDef)) & vbNewLine
     
@@ -357,52 +353,44 @@ Private Function GenerateInvocationPart(ByVal InputFunctions As OARobot.ExprFunc
 Private Function GenerateInvocationPart(ByVal InputFunctions As Object) As String
 #End If
     
-    #If DEVELOPMENT_MODE Then
-        Dim Args As OARobot.ExprCollection
-        Dim ArgSeps As OARobot.TokenCollection
-    #Else
-        Dim Args As Object
-        Dim ArgSeps As Object
-    #End If
+#If DEVELOPMENT_MODE Then
+    Dim Args As OARobot.ExprCollection
+    Dim ArgSeps As OARobot.TokenCollection
+#Else
+    Dim Args As Object
+    Dim ArgSeps As Object
+#End If
     
-    Dim InvocationPart As String
-    InvocationPart = InputFunctions.LeftParen.String
+Dim InvocationPart As String
+InvocationPart = InputFunctions.LeftParen.String
             
-    Set Args = InputFunctions.Args
-    Set ArgSeps = InputFunctions.ArgSeparators
-    Dim Counter As Long
+Set Args = InputFunctions.Args
+Set ArgSeps = InputFunctions.ArgSeparators
+Dim Counter As Long
                             
-    For Counter = 0 To Args.Count - 1
-        InvocationPart = InvocationPart & Args.Item(Counter).Formula(False)
-        If Counter <= ArgSeps.Count - 1 Then
-            InvocationPart = InvocationPart & ArgSeps.Item(Counter).String
-        End If
-    Next Counter
+For Counter = 0 To Args.Count - 1
+    InvocationPart = InvocationPart & Args.Item(Counter).Formula(False)
+    If Counter <= ArgSeps.Count - 1 Then
+        InvocationPart = InvocationPart & ArgSeps.Item(Counter).String
+    End If
+Next Counter
     
-    InvocationPart = InvocationPart & InputFunctions.RightParen.String
-    GenerateInvocationPart = InvocationPart
+InvocationPart = InvocationPart & InputFunctions.RightParen.String
+GenerateInvocationPart = InvocationPart
     
 End Function
 
 Public Function AddLetStep(ByVal Formula As String _
                            , ByVal NewStepName As String _
                             , Optional ByVal NewLetStepExpression As String = "{{LastStep}}") As String
-    
-    
-    #If DEVELOPMENT_MODE Then
-        Dim FormulaProcessor As OARobot.FormulaProcessing
-    #Else
-        Dim FormulaProcessor As Object
-    #End If
-    
-    Set FormulaProcessor = GetFormulaProcessor()
-    
-    AddLetStep = FormulaProcessor.AddLetStep(Formula _
+                            
+    Const METHOD_NAME As String = "AddLetStep"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    AddLetStep = Context.FormulaProcessor.AddLetStep(Formula _
                                              , NewStepName _
                                               , NewLetStepExpression _
                                                , Application.ReferenceStyle = xlR1C1)
-    
-    Set FormulaProcessor = Nothing
+    Context.ClearContext METHOD_NAME
     
 End Function
 
@@ -411,54 +399,38 @@ Public Function InsertLetStep(ByVal Formula As String _
                                , ByVal NewStepName As String _
                                 , ByVal NewValue As String) As String
     
-    #If DEVELOPMENT_MODE Then
-        Dim FormulaProcessor As OARobot.FormulaProcessing
-    #Else
-        Dim FormulaProcessor As Object
-    #End If
-    
-    Set FormulaProcessor = GetFormulaProcessor()
-    InsertLetStep = FormulaProcessor.InsertLetStep(Formula _
+    Const METHOD_NAME As String = "InsertLetStep"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    InsertLetStep = Context.FormulaProcessor.InsertLetStep(Formula _
                                                    , Index _
                                                     , NewStepName _
                                                      , NewValue _
                                                       , Application.ReferenceStyle = xlR1C1)
-    Set FormulaProcessor = Nothing
+    Context.ClearContext METHOD_NAME
     
 End Function
 
 Public Function RemoveLetStep(ByVal Formula As String _
                               , ByVal NameToRemove As String) As String
     
-    #If DEVELOPMENT_MODE Then
-        Dim FormulaProcessor As OARobot.FormulaProcessing
-    #Else
-        Dim FormulaProcessor As Object
-    #End If
-    
-    Set FormulaProcessor = GetFormulaProcessor()
-    
-    RemoveLetStep = FormulaProcessor.RemoveLetStep(Formula _
+    Const METHOD_NAME As String = "RemoveLetStep"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    RemoveLetStep = Context.FormulaProcessor.RemoveLetStep(Formula _
                                                    , NameToRemove _
                                                     , Application.ReferenceStyle = xlR1C1)
-    Set FormulaProcessor = Nothing
+    Context.ClearContext METHOD_NAME
     
 End Function
 
 Public Function MoveParamToLetStep(ByVal Formula As String _
                                    , ByVal NameToMove As String) As String
     
-    #If DEVELOPMENT_MODE Then
-        Dim FormulaProcessor As OARobot.FormulaProcessing
-    #Else
-        Dim FormulaProcessor As Object
-    #End If
-    
-    Set FormulaProcessor = GetFormulaProcessor()
-    MoveParamToLetStep = FormulaProcessor.MoveParamToLetStep(Formula _
+    Const METHOD_NAME As String = "MoveParamToLetStep"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    MoveParamToLetStep = Context.FormulaProcessor.MoveParamToLetStep(Formula _
                                                              , NameToMove _
                                                               , Application.ReferenceStyle = xlR1C1)
-    Set FormulaProcessor = Nothing
+    Context.ClearContext METHOD_NAME
     
 End Function
 
@@ -466,18 +438,13 @@ Public Function MoveLetStepToParam(ByVal Formula As String _
                                    , ByVal NameToMove As String _
                                     , ByVal MakeOptional As Boolean) As String
     
-    #If DEVELOPMENT_MODE Then
-        Dim FormulaProcessor As OARobot.FormulaProcessing
-    #Else
-        Dim FormulaProcessor As Object
-    #End If
-    
-    Set FormulaProcessor = GetFormulaProcessor()
-    MoveLetStepToParam = FormulaProcessor.MoveLetStepToParam(Formula _
-                                                             , NameToMove _
-                                                              , MakeOptional _
-                                                               , Application.ReferenceStyle = xlR1C1)
-    Set FormulaProcessor = Nothing
+    Const METHOD_NAME As String = "MoveLetStepToParam"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    MoveLetStepToParam = Context.FormulaProcessor.MoveLetStepToParam(Formula _
+                                                                     , NameToMove _
+                                                                      , MakeOptional _
+                                                                       , Application.ReferenceStyle = xlR1C1)
+    Context.ClearContext METHOD_NAME
     
 End Function
 
@@ -501,7 +468,8 @@ End Function
 
 Private Sub TestGetParametersAndStepsName()
     Dim Names As Variant
-    Names = GetParametersAndStepsName(ActiveCell.Formula2)
+    Names = GetParametersAndStepsName(GetCellFormula(ActiveCell))
+'    Names = GetParametersAndStepsName("=ABS()")
 End Sub
 
 Public Function GetParametersAndStepsName(ByVal LetOrLambdaFormula As String) As Variant
@@ -563,26 +531,26 @@ Private Sub AddParametersAndLetStepsToCollection(ByRef Result As Collection _
                                                  , ByVal LambdaExpr As Object)
 #End If
     
-    Dim CurrentParam As Object
-    Dim ParamName As String
-    ' Generate parameter part.
+Dim CurrentParam As Object
+Dim ParamName As String
+' Generate parameter part.
         
-    Dim Counter As Long
-    For Counter = 0 To LambdaExpr.Parameters.Count - 1
+Dim Counter As Long
+For Counter = 0 To LambdaExpr.Parameters.Count - 1
         
-        Set CurrentParam = LambdaExpr.Parameters.Item(Counter)
-        ' Remove square bracket from optional arguments.
-        ParamName = Text.RemoveFromStartIfPresent(CurrentParam.String, LEFT_BRACKET)
-        ParamName = Text.RemoveFromEndIfPresent(ParamName, RIGHT_BRACKET)
-        If Not IsExistInCollection(Result, ParamName) Then
-            Result.Add ParamName, ParamName
-        End If
-        
-    Next Counter
-        
-    If LambdaExpr.Body.IsLet Then
-        AddLetStepsNameToCollection Result, LambdaExpr.Body.AsLet
+    Set CurrentParam = LambdaExpr.Parameters.Item(Counter)
+    ' Remove square bracket from optional arguments.
+    ParamName = Text.RemoveFromStartIfPresent(CurrentParam.String, LEFT_BRACKET)
+    ParamName = Text.RemoveFromEndIfPresent(ParamName, RIGHT_BRACKET)
+    If Not IsExistInCollection(Result, ParamName) Then
+        Result.Add ParamName, ParamName
     End If
+        
+Next Counter
+        
+If LambdaExpr.Body.IsLet Then
+    AddLetStepsNameToCollection Result, LambdaExpr.Body.AsLet
+End If
     
 End Sub
 
@@ -592,15 +560,15 @@ Private Sub AddLetStepsNameToCollection(ByRef Result As Collection, ByVal LetExp
 Private Sub AddLetStepsNameToCollection(ByRef Result As Collection, ByVal LetExpr As Object)
 #End If
         
-    Dim Counter As Long
-    For Counter = 0 To LetExpr.Names.Count - 1
-        Dim StepName As String
-        StepName = LetExpr.Names.Item(Counter).String
-        If Not IsExistInCollection(Result, StepName) Then
-            Result.Add StepName, StepName
-        End If
+Dim Counter As Long
+For Counter = 0 To LetExpr.Names.Count - 1
+    Dim StepName As String
+    StepName = LetExpr.Names.Item(Counter).String
+    If Not IsExistInCollection(Result, StepName) Then
+        Result.Add StepName, StepName
+    End If
             
-    Next Counter
+Next Counter
     
 End Sub
 
@@ -714,7 +682,7 @@ Public Function IsLambdaFunction(ByVal Formula As String) As Boolean
 End Function
 
 Public Function GetSavedNamedNameFromCellFormula(ByVal FormulaText As String _
-                                           , ByVal FormulaSheet As Worksheet) As String
+                                                 , ByVal FormulaSheet As Worksheet) As String
     
     ' Extract the saved name from the cell formula. Like if we have a formula =AnySavedName or lambda invocation
     ' =MyLambda(Param1..) then it will extract the Lambda Name or Named range name.
@@ -732,9 +700,11 @@ Public Function GetSavedNamedNameFromCellFormula(ByVal FormulaText As String _
     If Not ParsedFormulaResult.ParseSuccess Then
         Result = vbNullString
     ElseIf ParsedFormulaResult.Expr.IsName Then
-        Result = ParsedFormulaResult.Expr.AsName.name.String
+        Result = ParsedFormulaResult.Expr.AsName.Name.String
     ElseIf ParsedFormulaResult.Expr.IsFunction Then
-        Result = ParsedFormulaResult.Expr.AsFunction.FunctionName.AsName.name.String
+        If ParsedFormulaResult.Expr.AsFunction.FunctionName.IsName Then
+            Result = ParsedFormulaResult.Expr.AsFunction.FunctionName.AsName.Name.String
+        End If
     End If
     
     GetSavedNamedNameFromCellFormula = Result
@@ -871,76 +841,76 @@ Private Function RemoveMetadataFromLetExpr(ByVal LetExpr As OARobot.ExprLet) As 
 Private Function RemoveMetadataFromLetExpr(ByVal LetExpr As Object) As String
 #End If
     
-    #If DEVELOPMENT_MODE Then
-        Dim Names As OARobot.TokenCollection
-        Dim Values As OARobot.ExprCollection
-    #Else
-        Dim Names As Object
-        Dim Values As Object
-    #End If
+#If DEVELOPMENT_MODE Then
+    Dim Names As OARobot.TokenCollection
+    Dim Values As OARobot.ExprCollection
+#Else
+    Dim Names As Object
+    Dim Values As Object
+#End If
         
-    Set Names = LetExpr.Names
+Set Names = LetExpr.Names
         
-    Dim NonMetadataStepsIndex As Collection
-    Set NonMetadataStepsIndex = New Collection
+Dim NonMetadataStepsIndex As Collection
+Set NonMetadataStepsIndex = New Collection
         
-    Dim Counter As Long
-    For Counter = 0 To Names.Count - 1
-        Dim StepName As String
-        StepName = Names.Item(Counter).String
-        If Not Text.IsStartsWith(StepName, METADATA_IDENTIFIER) Then
-            NonMetadataStepsIndex.Add Counter, CStr(Counter)
+Dim Counter As Long
+For Counter = 0 To Names.Count - 1
+    Dim StepName As String
+    StepName = Names.Item(Counter).String
+    If Not Text.IsStartsWith(StepName, METADATA_IDENTIFIER) Then
+        NonMetadataStepsIndex.Add Counter, CStr(Counter)
+    End If
+Next Counter
+        
+        
+Set Values = LetExpr.Values
+                
+Dim Formula As String
+Dim ValidIndex As Variant
+Select Case NonMetadataStepsIndex.Count
+        
+    Case 0
+        Formula = GetBodyExpression(LetExpr)
+                
+        ' If only one non metadata then no need to use LET
+    Case 1
+        ValidIndex = NonMetadataStepsIndex.Item(1)
+        Dim BodyExpression As String
+        BodyExpression = GetBodyExpression(LetExpr, CLng(ValidIndex))
+        If BodyExpression = Names.Item(ValidIndex).String Then
+            Formula = Values.Item(NonMetadataStepsIndex.Item(1)).Formula(False)
+        Else
+            Formula = LetExpr.FunctionName.String & LetExpr.LeftParen.String _
+                      & Names.Item(ValidIndex).String & LIST_SEPARATOR & Values.Item(ValidIndex).Formula _
+                      & LIST_SEPARATOR & BodyExpression & LetExpr.RightParen.String
         End If
-    Next Counter
-        
-        
-    Set Values = LetExpr.Values
-                
-    Dim Formula As String
-    Dim ValidIndex As Variant
-    Select Case NonMetadataStepsIndex.Count
-        
-        Case 0
-            Formula = GetBodyExpression(LetExpr)
-                
-            ' If only one non metadata then no need to use LET
-        Case 1
-            ValidIndex = NonMetadataStepsIndex.Item(1)
-            Dim BodyExpression As String
-            BodyExpression = GetBodyExpression(LetExpr, CLng(ValidIndex))
-            If BodyExpression = Names.Item(ValidIndex).String Then
-                Formula = Values.Item(NonMetadataStepsIndex.Item(1)).Formula(False)
-            Else
-                Formula = LetExpr.FunctionName.String & LetExpr.LeftParen.String _
-                          & Names.Item(ValidIndex).String & LIST_SEPARATOR & Values.Item(ValidIndex).Formula _
-                          & LIST_SEPARATOR & BodyExpression & LetExpr.RightParen.String
-            End If
             
-            ' If no metadata found
-        Case Names.Count
-            Formula = LetExpr.AsExpr.Formula(False)
+        ' If no metadata found
+    Case Names.Count
+        Formula = LetExpr.AsExpr.Formula(False)
                 
-        Case Else
-            Formula = LetExpr.FunctionName.String
-            Formula = Formula & LetExpr.LeftParen.String
+    Case Else
+        Formula = LetExpr.FunctionName.String
+        Formula = Formula & LetExpr.LeftParen.String
                 
-            For Each ValidIndex In NonMetadataStepsIndex
+        For Each ValidIndex In NonMetadataStepsIndex
                     
-                ' Calling Formula() on a sub-expression returns a string containing only the sub-expression
-                Formula = Formula & Names.Item(ValidIndex).String _
-                          & LIST_SEPARATOR & Values.Item(ValidIndex).Formula() _
-                          & LIST_SEPARATOR
+            ' Calling Formula() on a sub-expression returns a string containing only the sub-expression
+            Formula = Formula & Names.Item(ValidIndex).String _
+                      & LIST_SEPARATOR & Values.Item(ValidIndex).Formula() _
+                      & LIST_SEPARATOR
                     
-            Next ValidIndex
+        Next ValidIndex
                 
-            Formula = Formula & GetBodyExpression(LetExpr _
-                                                  , NonMetadataStepsIndex.Item(NonMetadataStepsIndex.Count))
-            Formula = Formula & LetExpr.RightParen.String
+        Formula = Formula & GetBodyExpression(LetExpr _
+                                              , NonMetadataStepsIndex.Item(NonMetadataStepsIndex.Count))
+        Formula = Formula & LetExpr.RightParen.String
                 
-    End Select
+End Select
         
-    RemoveMetadataFromLetExpr = Formula
-    Set NonMetadataStepsIndex = Nothing
+RemoveMetadataFromLetExpr = Formula
+Set NonMetadataStepsIndex = Nothing
         
 End Function
 
@@ -951,19 +921,24 @@ Private Function GetBodyExpression(ByVal LetExpr As OARobot.ExprLet _
 Private Function GetBodyExpression(ByVal LetExpr As Object _
                                    , Optional ByVal LastValidStepIndex As Long = 0) As String
 #End If
-    'If it is a step name
-    If LetExpr.Body.IsName Then
-        'If name but it was a metadata then use the last step.
-        If Text.IsStartsWith(LetExpr.Body.AsName.name.String, METADATA_IDENTIFIER) Then
-            GetBodyExpression = Names(LastValidStepIndex).String
-        Else
-            ' Else use the name
-            GetBodyExpression = LetExpr.Body.AsName.name.String
-        End If
+
+Dim Result As String
+
+'If it is a step name
+If LetExpr.Body.IsName Then
+    'If name but it was a metadata then use the last step.
+    If Text.IsStartsWith(LetExpr.Body.AsName.Name.String, METADATA_IDENTIFIER) Then
+        Result = LetExpr.Names(LastValidStepIndex).String
     Else
-        ' If it was a expr then use .Formula to get the whole sub expression.
-        GetBodyExpression = LetExpr.Body.Formula()
+        ' Else use the name
+        Result = LetExpr.Body.AsName.Name.String
     End If
+Else
+    ' If it was a expr then use .Formula to get the whole sub expression.
+    Result = LetExpr.Body.Formula()
+End If
+
+GetBodyExpression = Result
     
 End Function
 
@@ -974,33 +949,33 @@ Private Function RemoveMetadataFromLambdaExpr(ByVal LambdaExpr As OARobot.ExprLa
 Private Function RemoveMetadataFromLambdaExpr(ByVal LambdaExpr As Object) As String
 #End If
     
-    Dim Formula As String
-    Formula = LambdaExpr.FunctionName.String
-    Formula = Formula & LambdaExpr.LeftParen.String
+Dim Formula As String
+Formula = LambdaExpr.FunctionName.String
+Formula = Formula & LambdaExpr.LeftParen.String
             
-    #If DEVELOPMENT_MODE Then
-        Dim Params As OARobot.TokenCollection
-    #Else
-        Dim Params As Object
-    #End If
+#If DEVELOPMENT_MODE Then
+    Dim Params As OARobot.TokenCollection
+#Else
+    Dim Params As Object
+#End If
 
-    Set Params = LambdaExpr.Parameters
+Set Params = LambdaExpr.Parameters
     
-    ' Generate parameter part.
-    Dim Counter As Long
-    For Counter = 0 To Params.Count - 1
-        Formula = Formula & Params.Item(Counter).String
-        Formula = Formula & LIST_SEPARATOR
-    Next Counter
+' Generate parameter part.
+Dim Counter As Long
+For Counter = 0 To Params.Count - 1
+    Formula = Formula & Params.Item(Counter).String
+    Formula = Formula & LIST_SEPARATOR
+Next Counter
             
-    If LambdaExpr.Body.IsLet Then
-        Formula = Formula & RemoveMetadataFromLetExpr(LambdaExpr.Body.AsLet)
-    Else
-        Formula = Formula & LambdaExpr.Body.Formula(False)
-    End If
+If LambdaExpr.Body.IsLet Then
+    Formula = Formula & RemoveMetadataFromLetExpr(LambdaExpr.Body.AsLet)
+Else
+    Formula = Formula & LambdaExpr.Body.Formula(False)
+End If
             
-    Formula = Formula & LambdaExpr.RightParen.String
-    RemoveMetadataFromLambdaExpr = Formula
+Formula = Formula & LambdaExpr.RightParen.String
+RemoveMetadataFromLambdaExpr = Formula
         
 End Function
 
@@ -1032,18 +1007,18 @@ Public Function GetExpr(ByVal Formula As String) As OARobot.Expr
 Public Function GetExpr(ByVal Formula As String) As Object
 #End If
         
-    #If DEVELOPMENT_MODE Then
-        Dim ParsedResult As OARobot.FormulaParseResult
-    #Else
-        Dim ParsedResult As Object
-    #End If
+#If DEVELOPMENT_MODE Then
+    Dim ParsedResult As OARobot.FormulaParseResult
+#Else
+    Dim ParsedResult As Object
+#End If
     
-    Set ParsedResult = ParseFormula(Text.PadIfNotPresent(Formula, EQUAL_SIGN, FROM_START))
-    If ParsedResult.ParseSuccess Then
-        Set GetExpr = ParsedResult.Expr
-    Else
-        Set GetExpr = Nothing
-    End If
+Set ParsedResult = ParseFormula(Text.PadIfNotPresent(Formula, EQUAL_SIGN, FROM_START))
+If ParsedResult.ParseSuccess Then
+    Set GetExpr = ParsedResult.Expr
+Else
+    Set GetExpr = Nothing
+End If
     
 End Function
 
@@ -1086,22 +1061,20 @@ Public Function ReplaceTokenWithNewToken(ByVal OnFormula As String _
                                          , ByVal OldToken As String, NewToken As String) As String
     
     #If DEVELOPMENT_MODE Then
-        Dim ExprReplacer As OARobot.ExpressionReplacer
         Dim InputExpr As OARobot.Expr
     #Else
-        Dim ExprReplacer As Object
         Dim InputExpr As Object
     #End If
     
-    Set ExprReplacer = GetExpressionReplacer()
-    
-    With ExprReplacer
+    With Context.ExprReplacer
         .FindWhat = OldToken
         .ReplaceWith = NewToken
+        .IsFindRangeRef = False
+        .SheetName = vbNullString
     End With
 
     Set InputExpr = GetExpr(OnFormula)
-    Set InputExpr = InputExpr.Rewrite(ExprReplacer)
+    Set InputExpr = InputExpr.Rewrite(Context.ExprReplacer)
     ReplaceTokenWithNewToken = InputExpr.Formula(True)
     
 End Function
@@ -1160,7 +1133,7 @@ End Sub
 Private Sub TestReplaceCellRefWithStepName()
     RunReplaceCellRefWithStepNameTest "=FILTER(Table1[Balance],(Table1[State]=Q8) * (Table1[Balance]>=P8))" _
                                       , "minimum_balance", "P8", "Table As Precedency" _
-                                      , "=FILTER(Table1[Balance],(Table1[State]=Q8) * (Table1[Balance]>=minimum_balance))"
+                                                                , "=FILTER(Table1[Balance],(Table1[State]=Q8) * (Table1[Balance]>=minimum_balance))"
 End Sub
 
 Public Function ReplaceCellRefWithStepName(ByVal OnFormula As String _
@@ -1171,16 +1144,12 @@ Public Function ReplaceCellRefWithStepName(ByVal OnFormula As String _
     If OnFormula = vbNullString Then Exit Function
     
     #If DEVELOPMENT_MODE Then
-        Dim ExprReplacer As OARobot.ExpressionReplacer
         Dim InputExpr As OARobot.Expr
     #Else
-        Dim ExprReplacer As Object
         Dim InputExpr As Object
     #End If
-    
-    Set ExprReplacer = GetExpressionReplacer()
             
-    With ExprReplacer
+    With Context.ExprReplacer
         .FindWhat = CellRef
         .ReplaceWith = StepName
         .IsFindRangeRef = True
@@ -1188,29 +1157,30 @@ Public Function ReplaceCellRefWithStepName(ByVal OnFormula As String _
     End With
     
     Set InputExpr = GetExpr(OnFormula)
-    Set InputExpr = InputExpr.Rewrite(ExprReplacer)
+    Set InputExpr = InputExpr.Rewrite(Context.ExprReplacer)
     ReplaceCellRefWithStepName = InputExpr.Formula(True)
     
 End Function
 
 Public Function RemoveSheetNameFromFormula(ByVal Formula As String _
-, ByVal SheetName As String) As String
+                                           , ByVal SheetName As String) As String
     
     #If DEVELOPMENT_MODE Then
         Dim InputExpr As OARobot.Expr
-        Dim SheetNameRemover As OARobot.SheetNameRemover
     #Else
         Dim InputExpr As Object
-        Dim SheetNameRemover As Object
     #End If
     
-    Set SheetNameRemover = GetSheetNameRemover()
-    SheetNameRemover.SheetName = EscapeSingeQuote(SheetName)
+    Const METHOD_NAME As String = "RemoveSheetNameFromFormula"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    Context.SheetNameRemover.SheetName = EscapeSingeQuote(SheetName)
     
     Set InputExpr = GetExpr(Formula)
-    Set InputExpr = InputExpr.Rewrite(SheetNameRemover)
+    Set InputExpr = InputExpr.Rewrite(Context.SheetNameRemover)
     RemoveSheetNameFromFormula = InputExpr.Formula(True)
-
+    
+    Context.ClearContext METHOD_NAME
+    
 End Function
 
 ' Find all used functions and named ranges.
@@ -1218,17 +1188,17 @@ Public Function GetNamesAndFunctions(ByVal Formula As String) As Collection
     
     #If DEVELOPMENT_MODE Then
         Dim FormulaExpr As OARobot.Expr
-        Dim Filterer As OARobot.NamesOrFunctionsFilter
     #Else
         Dim FormulaExpr As Object
-        Dim Filterer As Object
     #End If
-    
-    Set Filterer = GetNamesOrFunctionsFilter()
     
     Dim NameAndFunctionFiltered As Object
     Set FormulaExpr = GetExpr(Formula)
-    Set NameAndFunctionFiltered = FormulaExpr.Descendants(True, Filterer)
+    
+    Const METHOD_NAME As String = "GetNamesAndFunctions"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    
+    Set NameAndFunctionFiltered = FormulaExpr.Descendants(True, Context.NamesOrFunctionsFilterer)
     
     Dim UsedFunctions As Collection
     Set UsedFunctions = New Collection
@@ -1246,15 +1216,17 @@ Public Function GetNamesAndFunctions(ByVal Formula As String) As Collection
     
     Set UsedFunctions = Nothing
     
+    Context.ClearContext METHOD_NAME
+    
 End Function
 
 ' Get Naming Convention from Default OA Param
 Public Function GetNamingConventionParam(ByVal IsForParam As Boolean) As String
     
     If IsForParam Then
-        GetNamingConventionParam = Text.Proper(GetOAParamValue("FormulaFormat_LambdaParamStyle", "Snake_Case"))
+        GetNamingConventionParam = Text.Proper(FormulaFormatConfig.LambdaParamStyle)
     Else
-        GetNamingConventionParam = Text.Proper(GetOAParamValue("FormulaFormat_VariableStyle", "Pascal"))
+        GetNamingConventionParam = Text.Proper(FormulaFormatConfig.VariableStyle)
     End If
     
 End Function
@@ -1279,53 +1251,6 @@ Public Function GetNamingConv(IsForParam As Boolean) As VarNamingStyle
         
     End Select
     
-End Function
-
-' Get LET Var Prefix(_ or other) from Default OA Param
-Public Function GetLetVarPrefix() As String
-    GetLetVarPrefix = GetOAParamValue("FormulaFormat_LetVarPrefix", UNDER_SCORE)
-End Function
-
-Public Function GetAddPrefixOnParamValue() As Boolean
-    GetAddPrefixOnParamValue = GetOAParamValue("FormulaFormat_AddPrefixOnParam", False)
-End Function
-
-Public Function GetIndentCharParamValue() As String
-    GetIndentCharParamValue = GetOAParamValue("FormulaFormat_IndentChar", ONE_SPACE)
-End Function
-
-Public Function GetIndentSizeParamValue() As Integer
-    Const DEFAULT_INDENT_SIZE As Long = 3
-    GetIndentSizeParamValue = GetOAParamValue("FormulaFormat_IndentSize", DEFAULT_INDENT_SIZE)
-End Function
-
-Public Function GetMultilineParamValue() As Boolean
-    GetMultilineParamValue = GetOAParamValue("FormulaFormat_Multiline", True)
-End Function
-
-Public Function GetOnlyWrapFunctionAfterNCharsParamValue() As Integer
-    Const DEFAULT_LINE_CHAR_COUNT As Long = 80
-    GetOnlyWrapFunctionAfterNCharsParamValue = GetOAParamValue("FormulaFormat_OnlyWrapFunctionAfterNChars", DEFAULT_LINE_CHAR_COUNT)
-End Function
-
-Public Function GetSpacesAfterArgumentSeparatorsParamValue() As Boolean
-    GetSpacesAfterArgumentSeparatorsParamValue = GetOAParamValue("FormulaFormat_SpacesAfterArgumentSeparators", True)
-End Function
-
-Public Function GetSpacesAfterArrayColumnSeparatorsParamValue() As Boolean
-    GetSpacesAfterArrayColumnSeparatorsParamValue = GetOAParamValue("FormulaFormat_SpacesAfterArrayColumnSeparators", True)
-End Function
-
-Public Function GetSpacesAfterArrayRowSeparatorsParamValue() As Boolean
-    GetSpacesAfterArrayRowSeparatorsParamValue = GetOAParamValue("FormulaFormat_SpacesAfterArrayRowSeparators", True)
-End Function
-
-Public Function GetSpacesAroundInfixOperatorsParamValue() As Boolean
-    GetSpacesAroundInfixOperatorsParamValue = GetOAParamValue("FormulaFormat_SpacesAroundInfixOperators", True)
-End Function
-
-Public Function GetBoModeParamValue() As Boolean
-    GetBoModeParamValue = GetOAParamValue("FormulaFormat_BoMode", False)
 End Function
 
 Public Function GetUsedLambdas(ByVal Formula As String, ByVal AllLambdas As Collection _
@@ -1389,139 +1314,6 @@ Public Function GetExcelLabsLambdas(ByVal FromBook As Workbook) As Collection
 End Function
 
 #If DEVELOPMENT_MODE Then
- Public Function GetFormulaProcessor() As OARobot.FormulaProcessing
-#Else
-Public Function GetFormulaProcessor() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetFormulaProcessor = New OARobot.FormulaProcessing
-    #Else
-        Set GetFormulaProcessor = CreateObject("OARobot.FormulaProcessing")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetFormulaFormatter() As OARobot.FormulaFormatter
-#Else
-Public Function GetFormulaFormatter() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetFormulaFormatter = New OARobot.FormulaFormatter
-    #Else
-        Set GetFormulaFormatter = CreateObject("OARobot.FormulaFormatter")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetFormulaParser() As OARobot.FormulaParser
-#Else
-Public Function GetFormulaParser() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetFormulaParser = New OARobot.FormulaParser
-    #Else
-        Set GetFormulaParser = CreateObject("OARobot.FormulaParser")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetExpressionReplacer() As OARobot.ExpressionReplacer
-#Else
-Public Function GetExpressionReplacer() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetExpressionReplacer = New OARobot.ExpressionReplacer
-    #Else
-        Set GetExpressionReplacer = CreateObject("OARobot.ExpressionReplacer")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetSheetNameRemover() As OARobot.SheetNameRemover
-#Else
-Public Function GetSheetNameRemover() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetSheetNameRemover = New OARobot.SheetNameRemover
-    #Else
-        Set GetSheetNameRemover = CreateObject("OARobot.SheetNameRemover")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetNamesOrFunctionsFilter() As OARobot.NamesOrFunctionsFilter
-#Else
-Public Function GetNamesOrFunctionsFilter() As Object
-#End If
-
-    #If DEVELOPMENT_MODE Then
-        Set GetNamesOrFunctionsFilter = New OARobot.NamesOrFunctionsFilter
-    #Else
-        Set GetNamesOrFunctionsFilter = CreateObject("OARobot.NamesOrFunctionsFilter")
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetLocale() As OARobot.FormulaLocaleInfo
-#Else
-Public Function GetLocale() As Object
-#End If
-    
-    #If DEVELOPMENT_MODE Then
-        Dim LocaleFactory As New OARobot.FormulaLocaleInfoFactory
-        Set GetLocale = LocaleFactory.CreateFromExcel(Application)
-    #Else
-        Set GetLocale = CreateObject("OARobot.FormulaLocaleInfoFactory").CreateFromExcel(Application)
-    #End If
-
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetScope(Optional ByVal ForBook As Workbook) As OARobot.FormulaScopeInfo
-#Else
-Public Function GetScope(Optional ByVal ForBook As Workbook) As Object
-#End If
-    
-    If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
-    
-    #If DEVELOPMENT_MODE Then
-        Dim ScopeFactory As New OARobot.FormulaScopeFactory
-        Set GetScope = ScopeFactory.CreateWorkbook(ForBook.name)
-    #Else
-        Set GetScope = CreateObject("OARobot.FormulaScopeFactory").CreateWorkbook(ForBook.name)
-    #End If
-    
-End Function
-
-#If DEVELOPMENT_MODE Then
-Public Function GetNames(Optional ByVal ForBook As Workbook) As OARobot.XLDefinedNames
-#Else
-Public Function GetNames(Optional ByVal ForBook As Workbook) As Object
-#End If
-    
-    If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
-    
-    #If DEVELOPMENT_MODE Then
-        Dim NamesFactory As New OARobot.DefinedNamesFactory
-        Set GetNames = NamesFactory.Create(ForBook)
-    #Else
-        Set GetNames = CreateObject("OARobot.DefinedNamesFactory").Create(ForBook)
-    #End If
-    
-End Function
-
-#If DEVELOPMENT_MODE Then
 Public Function ParseFormula(ByVal Formula As String _
                              , Optional ByVal ForBook As Workbook _
                               , Optional ByVal IsR1C1 As Boolean = False) As OARobot.FormulaParseResult
@@ -1530,36 +1322,17 @@ Public Function ParseFormula(ByVal Formula As String _
                              , Optional ByVal ForBook As Workbook _
                               , Optional ByVal IsR1C1 As Boolean = False) As Object
 #End If
-    
-Static ScopeBookName As String
-If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
-    
-#If DEVELOPMENT_MODE Then
-    Static Scope As OARobot.FormulaScopeInfo
-    Static DefinedNames As OARobot.XLDefinedNames
-    Dim Parser As OARobot.FormulaParser
-    Dim LocaleFactory As FormulaLocaleInfoFactory
-    Set LocaleFactory = New FormulaLocaleInfoFactory
-#Else
-    Static Scope As Object
-    Static DefinedNames As Object
-    Dim Parser As Object
-    Dim LocaleFactory As Object
-    Set LocaleFactory = CreateObject("FormulaLocaleInfoFactory")
-#End If
-    
-If ScopeBookName <> ForBook.name Or ScopeBookName = vbNullString Then
-    Set Scope = GetScope(ForBook)
-    Set DefinedNames = GetNames(ForBook)
-    ScopeBookName = ForBook.name
-End If
-    
-Set Parser = GetFormulaParser()
-    
-If ForBook Is Nothing Then Set ForBook = ActiveWorkbook
-    
-Set ParseFormula = Parser.Parse(Formula, IsR1C1, LocaleFactory.EN_US, Scope, DefinedNames)
-    
+
+If IsNothing(ForBook) Then Set ForBook = ActiveWorkbook
+Const METHOD_NAME As String = "ParseFormula"
+Context.ExtractContext ForBook, METHOD_NAME
+
+Set ParseFormula = Context.Parser.Parse(Formula, IsR1C1 _
+                                                , Context.LocaleFactory.EN_US _
+                                                 , Context.GetScope(ForBook) _
+                                                  , Context.GetDefinedNames(ForBook))
+Context.ClearContext METHOD_NAME
+
 End Function
 
 

@@ -16,41 +16,49 @@ Private Type TLETORLAMBDAGenerator
     IsLetNeededInLambda As Boolean
     PrecedencyExtractor As FormulaPrecedencyExtractor
     IsLetNeededInLetFormula As Boolean
+    RangeReqFXList As Collection
 End Type
-Private This As TLETORLAMBDAGenerator
+
+Private this As TLETORLAMBDAGenerator
+
+Public Property Get RangeReqFXList() As Collection
+    Set RangeReqFXList = this.RangeReqFXList
+End Property
 
 Public Property Get IsLetNeededInLetFormula() As Boolean
-    IsLetNeededInLetFormula = This.IsLetNeededInLetFormula
+    IsLetNeededInLetFormula = this.IsLetNeededInLetFormula
 End Property
 
 Public Property Get IsLetNeededInLambda() As Boolean
-    IsLetNeededInLambda = This.IsLetNeededInLambda
+    IsLetNeededInLambda = this.IsLetNeededInLambda
 End Property
 
 Public Property Get LambdaDef() As String
-    LambdaDef = This.LambdaDef
+    LambdaDef = this.LambdaDef
 End Property
 
 Public Property Get LambdaInvocation() As String
-    LambdaInvocation = This.LambdaInvocation
+    LambdaInvocation = this.LambdaInvocation
 End Property
 
 Public Property Get LetFormula() As String
-    LetFormula = This.LetFormula
+    LetFormula = this.LetFormula
 End Property
 
 Public Sub CreateLetOrLambdaStatement(ByVal DependencyObjects As Collection _
-                                       , ByVal FormulaStartCell As Range _
-                                        , ByVal TypeOfOperation As OperationType _
-                                         , ByVal PrecedencyExtractor As FormulaPrecedencyExtractor)
+                                      , ByVal FormulaStartCell As Range _
+                                       , ByVal TypeOfOperation As OperationType _
+                                        , ByVal PrecedencyExtractor As FormulaPrecedencyExtractor)
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetAndLambdaStatements"
-    Set This.PrecedencyExtractor = PrecedencyExtractor
+    Set this.PrecedencyExtractor = PrecedencyExtractor
     
     If TypeOfOperation = LET_STATEMENT_GENERATION Then
         CreateLETStatement DependencyObjects, FormulaStartCell
+       Set this.RangeReqFXList = GetUsedRangeRequiredFXsName(this.LetFormula)
     ElseIf TypeOfOperation = LAMBDA_STATEMENT_GENERATION Then
         CreateLambdaStatement DependencyObjects, FormulaStartCell
+        Set this.RangeReqFXList = GetUsedRangeRequiredFXsName(this.LambdaDef)
     End If
     
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateLetAndLambdaStatements"
@@ -62,10 +70,10 @@ Private Sub CreateLambdaStatement(ByVal DependencyObjects As Collection _
     
     ' Create Let statements without input cells and get the LetFormula.
     ' Check if Let statement is needed for the Lambda function.
-    This.IsLetNeededInLambda = IsLETNeeded(DependencyObjects)
+    this.IsLetNeededInLambda = IsLETNeeded(DependencyObjects)
     Dim LetFormula As String
     
-    If Not This.IsLetNeededInLambda Then
+    If Not this.IsLetNeededInLambda Then
         ' If Let statement is not needed, create the Let statement without input cells.
         LetFormula = CreateLetStatementsWithoutInputCellsIfLetNotNeeded(DependencyObjects, True)
     Else
@@ -76,13 +84,13 @@ Private Sub CreateLambdaStatement(ByVal DependencyObjects As Collection _
 
     ' Create the FullLambda statement based on the LetFormula and DependencyObjects.
     Dim FullLambda As String
-    This.LambdaDef = CreateFullLambda(LetFormula, DependencyObjects)
+    this.LambdaDef = CreateFullLambda(LetFormula, DependencyObjects)
         
 End Sub
 
 Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As Collection _
                                                       , ByVal FormulaStartCell As Range _
-                                                      , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
+                                                       , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.CreateLetStatementsWithoutInputCells"
     ' Creates the Let statement for the Lambda function excluding input cells.
@@ -92,17 +100,16 @@ Private Function CreateLetStatementsWithoutInputCells(ByVal DependencyObjects As
     LetFormula = LET_AND_OPEN_PAREN
 
     For Each CurrentDependencyInfo In DependencyObjects
-        
         LetFormula = LetFormula & _
                      GetLetStepFormulaForCurrDependency(DependencyObjects, FormulaStartCell, CurrentDependencyInfo, IsConvertToAbsoluteRangeRef)
-
     Next CurrentDependencyInfo
 
     Set CurrentDependencyInfo = DependencyObjects.Item(DependencyObjects.Count)
     
     ' Check if the FormulaStartCell has a variable name or marked as not Let statement by the user.
-    If This.PrecedencyExtractor.VarNameOfFormulaStartCell = vbNullString _
-       Or CurrentDependencyInfo.IsMarkAsNotLetStatementByUser Then
+    If this.PrecedencyExtractor.VarNameOfFormulaStartCell = vbNullString _
+       Or CurrentDependencyInfo.IsMarkAsNotLetStatementByUser _
+       Or Not FormulaFormatConfig.IncludeResultStep Then
         Dim StructuralFormulaText As String
         StructuralFormulaText = ReplaceDependencyRefWithStepName(CurrentDependencyInfo.FormulaText, CurrentDependencyInfo, DependencyObjects)
         ' Append the remaining part of the Let statement or the StructuralFormulaText if LetFormulaWithoutInputCells is empty.
@@ -134,13 +141,21 @@ End Function
 Private Function GetLetStepFormulaForCurrDependency(ByVal DependencyObjects As Collection _
                                                     , ByVal FormulaStartCell As Range _
                                                      , ByVal CurrentDependencyInfo As DependencyInfo _
-                                                     , ByVal IsMakeAbsoluteRef As Boolean) As String
+                                                      , ByVal IsMakeAbsoluteRef As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.GetLetStepFormulaForCurrDependency"
     ' Check if the current dependency info is not an input cell and doesn't have a user mark to exclude from Let statement.
     Dim IsValidForLetStep As Boolean
-    IsValidForLetStep = (Not CurrentDependencyInfo.IsLabelAsInputCell _
-                         And Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser)
+    
+    Dim LastDependency As DependencyInfo
+    Set LastDependency = DependencyObjects.Item(DependencyObjects.Count)
+    
+    If CurrentDependencyInfo.RangeReference = LastDependency.RangeReference And Not FormulaFormatConfig.IncludeResultStep Then
+        IsValidForLetStep = False
+    Else
+        IsValidForLetStep = (Not CurrentDependencyInfo.IsLabelAsInputCell _
+                             And Not CurrentDependencyInfo.IsMarkAsNotLetStatementByUser)
+    End If
     
     If Not IsValidForLetStep Then Exit Function
     
@@ -198,7 +213,7 @@ End Function
 
 Private Function UpdateLetFormulaForNotLetStatementDepWithProperValue(ByVal LetFormula As String _
                                                                       , ByVal DependencyObjects As Collection _
-                                                                      , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
+                                                                       , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
                                                               
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.UpdateLetFormulaForNotLetStatementDepWithProperValue"
     Dim CurrentDependencyInfo As DependencyInfo
@@ -227,7 +242,7 @@ End Function
 Private Function UpdateLetFormulaForCellRefWithProperFormulaText(ByVal LetFormula As String _
                                                                  , ByVal CurrentDependencyInfo As DependencyInfo _
                                                                   , ByVal DependencyObjects As Collection _
-                                                                  , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
+                                                                   , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
 
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.UpdateLetFormulaForCellRefWithProperFormulaText"
     Dim FormulaText As String
@@ -287,7 +302,7 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
         CreateFullLambda = EQUAL_SIGN & LAMBDA_AND_OPEN_PAREN _
                            & Text.RemoveFromStartIfPresent(LetFormula, EQUAL_SIGN) _
                            & FIRST_PARENTHESIS_CLOSE
-        This.LambdaInvocation = "()"
+        this.LambdaInvocation = "()"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LETORLAMBDAGenerator.CreateFullLambda"
         Exit Function
     End If
@@ -295,7 +310,7 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
     ' Update Let formula if necessary.
     If Right$(LetFormula, 1) = FIRST_PARENTHESIS_CLOSE And Text.IsStartsWith(LetFormula _
                                                                              , EQUAL_LET_FIRST_PAREN) _
-                                                                             And This.IsLetNeededInLambda Then
+                                                                             And this.IsLetNeededInLambda Then
         LetFormula = Left$(LetFormula, Len(LetFormula) - 1) & THREE_SPACE & FIRST_PARENTHESIS_CLOSE
     End If
     
@@ -305,7 +320,7 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
     ' Create the Lambda formula argument.
     Dim LambdaFormula As String
     LambdaFormula = LambdaArgsPartAndInvocationPart(LBound(LambdaArgsPartAndInvocationPart))
-    This.LambdaInvocation = LambdaArgsPartAndInvocationPart(LBound(LambdaArgsPartAndInvocationPart) + 1)
+    this.LambdaInvocation = LambdaArgsPartAndInvocationPart(LBound(LambdaArgsPartAndInvocationPart) + 1)
 
     ' Update the Let formula with the Lambda argument names.
     Dim FinalLetWithLamdaArgumentName As String
@@ -321,7 +336,7 @@ Private Function CreateFullLambda(ByVal LetFormula As String _
     End If
     
     CreateFullLambda = FullLambda & modUtility.RemoveStartingEqualSign(FinalLetWithLamdaArgumentName) _
-                       & IIf(This.IsLetNeededInLambda, vbNewLine, vbNullString) _
+                       & IIf(this.IsLetNeededInLambda, vbNewLine, vbNullString) _
                        & FIRST_PARENTHESIS_CLOSE
 
     Logger.Log TRACE_LOG, "Exit LETORLAMBDAGenerator.CreateFullLambda"
@@ -331,13 +346,13 @@ End Function
 Private Sub CreateLETStatement(ByVal DependencyObjects As Collection _
                                , ByVal FormulaStartCell As Range)
     
-    This.PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
+    this.PrecedencyExtractor.AddPrefixOnInputCells DependencyObjects
     
-    This.IsLetNeededInLetFormula = IsLetNeededInLetStatement(DependencyObjects)
+    this.IsLetNeededInLetFormula = IsLetNeededInLetStatement(DependencyObjects)
     
     Dim LetFormula As String
     
-    If Not This.IsLetNeededInLetFormula Then
+    If Not this.IsLetNeededInLetFormula Then
         ' If Let statement is not needed, create the Let statement without input cells.
         LetFormula = CreateLetStatementsWithoutInputCellsIfLetNotNeeded(DependencyObjects, False)
     Else
@@ -346,7 +361,7 @@ Private Sub CreateLETStatement(ByVal DependencyObjects As Collection _
     
     LetFormula = Text.PadIfNotPresent(LetFormula, EQUAL_SIGN, FROM_START)
     LetFormula = CreateFullLet(LetFormula, DependencyObjects)
-    This.LetFormula = FormatFormula(LetFormula)
+    this.LetFormula = FormatFormula(LetFormula)
     
 End Sub
 
@@ -377,7 +392,8 @@ Private Function IsLetNeededInLetStatement(ByVal DependencyObjects As Collection
     If Counter = 1 Then
         ' If only one let statement needed and if that is for the last step then don't add let
         Set CurrentDependencyInfo = DependencyObjects.Item(DependencyObjects.Count)
-        Result = CurrentDependencyInfo.IsMarkAsNotLetStatementByUser
+        Result = (CurrentDependencyInfo.IsMarkAsNotLetStatementByUser _
+                  Or Not FormulaFormatConfig.IncludeResultStep)
     Else
         Result = True
     End If
@@ -385,7 +401,6 @@ Private Function IsLetNeededInLetStatement(ByVal DependencyObjects As Collection
     IsLetNeededInLetStatement = Result
     
 End Function
-
 
 Private Function CreateFullLet(ByVal LetFormula As String, ByVal DependencyObjects As Collection) As String
     
@@ -396,8 +411,8 @@ Private Function CreateFullLet(ByVal LetFormula As String, ByVal DependencyObjec
     LetFormula = UpdateFormulaForInputCells(LetFormula, DependencyObjects, False)
     If LetPartForInputCells <> vbNullString And Not Text.IsStartsWith(LetFormula, EQUAL_LET_FIRST_PAREN) Then
         LetFormula = Replace(LetFormula, EQUAL_SIGN, EQUAL_LET_FIRST_PAREN _
-                                                  & NEW_LINE & THREE_SPACE, 1, 1) _
-                                                  & NEW_LINE & FIRST_PARENTHESIS_CLOSE
+                                                    & NEW_LINE & THREE_SPACE, 1, 1) _
+                                                    & NEW_LINE & FIRST_PARENTHESIS_CLOSE
     End If
     
     Dim FullLet As String
@@ -428,16 +443,14 @@ Private Function CreateLetPartForInputCells(ByVal DependencyObjects As Collectio
     LetArgument = vbNullString
     Dim CurrentDependencyInfo As DependencyInfo
     Dim Prefix As String
-    Prefix = GetLetVarPrefix()
+    Prefix = FormulaFormatConfig.LetVarPrefix
     For Each CurrentDependencyInfo In DependencyObjects
         With CurrentDependencyInfo
             If .IsLabelAsInputCell And Not .IsMarkAsNotLetStatementByUser Then
-                Dim VarName As String
-                VarName = Prefix & MakeValidLetVarName(.ValidVarName, GetNamingConv(False))
                 LetArgument = LetArgument & THREE_SPACE _
-                            & VarName & LIST_SEPARATOR _
-                            & ONE_SPACE & .StepOrArgumentCalcFunction(This.PrecedencyExtractor.FormulaStartCell) _
-                            & LIST_SEPARATOR & vbNewLine
+                              & .ValidVarName & LIST_SEPARATOR _
+                              & ONE_SPACE & .StepOrArgumentCalcFunction(this.PrecedencyExtractor.FormulaStartCell) _
+                              & LIST_SEPARATOR & vbNewLine
             End If
         End With
     Next CurrentDependencyInfo
@@ -465,7 +478,6 @@ Private Function IsLETNeeded(ByVal DependencyObjects As Collection) As Boolean
     
 End Function
 
-
 Private Function CreateLetStatementsWithoutInputCellsIfLetNotNeeded(ByVal DependencyObjects As Collection _
                                                                     , ByVal IsConvertToAbsoluteRangeRef As Boolean) As String
     
@@ -487,24 +499,29 @@ Private Function CreateLetStatementsWithoutInputCellsIfLetNotNeeded(ByVal Depend
     
 End Function
 
-
 Private Function MakeAbsoluteReference(ByVal RangeAddress As String _
-                                        , ByVal HelperCell As Range) As String
+                                       , ByVal HelperCell As Range) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.MakeAbsoluteReference"
     ' Convert the given range address to an absolute reference.
-
-    Dim CurrentRange As Range
-    Set CurrentRange = RangeResolver.GetRangeForDependency(RangeAddress, HelperCell)
     
     Dim Result As String
-    ' Check if the parent worksheet of the current range is the same as the parent worksheet of the helper cell.
-    If CurrentRange.Worksheet.name = HelperCell.Worksheet.name Then
-        ' If they are the same, return the range reference with absolute references.
-        Result = GetRangeReference(CurrentRange, True)
+    If Is3DReference(RangeAddress) Then
+        Result = Text.BeforeDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_end) & _
+                 SHEET_NAME_SEPARATOR & _
+                 GetRangeReference(Range(Text.AfterDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_end)), True)
     Else
-        ' If they are different, return the range reference with absolute references and sheet name.
-        Result = GetRangeRefWithSheetName(CurrentRange, , True)
+        Dim CurrentRange As Range
+        Set CurrentRange = RangeResolver.GetRangeForDependency(RangeAddress, HelperCell)
+    
+        ' Check if the parent worksheet of the current range is the same as the parent worksheet of the helper cell.
+        If CurrentRange.Worksheet.Name = HelperCell.Worksheet.Name Then
+            ' If they are the same, return the range reference with absolute references.
+            Result = GetRangeReference(CurrentRange, True)
+        Else
+            ' If they are different, return the range reference with absolute references and sheet name.
+            Result = GetRangeRefWithSheetName(CurrentRange, , True)
+        End If
     End If
     
     MakeAbsoluteReference = Result
@@ -512,12 +529,10 @@ Private Function MakeAbsoluteReference(ByVal RangeAddress As String _
     
 End Function
 
-
-
 Private Function FindLetVarValue(ByVal RangeReference As String _
                                  , ByVal GivenFormulaText As String _
                                   , ByVal GivenNameInFormula As String _
-                                  , ByVal IsMarkAsValue As Boolean) As String
+                                   , ByVal IsMarkAsValue As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.FindLetVarValue"
     ' Finds the value for the Let variable in the formula.
@@ -614,7 +629,7 @@ Private Function CreateLambdaArgumentAndInvocationPart(ByVal DependencyObjects A
                 End If
                 
                 InvocationPart = InvocationPart _
-                                 & .StepOrArgumentCalcFunction(This.PrecedencyExtractor.FormulaStartCell) _
+                                 & .StepOrArgumentCalcFunction(this.PrecedencyExtractor.FormulaStartCell) _
                                  & LIST_SEPARATOR
                 
             End If
@@ -632,14 +647,14 @@ Private Function CreateLambdaArgumentAndInvocationPart(ByVal DependencyObjects A
 End Function
 
 Private Function UpdateFormulaForInputCells(ByVal LetFormula As String _
-                                                      , ByVal DependencyObjects As Collection _
-                                                       , ByVal IsForLambda As Boolean) As String
+                                            , ByVal DependencyObjects As Collection _
+                                             , ByVal IsForLambda As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.UpdateFormulaForInputCells"
     ' Update let formula with input cell valid var name.
     
     Dim LetVarPrefix As String
-    LetVarPrefix = GetLetVarPrefix()
+    LetVarPrefix = FormulaFormatConfig.LetVarPrefix
     
     Dim UpdatedFormula As String
     UpdatedFormula = LetFormula
@@ -686,8 +701,8 @@ Private Function IsMultiCellNotDynamic(ByVal RangeReference As String) As Boolea
         ' Check if the cell count of the range is greater than 1 to determine if it's a multi-cell range.
         Dim ResolvedRange As Range
         Set ResolvedRange = RangeResolver.GetRange(RangeReference _
-                                                   , This.PrecedencyExtractor.FormulaInWorkbook _
-                                                    , This.PrecedencyExtractor.FormulaStartCellInSheet)
+                                                   , this.PrecedencyExtractor.FormulaInWorkbook _
+                                                    , this.PrecedencyExtractor.FormulaStartCellInSheet)
         If IsNothing(ResolvedRange) Then
             Result = False
         Else
@@ -702,11 +717,14 @@ Private Function IsMultiCellNotDynamic(ByVal RangeReference As String) As Boolea
     
 End Function
 
-Private Function GetAbsoluteRefForNameInFormula(ByVal RangeRef As String, ByVal NameInFormula As String) As String
+Private Function GetAbsoluteRefForNameInFormula(ByVal RangeRef As String _
+                                                , ByVal NameInFormula As String) As String
 
     Logger.Log TRACE_LOG, "Enter LETORLAMBDAGenerator.GetAbsoluteRefForNameInFormula"
     Dim Ref As String
-    If Text.Contains(RangeRef, NameInFormula) Then
+    If Is3DReference(NameInFormula) Then
+       Ref = MakeAbsoluteReference(NameInFormula, Nothing)
+    ElseIf Text.Contains(RangeRef, NameInFormula) Then
         Dim ResolvedRange As Range
         Set ResolvedRange = RangeResolver.GetRange(RangeRef)
         If Text.IsEndsWith(NameInFormula, HASH_SIGN) Then
@@ -718,8 +736,10 @@ Private Function GetAbsoluteRefForNameInFormula(ByVal RangeRef As String, ByVal 
         Ref = NameInFormula
     End If
     
-    If Text.Contains(NameInFormula, SHEET_NAME_SEPARATOR) And Not Text.Contains(Ref, SHEET_NAME_SEPARATOR) Then
-        Ref = Text.BeforeDelimiter(NameInFormula, SHEET_NAME_SEPARATOR, , FROM_END) & SHEET_NAME_SEPARATOR & Ref
+    If Text.Contains(NameInFormula, SHEET_NAME_SEPARATOR) _
+       And Not Text.Contains(Ref, SHEET_NAME_SEPARATOR) Then
+        Ref = Text.BeforeDelimiter(NameInFormula, SHEET_NAME_SEPARATOR, , FROM_end) _
+              & SHEET_NAME_SEPARATOR & Ref
     End If
     
     GetAbsoluteRefForNameInFormula = Ref

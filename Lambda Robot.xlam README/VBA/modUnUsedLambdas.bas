@@ -10,31 +10,21 @@ Public Sub RemoveUnusedLambdas(Optional ByVal FromBook As Workbook)
     
     Logger.Log TRACE_LOG, "Enter modUnUsedLambdas.RemoveUnusedLambdas"
     If FromBook Is Nothing Then Set FromBook = ActiveWorkbook
-    
-    Dim AllLambdas As Collection
-    Set AllLambdas = New Collection
+    Const METHOD_NAME As String = "RemoveUnusedLambdas"
+    Context.ExtractContext FromBook, METHOD_NAME
     
     Dim AllUniqueFormulas As Collection
     Set AllUniqueFormulas = New Collection
     
     ' Extract all the formulas from named formulas.
     ' At the same time Collect all lambdas.
-    Dim CurrentName As name
-    For Each CurrentName In FromBook.Names
-        
-        ' If it is built in name like _xlpm or _xlfn then ignore them.
-        If Not IsBuiltInName(CurrentName) Then
-            With CurrentName
-                If IsLambdaFunction(.RefersTo) Then
-                    ' Add the name to the collection of lambda.
-                    AllLambdas.Add CurrentName, CStr(.name)
-                Else
-                    AddToCollectionIfNotExist AllUniqueFormulas _
-                                              , .RefersToR1C1 _
-                                               , FormulaInfo.Create(.RefersToR1C1, .name & ".RefersToR1C1", True)
-                End If
-            End With
-        End If
+    Dim CurrentName As Name
+    For Each CurrentName In Context.NonLambdas
+        With CurrentName
+            AddToCollectionIfNotExist AllUniqueFormulas _
+                                      , .RefersToR1C1 _
+                                       , FormulaInfo.Create(.RefersToR1C1, .Name & ".RefersToR1C1", True)
+        End With
     
     Next CurrentName
     
@@ -48,25 +38,26 @@ Public Sub RemoveUnusedLambdas(Optional ByVal FromBook As Workbook)
     Next CurrentSheet
     
     ' Keep only those formulas where we have at least one lambda present by checking string contains.
-    KeepFormulasIfLambdaIsUsedByTextParsing AllUniqueFormulas, AllLambdas
+    KeepFormulasIfLambdaIsUsedByTextParsing AllUniqueFormulas, Context.Lambdas
     
     ' Extract all the used lambdas in all of those formulas.
     Dim AllUsedLambdas As Collection
-    Set AllUsedLambdas = GetAllUsedLambdas(AllUniqueFormulas, AllLambdas)
+    Set AllUsedLambdas = GetAllUsedLambdas(AllUniqueFormulas, Context.Lambdas)
     
     ' No update used lambdas Collection for lambdas dependency on another lambdas.
-    UpdateUsedLambdasForDependencies AllUsedLambdas, AllLambdas
+    UpdateUsedLambdasForDependencies AllUsedLambdas, Context.Lambdas
     
     ' No extract all the unused lambdas.
     Dim UnusedLambdas As Collection
-    Set UnusedLambdas = GetUnusedLambdas(AllLambdas, AllUsedLambdas)
+    Set UnusedLambdas = GetUnusedLambdas(Context.Lambdas, AllUsedLambdas)
     
     ' Delete all the unused lambdas.
-    Dim CurrentUnusedLambda As name
+    Dim CurrentUnusedLambda As Name
     For Each CurrentUnusedLambda In UnusedLambdas
-        Logger.Log DEBUG_LOG, CurrentUnusedLambda.name & " is not used anywhere."
+        Logger.Log DEBUG_LOG, CurrentUnusedLambda.Name & " is not used anywhere."
         CurrentUnusedLambda.Delete
     Next CurrentUnusedLambda
+    Context.ClearContext METHOD_NAME
     Logger.Log TRACE_LOG, "Exit modUnUsedLambdas.RemoveUnusedLambdas"
     
 End Sub
@@ -78,10 +69,10 @@ Private Function GetUnusedLambdas(ByVal AllLambdas As Collection _
     Dim UnusedLambdas As Collection
     Set UnusedLambdas = New Collection
     
-    Dim CurrentLambda As name
+    Dim CurrentLambda As Name
     For Each CurrentLambda In AllLambdas
-        If Not IsExistInCollection(AllUsedLambdas, CurrentLambda.name) Then
-            UnusedLambdas.Add CurrentLambda, CurrentLambda.name
+        If Not IsExistInCollection(AllUsedLambdas, CurrentLambda.Name) Then
+            UnusedLambdas.Add CurrentLambda, CurrentLambda.Name
         End If
     Next CurrentLambda
     
@@ -112,7 +103,7 @@ Private Sub UpdateUsedLambdasForDependencies(ByRef AllUsedLambdas As Collection 
             ' If already scanned then try next lambda name
             If IsExistInCollection(AlreadyScannedLambdas, CStr(CurrentUsedLambdaName)) Then GoTo NextUsedLambdaName
             
-            Dim CurrentName As name
+            Dim CurrentName As Name
             Set CurrentName = AllLambdas.Item(CStr(CurrentUsedLambdaName))
             Dim UsedLambdasInCurrentFormula As Variant
             UsedLambdasInCurrentFormula = GetUsedLambdas(CurrentName.RefersTo, AllLambdas)
@@ -187,9 +178,9 @@ Private Function IsAnyLambdaBeingUsed(ByVal Formula As String _
     Logger.Log TRACE_LOG, "Enter modUnUsedLambdas.IsAnyLambdaBeingUsed"
     Dim IsPresent As Boolean
     IsPresent = False
-    Dim CurrentName As name
+    Dim CurrentName As Name
     For Each CurrentName In AllLambdas
-        If Text.Contains(Formula, CurrentName.name) Then
+        If Text.Contains(Formula, CurrentName.Name) Then
             IsPresent = True
             Exit For
         End If
@@ -215,7 +206,7 @@ Private Sub UpdateFormulaCollFromCellFormulas(ByRef AllUniqueFormulas As Collect
         ' Using A1 (Local) important because we are using parser to parse A1C1 formula.
         With CurrentCell
             Dim CurrentFormulaInfo As FormulaInfo
-            Set CurrentFormulaInfo = FormulaInfo.Create(.Formula2R1C1 _
+            Set CurrentFormulaInfo = FormulaInfo.Create(GetCellFormula(CurrentCell, True) _
                                                         , "Range(" & GetRangeRefWithSheetName(CurrentCell) & ").Formula2R1C1" _
                                                          , True)
             AddToCollectionIfNotExist AllUniqueFormulas, .Formula2R1C1, CurrentFormulaInfo

@@ -20,69 +20,69 @@ Private Type TChartInfo
     FoundOnObject As Object
 End Type
 
-Private This As TChartInfo
+Private this As TChartInfo
 
 Public Property Get FoundOnObject() As Object
-    Set FoundOnObject = This.FoundOnObject
+    Set FoundOnObject = this.FoundOnObject
 End Property
 
 Public Property Set FoundOnObject(ByVal RHS As Object)
-    Set This.FoundOnObject = RHS
+    Set this.FoundOnObject = RHS
 End Property
 
 Public Property Get PropertyName() As String
-    PropertyName = This.PropertyName
+    PropertyName = this.PropertyName
 End Property
 
 Public Property Let PropertyName(ByVal RHS As String)
-    This.PropertyName = RHS
+    this.PropertyName = RHS
 End Property
 
 Public Property Get RangeAddress() As String
-    RangeAddress = This.RangeAddress
+    RangeAddress = this.RangeAddress
 End Property
 
 Public Property Let RangeAddress(ByVal RHS As String)
-    This.RangeAddress = RHS
+    this.RangeAddress = RHS
 End Property
 
 Public Property Get IsWholeSearchRangeBeingUsed() As Boolean
-    IsWholeSearchRangeBeingUsed = This.IsWholeSearchRangeBeingUsed
+    IsWholeSearchRangeBeingUsed = this.IsWholeSearchRangeBeingUsed
 End Property
 
 Public Property Let IsWholeSearchRangeBeingUsed(ByVal RHS As Boolean)
-    This.IsWholeSearchRangeBeingUsed = RHS
+    this.IsWholeSearchRangeBeingUsed = RHS
 End Property
 
 Public Property Get VBASyntax() As String
-    VBASyntax = This.VBASyntax
+    VBASyntax = this.VBASyntax
 End Property
 
 Public Property Let VBASyntax(ByVal RHS As String)
-    This.VBASyntax = RHS
+    this.VBASyntax = RHS
 End Property
 
 Public Property Get OnSheet() As String
-    OnSheet = This.OnSheet
+    OnSheet = this.OnSheet
 End Property
 
 Public Property Let OnSheet(ByVal RHS As String)
-    This.OnSheet = RHS
+    this.OnSheet = RHS
 End Property
 
 Public Property Get ChartObjectName() As String
-    ChartObjectName = This.ChartObjectName
+    ChartObjectName = this.ChartObjectName
 End Property
 
 Public Property Let ChartObjectName(ByVal RHS As String)
-    This.ChartObjectName = RHS
+    this.ChartObjectName = RHS
 End Property
 
 Public Property Get Formula() As String
-    Formula = This.Formula
+    Formula = this.Formula
 End Property
 
 Public Property Let Formula(ByVal RHS As String)
-    This.Formula = RHS
+    this.Formula = RHS
 End Property
 

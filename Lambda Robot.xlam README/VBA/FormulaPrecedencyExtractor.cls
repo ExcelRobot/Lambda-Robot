@@ -23,6 +23,7 @@ End Enum
 Private Type TFormulaPrecedencyExtractor
     AllDependency As Collection
     FormulaStartCell As Range
+    FormulaStartCellRangeRef As String
     ActualFormulaStartCell As Range
     FormulaStartCellSheetName As String
     VarNameOfFormulaStartCell As String
@@ -41,111 +42,129 @@ Private Type TFormulaPrecedencyExtractor
     TotalFormulaLength As Long
     IsProcessEnded As Boolean
     SheetNameVsDependencyRangeMap As Collection
+    IsCircularRef As Boolean
+    IsAllowCircularRef As Boolean
 End Type
 
-Private This  As TFormulaPrecedencyExtractor
+Private this  As TFormulaPrecedencyExtractor
 
 Private Const THRESHOLD_STEPS_COUNT As Long = 25
-Private Const THRESHOLD_FORMULA_LENGTH As Long = MAX_LENGTH_OF_FORMULA + 1000   ' 1000 for tolerance.
+Private Const THRESHOLD_FORMULA_LENGTH As Long = MAX_LENGTH_OF_FORMULA + 1000 ' 1000 for tolerance.
+
+Public Property Get IsAllowCircularRef() As Boolean
+    IsAllowCircularRef = this.IsAllowCircularRef
+End Property
+
+Public Property Let IsAllowCircularRef(ByVal RHS As Boolean)
+    this.IsAllowCircularRef = RHS
+End Property
+
+Public Property Get IsCircularRef() As Boolean
+    IsCircularRef = this.IsCircularRef
+End Property
 
 Public Property Get IsProcessEnded() As Boolean
-    IsProcessEnded = (This.IsStopOnMoreThanThresholdSteps Or This.IsPopupShowedForLargerFormulaLength)
+    IsProcessEnded = ( _
+                     this.IsStopOnMoreThanThresholdSteps _
+                     Or this.IsPopupShowedForLargerFormulaLength _
+                     Or (this.IsCircularRef And Not this.IsAllowCircularRef) _
+                     )
 End Property
 
 Public Property Get FormulaInWorkbook() As Workbook
-    Set FormulaInWorkbook = This.FormulaInWorkbook
+    Set FormulaInWorkbook = this.FormulaInWorkbook
 End Property
 
 Public Property Get FormulaStartCellInSheet() As Worksheet
-    Set FormulaStartCellInSheet = This.FormulaStartCellInSheet
+    Set FormulaStartCellInSheet = this.FormulaStartCellInSheet
 End Property
 
 Public Property Get AllDependency() As Collection
-    Set AllDependency = This.AllDependency
+    Set AllDependency = this.AllDependency
 End Property
 
 Public Property Set AllDependency(ByVal RHS As Collection)
-    Set This.AllDependency = RHS
+    Set this.AllDependency = RHS
 End Property
 
 Public Property Get FormulaStartCell() As Range
-    Set FormulaStartCell = This.FormulaStartCell
+    Set FormulaStartCell = this.FormulaStartCell
 End Property
 
 Public Property Set FormulaStartCell(ByVal RHS As Range)
-    Set This.FormulaStartCell = RHS
+    Set this.FormulaStartCell = RHS
 End Property
 
 Public Property Get ActualFormulaStartCell() As Range
-    Set ActualFormulaStartCell = This.ActualFormulaStartCell
+    Set ActualFormulaStartCell = this.ActualFormulaStartCell
 End Property
 
 Public Property Set ActualFormulaStartCell(ByVal RHS As Range)
-    Set This.ActualFormulaStartCell = RHS
+    Set this.ActualFormulaStartCell = RHS
 End Property
 
 Public Property Get VarNameOfFormulaStartCell() As String
-    VarNameOfFormulaStartCell = This.VarNameOfFormulaStartCell
+    VarNameOfFormulaStartCell = this.VarNameOfFormulaStartCell
 End Property
 
 Public Property Let VarNameOfFormulaStartCell(ByVal RHS As String)
-    This.VarNameOfFormulaStartCell = RHS
+    this.VarNameOfFormulaStartCell = RHS
 End Property
 
 Public Property Get DependencySearchInRegion() As Range
-    Set DependencySearchInRegion = This.DependencySearchInRegion
+    Set DependencySearchInRegion = this.DependencySearchInRegion
 End Property
 
 Public Property Set DependencySearchInRegion(ByVal RHS As Range)
-    Set This.DependencySearchInRegion = RHS
+    Set this.DependencySearchInRegion = RHS
 End Property
 
 Public Property Get PossibleLambdaName() As String
-    PossibleLambdaName = This.PossibleLambdaName
+    PossibleLambdaName = this.PossibleLambdaName
 End Property
 
 Public Property Let PossibleLambdaName(ByVal RHS As String)
-    This.PossibleLambdaName = RHS
+    this.PossibleLambdaName = RHS
 End Property
 
 Public Property Get NumberOfNonInputDependency() As Long
-    NumberOfNonInputDependency = This.NumberOfNonInputDependency
+    NumberOfNonInputDependency = this.NumberOfNonInputDependency
 End Property
 
 Public Property Let NumberOfNonInputDependency(ByVal RHS As Long)
-    This.NumberOfNonInputDependency = RHS
+    this.NumberOfNonInputDependency = RHS
 End Property
 
 Public Property Get AllNamedRange() As Dictionary
-    Set AllNamedRange = This.AllNamedRange
+    Set AllNamedRange = this.AllNamedRange
 End Property
 
 Public Property Set AllNamedRange(ByVal RHS As Dictionary)
-    Set This.AllNamedRange = RHS
+    Set this.AllNamedRange = RHS
 End Property
 
 Public Property Get DependencyData() As Variant
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.DependencyData"
-    If IsObject(This.DependencyData) Then
-        Set DependencyData = This.DependencyData
+    If IsObject(this.DependencyData) Then
+        Set DependencyData = this.DependencyData
     Else
-        DependencyData = This.DependencyData
+        DependencyData = this.DependencyData
     End If
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.DependencyData"
     
 End Property
 
 Public Property Let DependencyData(ByVal RHS As Variant)
-    This.DependencyData = RHS
+    this.DependencyData = RHS
 End Property
 
 Public Property Set DependencyData(ByVal RHS As Variant)
-    Set This.DependencyData = RHS
+    Set this.DependencyData = RHS
 End Property
 
 Public Function DependencyDataForReset(TypeOfOperation As OperationType) As Collection
-    Set DependencyDataForReset = GetDependencyObjectsFromData(This.DependencyData, TypeOfOperation)
+    Set DependencyDataForReset = GetDependencyObjectsFromData(this.DependencyData, TypeOfOperation)
 End Function
 
 '@EntryPoint
@@ -170,8 +189,8 @@ Public Sub ExtractAllPrecedencyInfo(ByVal FormulaStartCell As Range _
     ClearCatches
 
     ' Set DependencySearchInRegion and UserModifiedDependencies.
-    Set This.DependencySearchInRegion = DependencySearchInRegion
-    Set This.ModifiedDependencies = UserModifiedDependencies
+    Set this.DependencySearchInRegion = DependencySearchInRegion
+    Set this.ModifiedDependencies = UserModifiedDependencies
 
     ' Extract basic information from the FormulaStartCell.
     InitializeAndExtractBaseInfo FormulaStartCell
@@ -185,17 +204,19 @@ End Sub
 
 Private Sub ResolveRangeLabelConflict()
     
-    If This.IsProcessEnded Then Exit Sub
+    If this.IsProcessEnded Then Exit Sub
+    If IsNothing(this.AllDependency) Then Exit Sub
+    If this.AllDependency.Count = 0 Then Exit Sub
     
     Dim CurrentDependency As DependencyInfo
-    For Each CurrentDependency In This.AllDependency
+    For Each CurrentDependency In this.AllDependency
         With CurrentDependency
             If IsNotNothing(.RangeLabelCell) Then
                 Dim SheetName As String
-                SheetName = .SheetName
+                SheetName = .RangeLabelCell.Worksheet.Name
                 
                 Dim DependencyRegion As Range
-                Set DependencyRegion = This.SheetNameVsDependencyRangeMap.Item(SheetName)
+                Set DependencyRegion = this.SheetNameVsDependencyRangeMap.Item(SheetName)
                 
                 ' Now we have a conflict. We need to retrace for the range label.
                 If IsNotNothing(Intersect(DependencyRegion, .RangeLabelCell)) Then
@@ -208,13 +229,16 @@ Private Sub ResolveRangeLabelConflict()
     
 End Sub
 
-Private Sub ResolveRangeLabelConflictForCurrDependency(ByRef CurrentDependency As DependencyInfo, ByVal DependencyRegion As Range)
+Private Sub ResolveRangeLabelConflictForCurrDependency(ByRef CurrentDependency As DependencyInfo _
+                                                       , ByVal DependencyRegion As Range)
     
     With CurrentDependency
         
         Logger.Log DEBUG_LOG, "Conflict found."
         Dim ResolvedRange As Range
-        Set ResolvedRange = RangeResolver.GetRange(.RangeReference, Application.Workbooks(.BookName), Application.Worksheets(.SheetName))
+        Set ResolvedRange = RangeResolver.GetRange(.RangeReference _
+                                                   , Application.Workbooks(.BookName) _
+                                                    , Application.Worksheets(.SheetName))
         Set .RangeLabelCell = FindLetVarNameCell(ResolvedRange, DependencyRegion)
         If IsNotNothing(.RangeLabelCell) Then
             .RangeLabel = .RangeLabelCell.Value
@@ -235,15 +259,15 @@ Private Sub ClearCatches()
     ' Clears all the previously stored data.
 
     ' Clear all stored objects and variables.
-    Set This.AllDependency = Nothing
-    Set This.SheetNameVsDependencyRangeMap = Nothing
-    This.TotalFormulaLength = 0
-    Set This.FormulaStartCell = Nothing
-    Set This.FormulaStartCellInSheet = Nothing
-    This.FormulaStartCellSheetName = vbNullString
-    Set This.FormulaInWorkbook = Nothing
-    This.VarNameOfFormulaStartCell = vbNullString
-    Set This.AllNamedRange = Nothing
+    Set this.AllDependency = Nothing
+    Set this.SheetNameVsDependencyRangeMap = Nothing
+    this.TotalFormulaLength = 0
+    Set this.FormulaStartCell = Nothing
+    Set this.FormulaStartCellInSheet = Nothing
+    this.FormulaStartCellSheetName = vbNullString
+    Set this.FormulaInWorkbook = Nothing
+    this.VarNameOfFormulaStartCell = vbNullString
+    Set this.AllNamedRange = Nothing
 
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.ClearCatches"
     
@@ -256,23 +280,23 @@ Private Sub InitializeAndExtractBaseInfo(ByVal FormulaStartCell As Range)
     ' FormulaStartCell: The cell containing the formula.
 
     ' Initialize collections and variables.
-    Set This.AllDependency = New Collection
-    Set This.SheetNameVsDependencyRangeMap = New Collection
+    Set this.AllDependency = New Collection
+    Set this.SheetNameVsDependencyRangeMap = New Collection
     ' Store information related to the FormulaStartCell.
-    Set This.FormulaStartCell = FormulaStartCell
-    Set This.FormulaStartCellInSheet = This.FormulaStartCell.Worksheet
-    This.FormulaStartCellSheetName = This.FormulaStartCellInSheet.name
-    Set This.FormulaInWorkbook = This.FormulaStartCellInSheet.Parent
+    Set this.FormulaStartCell = FormulaStartCell
+    Set this.FormulaStartCellInSheet = this.FormulaStartCell.Worksheet
+    this.FormulaStartCellSheetName = this.FormulaStartCellInSheet.Name
+    Set this.FormulaInWorkbook = this.FormulaStartCellInSheet.Parent
 
     ' Delete LET step named ranges having errors from the workbook.
-    DeleteLETStepNamedRangesHavingError This.FormulaInWorkbook
+    DeleteLETStepNamedRangesHavingError this.FormulaInWorkbook
 
     ' Get all named ranges and store them in a dictionary.
-    Set This.AllNamedRange = GetNamedRangeToDictionary(This.FormulaInWorkbook)
-    Set This.StructuredFormulaManager = New StructuredRefManager
-    With This.StructuredFormulaManager
-        Set .FormulaStartCellInSheet = This.FormulaStartCellInSheet
-        Set .AllNamedRange = This.AllNamedRange
+    Set this.AllNamedRange = Context.GetAllNamedRangeDictionaryFromBook(this.FormulaInWorkbook)
+    Set this.StructuredFormulaManager = New StructuredRefManager
+    With this.StructuredFormulaManager
+        Set .FormulaStartCellInSheet = this.FormulaStartCellInSheet
+        Set .AllNamedRange = this.AllNamedRange
     End With
 
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.InitializeAndExtractBaseInfo"
@@ -292,16 +316,23 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range)
 
     ' Find dependencies recursively starting from the FormulaStartCell.
     FindDependency FormulaStartCell, PrecedencyLevel:=1
-    If This.IsStopOnMoreThanThresholdSteps Then Exit Sub
-    If This.IsPopupShowedForLargerFormulaLength Then Exit Sub
+    If this.IsStopOnMoreThanThresholdSteps Then Exit Sub
+    If this.IsPopupShowedForLargerFormulaLength Then Exit Sub
+    
+    '@TODO: Maybe update in the future for Circular Ref
+'    If this.IsCircularRef And Not this.IsAllowCircularRef Then
+'        MsgBox "There are one or more circular references in our trace precedents region. Try using " & CIRCULAR_LAMBDA_COMMAND_NAME & " command instead.", vbCritical + vbInformation, "Circular Reference"
+'        Exit Sub
+'    End If
+    
     ' Mark previous parameter cells as parameter cells in the new dependencies collection.
-    MarkPreviousParameterCellsAsParameter This.AllDependency, This.ModifiedDependencies
+    MarkPreviousParameterCellsAsParameter this.AllDependency, this.ModifiedDependencies
 
     ' Maximize the level of dependencies.
-    MaximizeLevel This.AllDependency
+    MaximizeLevel this.AllDependency
 
     ' Update the dependencies to mark optional parameters.
-    UpdateForOptional This.AllDependency
+    UpdateForOptional this.AllDependency
     
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.GenerateDependencyInfo"
     Exit Sub
@@ -309,7 +340,7 @@ Private Sub GenerateDependencyInfo(ByVal FormulaStartCell As Range)
 
 ErrorHandler:
     
-    Set This.AllDependency = Nothing
+    Set this.AllDependency = Nothing
     ' Handle errors related to formula length exceeding Excel limit.
     If Err.Description = "Formula Lenth Cross Excel Limit" Then
         MsgBox "Unable to generate Lambda formula. Resulting formula too long.", vbExclamation + vbOKOnly, APP_NAME
@@ -336,12 +367,12 @@ Private Sub CreateDependencyInfoForStartCell(ByRef FormulaStartCell As Range)
     ' FormulaStartCell: The cell containing the formula.
 
     ' Find the possible Lambda name from the FormulaStartCell.
-    This.PossibleLambdaName = modUtility.FindLetVarName(FormulaStartCell.Cells(1, 1))
-    This.PossibleLambdaName = modUtility.MakeValidLetVarName(This.PossibleLambdaName, GetNamingConv(False))
+    this.PossibleLambdaName = modUtility.FindLetVarName(FormulaStartCell.Cells(1, 1))
+    this.PossibleLambdaName = modUtility.MakeValidLetVarName(this.PossibleLambdaName, GetNamingConv(False))
 
     ' Loop back to the actual cell (in case of a spill range).
     Set FormulaStartCell = LoopBackToActualCell(FormulaStartCell)
-    Set This.ActualFormulaStartCell = FormulaStartCell
+    Set this.ActualFormulaStartCell = FormulaStartCell
 
     Dim RangeReference As String
     ' Get the range reference of the FormulaStartCell.
@@ -350,22 +381,25 @@ Private Sub CreateDependencyInfoForStartCell(ByRef FormulaStartCell As Range)
     ' Get the modified dependency info for the range reference.
     Dim ModifiedDependencyInfo As DependencyInfo
     Set ModifiedDependencyInfo = GetModifiedDependencyInfo(RangeReference)
-    This.VarNameOfFormulaStartCell = FindVarNameOfFormulaStartCell(FormulaStartCell, ModifiedDependencyInfo)
+    this.VarNameOfFormulaStartCell = FindVarNameOfFormulaStartCell(FormulaStartCell, ModifiedDependencyInfo)
 
     Dim FormulaText As String
     If IsNothing(ModifiedDependencyInfo) Then
-        FormulaText = This.StructuredFormulaManager.GetStructuredFormula(FormulaStartCell)
+        FormulaText = this.StructuredFormulaManager.GetStructuredFormula(FormulaStartCell)
     Else
         FormulaText = ModifiedDependencyInfo.FormulaText
     End If
 
     ' Create new dependency info for the FormulaStartCell.
-    CreateNewDependency Level:=0, RangeReference:=RangeReference, _
+    CreateNewDependency Level:=0, _
+                        RangeReference:=RangeReference, _
                         FormulaText:=FormulaText, _
                         CurrentCell:=FormulaStartCell, _
                         HasAnyDependency:=True, _
                         NameInFormula:=FormulaStartCell.Address(False, False)
-
+    
+    this.FormulaStartCellRangeRef = RangeReference
+    
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.CreateDependencyInfoForStartCell"
     
 End Sub
@@ -444,7 +478,7 @@ Private Function FindVarNameOfFormulaStartCell(ByVal FormulaStartCell As Range _
         ' Generate a new variable name from the formula in the FormulaStartCell.
         VarName = modUtility.FindLetVarName(FormulaStartCell.Cells(1, 1))
         VarName = modUtility.MakeValidLetVarName(VarName, GetNamingConv(False))
-        If VarName = vbNullString Then VarName = GetLetVarPrefix() & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
+        If VarName = vbNullString Then VarName = FormulaFormatConfig.LetVarPrefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
     End If
 
     FindVarNameOfFormulaStartCell = VarName
@@ -452,9 +486,9 @@ Private Function FindVarNameOfFormulaStartCell(ByVal FormulaStartCell As Range _
     
 End Function
 
-
 '@Recursive
-Private Sub FindDependency(ByVal FormulaStartCell As Range, ByVal PrecedencyLevel As Long)
+Private Sub FindDependency(ByVal FormulaStartCell As Range _
+                           , ByVal PrecedencyLevel As Long)
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.FindDependency"
     ' Recursively finds dependencies for the FormulaStartCell and updates the dependency information.
@@ -469,7 +503,7 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range, ByVal PrecedencyLeve
     ' Uncomment the line below for debugging purposes.
     ' Debug.Assert FormulaStartCell.Address(False, False) <> "I4"
      
-    On Error GoTo ExitSub
+    On Error GoTo ExitMethod
 
     Dim DirectPrecedents As Collection
     Set DirectPrecedents = FindDirectPrecedency(FormulaStartCell)
@@ -487,31 +521,45 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range, ByVal PrecedencyLeve
     For Each CurrentDirectPrecedent In DirectPrecedents
         
         If IsFormulaLengthCrossedExcelCharacterLimit() Then Exit Sub
+            
+'        If CurrentDirectPrecedent.RangeRef = this.FormulaStartCellRangeRef Then
+'            '@TODO: Bug => We are only check for the last step. We may have an issue of circular ref in
+'            ' any intermediate steps. We need better validation for that.
+'            this.IsCircularRef = True
+'            GoTo NextDirectPrecedent
+'        End If
+            
         With CurrentDirectPrecedent
             Dim RangeReference As String
             RangeReference = .RangeRef
-
+    
             ' Uncomment the line below for debugging purposes.
             ' Debug.Assert RangeReference <> "FILTERCOLUMNS!AF3#"
 
             Dim FormulaText As String
-            FormulaText = FindFormulaText(This.FormulaInWorkbook, This.FormulaStartCellInSheet, RangeReference)
+            FormulaText = FindFormulaText(this.FormulaInWorkbook, this.FormulaStartCellInSheet, RangeReference)
 
-            If IsExistInCollection(This.AllDependency, RangeReference) Then
+            If IsExistInCollection(this.AllDependency, RangeReference) Then
                 UpdateLevel RangeReference, PrecedencyLevel
-                This.AllDependency.Item(RangeReference).UpdateNameInFormula .NameInFormula
+                this.AllDependency.Item(RangeReference).UpdateNameInFormula .NameInFormula
             Else
                 Dim CurrentRange As Range
-                Set CurrentRange = RangeResolver.FindRangeFromText(This.FormulaInWorkbook, This.FormulaStartCellInSheet, RangeReference)
+                Set CurrentRange = RangeResolver.FindRangeFromText(this.FormulaInWorkbook, this.FormulaStartCellInSheet, RangeReference)
                 
                 Dim IsAnyDep As Boolean
                 IsAnyDep = True
-                '                Debug.Assert IsNotNothing(CurrentRange)
-                If IsNothing(CurrentRange) And IsLocalOrGlobalNamedRangeExist(.NameInFormula, This.FormulaStartCellSheetName) Then
-                    FormulaText = GetNamedRangeByNameInFormula(.NameInFormula, This.FormulaStartCellSheetName).RefersTo
+                ' Debug.Assert IsNotNothing(CurrentRange)
+                If IsNothing(CurrentRange) And IsLocalOrGlobalNamedRangeExist(.NameInFormula, this.FormulaStartCellSheetName) Then
+                    FormulaText = GetNamedRangeByNameInFormula(.NameInFormula, this.FormulaStartCellSheetName).RefersTo
+                    IsAnyDep = False
+                ElseIf Is3DReference(RangeReference) Then
+                    FormulaText = vbNullString
+                    IsAnyDep = False
+                ElseIf IsNothing(CurrentRange) Then
+                    FormulaText = vbNullString
                     IsAnyDep = False
                 Else
-                    FormulaText = This.StructuredFormulaManager.FindStructuralFormulaText(CurrentRange, FormulaText)
+                    FormulaText = this.StructuredFormulaManager.FindStructuralFormulaText(CurrentRange, FormulaText)
                 End If
             
                 CreateNewDependency Level:=PrecedencyLevel, _
@@ -528,13 +576,14 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range, ByVal PrecedencyLeve
             
             End If
         End With
-        
+
+NextDirectPrecedent:
     Next CurrentDirectPrecedent
 
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.FindDependency"
     Exit Sub
 
-ExitSub:
+ExitMethod:
     If Err.Number = 1004 Then
         Logger.Log ERROR_LOG, FormulaStartCell.Address & " : " & Err.Description
         Err.Clear
@@ -550,33 +599,33 @@ End Sub
 
 Private Function IsFormulaLengthCrossedExcelCharacterLimit() As Boolean
     
-    If This.TotalFormulaLength >= THRESHOLD_FORMULA_LENGTH Then
+    If this.TotalFormulaLength >= THRESHOLD_FORMULA_LENGTH Then
         
-        If Not This.IsPopupShowedForLargerFormulaLength Then
+        If Not this.IsPopupShowedForLargerFormulaLength Then
             MsgBox "Resulting formula will cross the excel formula character limit.", vbOKOnly + vbCritical + vbInformation, "Long Formula"
-            This.IsPopupShowedForLargerFormulaLength = True
+            this.IsPopupShowedForLargerFormulaLength = True
         End If
 
     End If
     
-    IsFormulaLengthCrossedExcelCharacterLimit = This.IsPopupShowedForLargerFormulaLength
+    IsFormulaLengthCrossedExcelCharacterLimit = this.IsPopupShowedForLargerFormulaLength
     
 End Function
 
 Private Function IsStopIfMoreThanThresholdSteps() As Boolean
     
-    If This.AllDependency.Count > THRESHOLD_STEPS_COUNT Then
+    If this.AllDependency.Count > THRESHOLD_STEPS_COUNT Then
         
-        If Not This.IsAskedUserForMoreThanThresholdSteps Then
+        If Not this.IsAskedUserForMoreThanThresholdSteps Then
             Dim Answer As VbMsgBoxResult
             Answer = MsgBox("The resulting formula will have more than " & THRESHOLD_STEPS_COUNT & " LET variables.  Continue anyway?", vbYesNo, "More Steps")
-            This.IsStopOnMoreThanThresholdSteps = (Answer = vbNo)
-            This.IsAskedUserForMoreThanThresholdSteps = True
+            this.IsStopOnMoreThanThresholdSteps = (Answer = vbNo)
+            this.IsAskedUserForMoreThanThresholdSteps = True
         End If
         
     End If
     
-    IsStopIfMoreThanThresholdSteps = This.IsStopOnMoreThanThresholdSteps
+    IsStopIfMoreThanThresholdSteps = this.IsStopOnMoreThanThresholdSteps
     
 End Function
 
@@ -590,8 +639,8 @@ Private Sub UpdateDependencyIfNoMorePrecedents(ByVal FormulaStartCell As Range, 
     Dim NameInFormula As String
 
     ' If the formula is on a different sheet, include the sheet reference in NameInFormula.
-    If FormulaStartCell.Worksheet.name <> This.FormulaStartCellSheetName Then
-        NameInFormula = GetSheetRefForRangeReference(FormulaStartCell.Worksheet.name, False)
+    If FormulaStartCell.Worksheet.Name <> this.FormulaStartCellSheetName Then
+        NameInFormula = GetSheetRefForRangeReference(FormulaStartCell.Worksheet.Name, False)
     End If
 
     Dim RangeReference As String
@@ -608,17 +657,17 @@ Private Sub UpdateDependencyIfNoMorePrecedents(ByVal FormulaStartCell As Range, 
         End If
     ElseIf HasDynamicFormula(FormulaStartCell) Then
         NameInFormula = NameInFormula & GetSpillParentAddress(FormulaStartCell) & DYNAMIC_CELL_REFERENCE_SIGN
-        FormulaText = GetSpillParentCell(FormulaStartCell).Formula2
+        FormulaText = GetCellFormula(GetSpillParentCell(FormulaStartCell))
     Else
         NameInFormula = NameInFormula & GetNameInFormula(FormulaStartCell)
     End If
 
-    If IsExistInCollection(This.AllDependency, RangeReference) Then
+    If IsExistInCollection(this.AllDependency, RangeReference) Then
         UpdateLevel RangeReference, PrecedencyLevel
-        This.AllDependency.Item(RangeReference).HasAnyDependency = False
+        this.AllDependency.Item(RangeReference).HasAnyDependency = False
     Else
         If IsNothing(ModifiedDependencyInfo) Then
-            FormulaText = This.StructuredFormulaManager.FindStructuralFormulaText(FormulaStartCell, FormulaText)
+            FormulaText = this.StructuredFormulaManager.FindStructuralFormulaText(FormulaStartCell, FormulaText)
         End If
         CreateNewDependency PrecedencyLevel, RangeReference, FormulaText, FormulaStartCell, False, NameInFormula
     End If
@@ -635,7 +684,7 @@ Private Function GetDependencyRangeReference(ByVal ForCell As Range) As String
     
     
     Dim SheetNamePrefix As String
-    SheetNamePrefix = GetSheetRefForRangeReference(ForCell.Worksheet.name, False)
+    SheetNamePrefix = GetSheetRefForRangeReference(ForCell.Worksheet.Name, False)
     
     Dim RangeReference As String
     RangeReference = SheetNamePrefix & ForCell.Address(False, False)
@@ -670,7 +719,7 @@ Private Function FindDirectPrecedency(ByVal ForCell As Range) As Collection
     On Error GoTo ExitMethod
     Dim StartTime As Double
     StartTime = Timer()
-    This.StructuredFormulaManager.ConvertRangeRefToStructuralRef ForCell
+    this.StructuredFormulaManager.ConvertRangeRefToStructuralRef ForCell
     Logger.Log DEBUG_LOG, "Time to convert formula to structured ref: " _
                          & Timer() - StartTime & " for cell: " & ForCell.Address
     
@@ -678,13 +727,13 @@ Private Function FindDirectPrecedency(ByVal ForCell As Range) As Collection
     ForCellReference = GetRangeRefWithSheetName(ForCell, False)
 
     Dim LetStepLambdaRefs As Scripting.Dictionary
-    Set LetStepLambdaRefs = This.StructuredFormulaManager.GetLetStepLambdaRefs(ForCell)
+    Set LetStepLambdaRefs = this.StructuredFormulaManager.GetLetStepLambdaRefs(ForCell)
 
     Dim DirectPrecedentCells As Collection
     Set DirectPrecedentCells = New Collection
     
     Dim DirectPrecedents As Variant
-    DirectPrecedents = GetDirectPrecedents(This.StructuredFormulaManager.GetStructuredFormula(ForCell) _
+    DirectPrecedents = GetDirectPrecedents(this.StructuredFormulaManager.GetStructuredFormula(ForCell) _
                                            , ForCell.Worksheet)
     
     Dim CurrentPrecendentReference As Variant
@@ -695,7 +744,7 @@ Private Function FindDirectPrecedency(ByVal ForCell As Range) As Collection
         ' I don’t think we should trace precedence outside of active workbook even if it is open.
         ' Chat Date: 8 Sept 2024, Channel: Erik and Rob Teams group.
         
-        If Not IsReferenceFromDifferentBook(CurrentPrecendentReference, This.FormulaInWorkbook) Then
+        If Not IsReferenceFromDifferentBook(CurrentPrecendentReference, this.FormulaInWorkbook) Then
             ' Add the direct precedent to the collection.
             AddDependencyToCollection CStr(CurrentPrecendentReference), DirectPrecedentCells _
                                                                        , ForCellReference _
@@ -729,8 +778,8 @@ End Function
 Private Sub AddDependencyToCollection(ByVal PrecendentRef As String _
                                       , ByVal DirectPrecedentCells As Collection _
                                        , ByVal ForCellReference As String _
-                                       , ByVal DependencyForCell As Range _
-                                        , Optional ByVal LetStepFXName As String = vbNullString)
+                                        , ByVal DependencyForCell As Range _
+                                         , Optional ByVal LetStepFXName As String = vbNullString)
                                         
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.AddDependencyToCollection"
     ' Adds the current precedent reference to the direct precedent cells collection, if it doesn't exist.
@@ -750,12 +799,14 @@ Private Sub AddDependencyToCollection(ByVal PrecendentRef As String _
     End If
     
     ' Extract the range reference from named range or table.
-    PrecendentRef = RangeResolver.GetRangeRefFromNamedRangeOrTable(This.FormulaInWorkbook _
+    PrecendentRef = RangeResolver.GetRangeRefFromNamedRangeOrTable(this.FormulaInWorkbook _
                                                                    , PrecendentRef _
                                                                     , DependencyForCell.Worksheet)
 
     ' Make the range reference valid with the sheet name.
-    PrecendentRef = MakeValidRangeReference(PrecendentRef, DependencyForCell.Worksheet.name)
+    If IsA1C1RangeAddress(PrecendentRef) Then
+        PrecendentRef = MakeValidRangeReference(PrecendentRef, DependencyForCell.Worksheet.Name)
+    End If
 
     ' Assign the current precedent reference to the Key property of the mapper.
     CurrentPrecedent.RangeRef = PrecendentRef
@@ -794,16 +845,19 @@ Private Function IsNoMorePrecedency(ByVal ForCell As Range) As Boolean
                      Or (.IsDemotedFromParameterCellToLetStep And Not .IsExpandByUser) _
                      )
         End With
-    ElseIf ForCell.Worksheet.Parent.name <> This.FormulaInWorkbook.name Then
+    ElseIf IsNothing(ForCell) Then
+        Result = True
+    ElseIf ForCell.Worksheet.Parent.Name <> this.FormulaInWorkbook.Name Then
         Result = True
     ElseIf Not ForCell.HasFormula Then
         Result = True
-    ElseIf IsInputCell(ForCell, This.DependencySearchInRegion) Then
+    ElseIf IsInputCell(ForCell, this.DependencySearchInRegion) Then
         Result = True
-    ElseIf IsInsideTable(ForCell) Then
+    ElseIf IsInsideTable(ForCell) And RangeReference <> this.FormulaStartCellRangeRef Then
+        ' Allow extracting dependency if it is inside table and that is the start cell for which we are generating lambda/let.
         Result = True
     ElseIf IsReferedByNamedRange(ForCell) Then
-        Result = Not (Text.Contains(ForCell.name.name, LETSTEPREF_UNDERSCORE_PREFIX))
+        Result = Not (Text.Contains(ForCell.Name.Name, LETSTEPREF_UNDERSCORE_PREFIX))
     Else
         Result = False
     End If
@@ -825,14 +879,13 @@ Private Function IsReferedByNamedRange(ByVal ForCell As Range) As Boolean
     RangeReference = GetDependencyRangeReference(ForCell)
     Dim CurrentDependencyInfo As DependencyInfo
 
-    If IsExistInCollection(This.AllDependency, RangeReference) Then
-        Set CurrentDependencyInfo = This.AllDependency.Item(RangeReference)
+    If IsExistInCollection(this.AllDependency, RangeReference) Then
+        Set CurrentDependencyInfo = this.AllDependency.Item(RangeReference)
         IsReferedByNamedRange = CurrentDependencyInfo.IsReferByNamedRange
     End If
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.IsReferedByNamedRange"
     
 End Function
-
 
 Private Function MakeValidRangeReference(ByVal RangeReference As String, ByVal SheetName As String) As String
     
@@ -868,7 +921,7 @@ Private Sub UpdateLevel(ByVal RangeReference As String, ByVal NewLevel As Long)
     ' NewLevel: The new level for the range reference.
 
     Dim CurrentDependency As DependencyInfo
-    Set CurrentDependency = This.AllDependency.Item(RangeReference)
+    Set CurrentDependency = this.AllDependency.Item(RangeReference)
 
     ' Base case to exit if the new level is less than the current level.
     If NewLevel < CurrentDependency.Level Then Exit Sub
@@ -877,7 +930,7 @@ Private Sub UpdateLevel(ByVal RangeReference As String, ByVal NewLevel As Long)
     CurrentDependency.Level = NewLevel
 
     Dim CurrentRange As Range
-    Set CurrentRange = RangeResolver.FindRangeFromText(This.FormulaInWorkbook, This.FormulaStartCellInSheet, RangeReference)
+    Set CurrentRange = RangeResolver.FindRangeFromText(this.FormulaInWorkbook, this.FormulaStartCellInSheet, RangeReference)
 
     ' Find the direct precedent cells and update their levels recursively.
     Dim DirectPrecedentCells As Collection
@@ -889,7 +942,9 @@ Private Sub UpdateLevel(ByVal RangeReference As String, ByVal NewLevel As Long)
     
     Dim CurrentDirectPrecedent As DirectPrecedent
     For Each CurrentDirectPrecedent In DirectPrecedentCells
-        UpdateLevel CurrentDirectPrecedent.RangeRef, NewLevel + 1
+        If CurrentDirectPrecedent.RangeRef <> this.FormulaStartCellRangeRef Then
+            UpdateLevel CurrentDirectPrecedent.RangeRef, NewLevel + 1
+        End If
     Next CurrentDirectPrecedent
 
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.UpdateLevel"
@@ -949,8 +1004,8 @@ Private Sub CreateNewDependency(ByVal Level As Long _
         If IsNotNothing(CurrentCell) Then
             .RowNumber = CurrentCell.Row
             .ColumnNumber = CurrentCell.Column
-            .SheetName = CurrentCell.Worksheet.name
-            .BookName = CurrentCell.Worksheet.Parent.name
+            .SheetName = CurrentCell.Worksheet.Name
+            .BookName = CurrentCell.Worksheet.Parent.Name
             UpdateSheetNameVsDependencyMap CurrentCell
         End If
         
@@ -960,12 +1015,12 @@ Private Sub CreateNewDependency(ByVal Level As Long _
             UpdateNewDependencyFromModified CurrentDependency, ModifiedDependencyInfo, RangeReference, CurrentCell
         End If
 
-        This.AllDependency.Add CurrentDependency, RangeReference
+        this.AllDependency.Add CurrentDependency, RangeReference
         
-        This.TotalFormulaLength = This.TotalFormulaLength + Len(CurrentDependency.FormulaText)
+        this.TotalFormulaLength = this.TotalFormulaLength + Len(CurrentDependency.FormulaText)
         
         Logger.Log INFO_LOG, vbNewLine
-'        Logger.Log TRACE_LOG, CurrentDependency.ToJSON
+        '        Logger.Log TRACE_LOG, CurrentDependency.ToJSON
     End With
 
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.CreateNewDependency"
@@ -977,17 +1032,17 @@ Private Sub UpdateSheetNameVsDependencyMap(ByVal DependencyCells As Range)
     If IsNothing(DependencyCells) Then Exit Sub
     
     Dim SheetName As String
-    SheetName = DependencyCells.Worksheet.name
+    SheetName = DependencyCells.Worksheet.Name
     
-    If IsExistInCollection(This.SheetNameVsDependencyRangeMap, SheetName) Then
+    If IsExistInCollection(this.SheetNameVsDependencyRangeMap, SheetName) Then
         
         Dim PrevRange As Range
-        Set PrevRange = This.SheetNameVsDependencyRangeMap.Item(SheetName)
+        Set PrevRange = this.SheetNameVsDependencyRangeMap.Item(SheetName)
         Set PrevRange = UnionOfNonExistableRange(PrevRange, DependencyCells)
-        This.SheetNameVsDependencyRangeMap.Remove SheetName
-        This.SheetNameVsDependencyRangeMap.Add PrevRange, SheetName
+        this.SheetNameVsDependencyRangeMap.Remove SheetName
+        this.SheetNameVsDependencyRangeMap.Add PrevRange, SheetName
     Else
-        This.SheetNameVsDependencyRangeMap.Add DependencyCells, SheetName
+        this.SheetNameVsDependencyRangeMap.Add DependencyCells, SheetName
     End If
     
 End Sub
@@ -1004,24 +1059,35 @@ Private Sub UpdateNewDependencyIfNoModified(ByVal CurrentDependency As Dependenc
         .FormulaText = FormulaText
         .HasFormula = HasFormula(CurrentCell)
             
-        If IsNothing(CurrentCell) And IsLocalOrGlobalNamedRangeExist(NameInFormula, This.FormulaStartCellSheetName) Then
+        If Is3DReference(RangeReference) Then
+            .Is3DRangeRef = True
+            If IsNothing(CurrentCell) Then
+                Set CurrentCell = RangeResolver.GetRange(GetStartSheetRangeRefIf3DRef(RangeReference))
+                UpdateSheetNameVsDependencyMap CurrentCell
+            End If
+            .RangeLabel = FindRangeLabel(RangeReference, CurrentCell, False)
+            Set .RangeLabelCell = FindLetVarNameCell(CurrentCell)
+            .IsLabelAsInputCell = False
+            .IsReferByNamedRange = False
+            .IsInsideNamedRangeOrTable = False
+            .IsTableRef = False
+        ElseIf IsNothing(CurrentCell) And IsLocalOrGlobalNamedRangeExist(NameInFormula, this.FormulaStartCellSheetName) Then
             ' For const named range we will have CurrentCell nothing.
             .RangeLabel = RemoveSheetQualifierIfPresent(NameInFormula)
             .IsLabelAsInputCell = False
             .IsReferByNamedRange = True
             .IsInsideNamedRangeOrTable = True
             .IsTableRef = False
-            Set .ForName = GetNamedRangeByNameInFormula(NameInFormula, This.FormulaStartCellSheetName)
+            Set .ForName = GetNamedRangeByNameInFormula(NameInFormula, this.FormulaStartCellSheetName)
         Else
-            '@TODO: Need to update it here.
             .RangeLabel = FindRangeLabel(RangeReference, CurrentCell, False)
             Set .RangeLabelCell = FindLetVarNameCell(CurrentCell)
-            .IsLabelAsInputCell = IsInputCell(CurrentCell, This.DependencySearchInRegion)
-            .IsReferByNamedRange = IsLocalOrGlobalNamedRangeExist(NameInFormula, CurrentCell.Worksheet.name)
+            .IsLabelAsInputCell = IsInputCell(CurrentCell, this.DependencySearchInRegion)
+            .IsReferByNamedRange = IsLocalOrGlobalNamedRangeExist(NameInFormula, CurrentCell.Worksheet.Name)
             .IsInsideNamedRangeOrTable = IsInsideTableOrNamedRange(CurrentCell)
             
             If .IsReferByNamedRange Then
-                Set .ForName = GetNamedRangeByNameInFormula(NameInFormula, CurrentCell.Worksheet.name)
+                Set .ForName = GetNamedRangeByNameInFormula(NameInFormula, CurrentCell.Worksheet.Name)
             End If
             
             If .IsInsideNamedRangeOrTable Then
@@ -1063,7 +1129,7 @@ End Function
 Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As DependencyInfo _
                                             , ByVal ModifiedDependencyInfo As DependencyInfo _
                                              , ByVal RangeReference As String _
-                                             , ByVal CurrentCell As Range)
+                                              , ByVal CurrentCell As Range)
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.UpdateNewDependencyFromModified"
     With CurrentDependency
@@ -1075,7 +1141,8 @@ Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As Dependenc
         End If
 
         .FormulaText = ModifiedDependencyInfo.FormulaText
-
+        .Is3DRangeRef = ModifiedDependencyInfo.Is3DRangeRef
+        
         If ModifiedDependencyInfo.IsExpandByUser Then
             '@TODO: Need to update here.
             .RangeLabel = FindRangeLabel(RangeReference, CurrentCell, True)
@@ -1093,7 +1160,7 @@ Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As Dependenc
         ElseIf ModifiedDependencyInfo.IsUserMarkAsValue Then
             .IsLabelAsInputCell = False
         Else
-            .IsLabelAsInputCell = IsInputCell(CurrentCell, This.DependencySearchInRegion)
+            .IsLabelAsInputCell = IsInputCell(CurrentCell, this.DependencySearchInRegion)
         End If
 
         .IsReferByNamedRange = ModifiedDependencyInfo.IsReferByNamedRange
@@ -1122,12 +1189,12 @@ Private Function IsLocalOrGlobalNamedRangeExist(ByVal NameOfNamedRange As String
 
     ' Check if the named range exists in the global named range collection.
     Dim Result As Boolean
-    Result = This.AllNamedRange.Exists(NameOfNamedRange)
+    Result = this.AllNamedRange.Exists(NameOfNamedRange)
 
     ' If the named range doesn't exist in the global collection, check if it exists in the specified sheet's named range collection.
     If Not Result Then
         SheetName = GetSheetRefForRangeReference(SheetName, False)
-        Result = This.AllNamedRange.Exists(SheetName & NameOfNamedRange)
+        Result = this.AllNamedRange.Exists(SheetName & NameOfNamedRange)
     End If
     
     IsLocalOrGlobalNamedRangeExist = Result
@@ -1136,7 +1203,7 @@ Private Function IsLocalOrGlobalNamedRangeExist(ByVal NameOfNamedRange As String
 End Function
 
 Private Function GetNamedRangeByNameInFormula(ByVal NameOfNamedRange As String _
-                                              , ByVal SheetName As String) As name
+                                              , ByVal SheetName As String) As Name
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.GetNamedRangeByNameInFormula"
     ' Checks if the named range exists in the global named range collection or in the specified sheet's named range collection.
@@ -1144,13 +1211,13 @@ Private Function GetNamedRangeByNameInFormula(ByVal NameOfNamedRange As String _
     ' SheetName: The name of the sheet where the named range might exist.
 
     ' Check if the named range exists in the global named range collection.
-    Dim Result As name
+    Dim Result As Name
     SheetName = GetSheetRefForRangeReference(SheetName, False)
-    If This.AllNamedRange.Exists(NameOfNamedRange) Then
-        Set Result = This.AllNamedRange.Item(NameOfNamedRange)
-    ElseIf This.AllNamedRange.Exists(SheetName & NameOfNamedRange) Then
+    If this.AllNamedRange.Exists(NameOfNamedRange) Then
+        Set Result = this.AllNamedRange.Item(NameOfNamedRange)
+    ElseIf this.AllNamedRange.Exists(SheetName & NameOfNamedRange) Then
         ' If the named range doesn't exist in the global collection, check if it exists in the specified sheet's named range collection.
-        Set Result = This.AllNamedRange.Item(SheetName & NameOfNamedRange)
+        Set Result = this.AllNamedRange.Item(SheetName & NameOfNamedRange)
     End If
     
     Set GetNamedRangeByNameInFormula = Result
@@ -1165,8 +1232,8 @@ Private Function GetModifiedDependencyInfo(ByVal RangeReference As String) As De
     ' RangeReference: The range reference to check for modified dependency information.
 
     ' Check if the modified DependencyInfo object exists in the ModifiedDependencies collection.
-    If IsExistInCollection(This.ModifiedDependencies, RangeReference) Then
-        Set GetModifiedDependencyInfo = This.ModifiedDependencies.Item(RangeReference)
+    If IsExistInCollection(this.ModifiedDependencies, RangeReference) Then
+        Set GetModifiedDependencyInfo = this.ModifiedDependencies.Item(RangeReference)
     End If
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.GetModifiedDependencyInfo"
 
@@ -1174,7 +1241,7 @@ End Function
 
 Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
                                                   , ByVal IsReferedByNamedRange As Boolean _
-                                                  , ByVal IsInputCell As Boolean) As String
+                                                   , ByVal IsInputCell As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
     ' Corrects the valid variable name for a named range that is also referred to by another named range.
@@ -1183,12 +1250,12 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
 
     ' If the named range is referred to by another named range and the current name exists in the named range collection,
     ' add an underscore to the beginning of the name.
-    If IsReferedByNamedRange And IsLocalOrGlobalNamedRangeExist(ValidVarName, This.FormulaStartCellSheetName) Then
+    If IsReferedByNamedRange And IsLocalOrGlobalNamedRangeExist(ValidVarName, this.FormulaStartCellSheetName) Then
         ValidVarName = Text.PadIfNotPresent(ValidVarName, UNDER_SCORE, FROM_START)
     End If
 
     ' If the corrected valid variable name does not exist in the named range collection, return it.
-    If Not IsLocalOrGlobalNamedRangeExist(ValidVarName, This.FormulaStartCellSheetName) Then
+    If Not IsLocalOrGlobalNamedRangeExist(ValidVarName, this.FormulaStartCellSheetName) Then
         CorrectValidVarNameForNamedRange = ValidVarName
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
         Exit Function
@@ -1198,9 +1265,9 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
     ' a unique name is found.
     
     If Not IsInputCell Then
-        If Not IsLocalOrGlobalNamedRangeExist(Text.PadIfNotPresent(ValidVarName, UNDER_SCORE, FROM_START), This.FormulaStartCellSheetName) Then
+        If Not IsLocalOrGlobalNamedRangeExist(Text.PadIfNotPresent(ValidVarName, UNDER_SCORE, FROM_START), this.FormulaStartCellSheetName) Then
             CorrectValidVarNameForNamedRange = ValidVarName
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
+            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
             Exit Function
         End If
     End If
@@ -1208,7 +1275,7 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
     Dim Counter As Long
     Counter = 2
     Do While True
-        If IsLocalOrGlobalNamedRangeExist(ValidVarName & UNDER_SCORE & Counter, This.FormulaStartCellSheetName) Then
+        If IsLocalOrGlobalNamedRangeExist(ValidVarName & UNDER_SCORE & Counter, this.FormulaStartCellSheetName) Then
             Counter = Counter + 1
         Else
             Exit Do
@@ -1317,27 +1384,29 @@ Private Function IsMultiCellNotDynamic(ByVal RangeReference As String) As Boolea
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.IsMultiCellNotDynamic"
     ' Checks if the given range reference represents a multi-cell range that is not dynamic.
     ' RangeReference: The range reference to check.
-
-    ' If the range reference ends with the dynamic cell reference sign, it is considered dynamic and not a multi-cell range.
-    If IsSpilledRangeRef(RangeReference) Then
-        IsMultiCellNotDynamic = False
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.IsMultiCellNotDynamic"
-        Exit Function
-    End If
-
-    ' Get the range from the range reference.
-    Dim RangeFromRef As Range
-    Set RangeFromRef = RangeResolver.GetRange(RangeReference, This.FormulaInWorkbook, This.FormulaStartCellInSheet)
     
     Dim Result As Boolean
-    ' Check if the range exists and if it contains more than one cell and is not a spill range.
-    If IsNothing(RangeFromRef) Then
+    ' If the range reference ends with the dynamic cell reference sign, it is considered dynamic and not a multi-cell range.
+    If IsSpilledRangeRef(RangeReference) Then
         Result = False
-    ElseIf RangeFromRef.Cells.Count > 1 Then
-        If IsNull(RangeFromRef.HasSpill) Then
-            Result = True
-        Else
-            Result = Not RangeFromRef.HasSpill
+    ElseIf Is3DReference(RangeReference) Then
+        Result = True
+    Else
+        ' Get the range from the range reference.
+        Dim RangeFromRef As Range
+        Set RangeFromRef = RangeResolver.GetRange(RangeReference _
+                                                  , this.FormulaInWorkbook _
+                                                   , this.FormulaStartCellInSheet)
+
+        ' Check if the range exists and if it contains more than one cell and is not a spill range.
+        If IsNothing(RangeFromRef) Then
+            Result = False
+        ElseIf RangeFromRef.Cells.Count > 1 Then
+            If IsNull(RangeFromRef.HasSpill) Then
+                Result = True
+            Else
+                Result = Not RangeFromRef.HasSpill
+            End If
         End If
     End If
     
@@ -1398,7 +1467,7 @@ Private Function FindMinDependencyLevelFromAllDependentCells(ByRef AllDependency
     Dim DirectPrecedentsCell As Collection
     Dim ForCell As Range
     ' Get the range of cells for current dependency
-    Set ForCell = RangeResolver.GetRange(CurrentDependencyInfo.RangeReference, This.FormulaInWorkbook, This.FormulaStartCellInSheet)
+    Set ForCell = RangeResolver.GetRange(CurrentDependencyInfo.RangeReference, this.FormulaInWorkbook, this.FormulaStartCellInSheet)
     ' Find the direct precedents of the current cell
     If IsNothing(ForCell) Then
         Set DirectPrecedentsCell = New Collection
@@ -1438,10 +1507,10 @@ Public Function GetDependencyObjectsFromData(ByVal DependencyOrderData As Varian
                                                                , "CreateMe", RANGE_REFERENCE_COL_INDEX)
     ' Update various properties of the DependencyInfo objects in the collection
     SetNamedRangeIfReferedByNamedRange DependencyObjects
-    UpdateInputCellsForDefaultName DependencyObjects
+    UpdateInputCellsForDefaultName DependencyObjects, TypeOfOperation
     UpgradeDuplicateLetVarName DependencyObjects
     UpdateBlankRangeLabelForDefaultName DependencyObjects
-    This.NumberOfNonInputDependency = GetNumberOfNonInputDependency(DependencyObjects)
+    this.NumberOfNonInputDependency = GetNumberOfNonInputDependency(DependencyObjects)
     If TypeOfOperation <> LET_STATEMENT_GENERATION Then
         ' In case of LET Statement generation use the label instead of _Result
         UpdateLastStepName DependencyObjects
@@ -1465,8 +1534,8 @@ Public Sub SetNamedRangeIfReferedByNamedRange(ByRef ObjectsCollection As Collect
                 
                 ' As we have decided to only trace precedents on FormulaInBook
                 ' we can easily check in the FormulaInBook scope.
-                If IsLocalOrGlobalNamedRangeExist(.NameInFormula, This.FormulaStartCellSheetName) Then
-                    Set .ForName = GetNamedRangeByNameInFormula(.NameInFormula, This.FormulaStartCellSheetName)
+                If IsLocalOrGlobalNamedRangeExist(.NameInFormula, this.FormulaStartCellSheetName) Then
+                    Set .ForName = GetNamedRangeByNameInFormula(.NameInFormula, this.FormulaStartCellSheetName)
                 End If
                 
             End If
@@ -1480,14 +1549,14 @@ Public Sub AddPrefixOnInputCells(ByRef ObjectsCollection As Collection)
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.AddPrefixOnInputCells"
     Dim LetVarPrefix As String
-    LetVarPrefix = GetLetVarPrefix()
+    LetVarPrefix = FormulaFormatConfig.LetVarPrefix
     
     Dim CurrentDependency As DependencyInfo
     ' Iterate over each DependencyInfo object in the collection and add an underscore to the ValidVarName property if it is a valid dependency
     For Each CurrentDependency In ObjectsCollection
         With CurrentDependency
             If .ValidVarName <> vbNullString And Not .IsUserSpecifiedName And .IsLabelAsInputCell Then
-                .ValidVarName = Text.PadIfNotPresent(.ValidVarName, LetVarPrefix, FROM_START)
+                .ValidVarName = Text.PadIfNotPresent(MakeValidLetVarName(.ValidVarName, GetNamingConv(False)), LetVarPrefix, FROM_START)
             End If
         End With
     Next CurrentDependency
@@ -1501,10 +1570,10 @@ Public Sub AddPrefixOnValidVarNameForNonInputCells(ByRef ObjectsCollection As Co
          
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.AddPrefixOnValidVarNameForNonInputCells"
     Dim LetVarPrefix As String
-    LetVarPrefix = GetLetVarPrefix()
+    LetVarPrefix = FormulaFormatConfig.LetVarPrefix
     
     Dim IsAddPrefixOnParam As Boolean
-    IsAddPrefixOnParam = modDependencyLambdaResult.GetAddPrefixOnParamValue()
+    IsAddPrefixOnParam = FormulaFormatConfig.AddPrefixOnParam
     
     Dim CurrentDependency As DependencyInfo
     ' Iterate over each DependencyInfo object in the collection and add an underscore to the ValidVarName property if it is a valid dependency
@@ -1542,29 +1611,33 @@ Private Sub UpdateLastStepName(ByRef DependencyObjects As Collection)
         PreviousStepName = DependencyObjects.Item(DependencyObjects.Count - 1).ValidVarName
         ' Update the ValidVarName of the last dependency based on the casing of the second to last dependency
         Dim Prefix As String
-        Prefix = GetLetVarPrefix()
+        Prefix = FormulaFormatConfig.LetVarPrefix
         
         If Not CurrentDependencyInfo.IsUserSpecifiedName Then
             CurrentDependencyInfo.ValidVarName = Prefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
         End If
         
-        This.VarNameOfFormulaStartCell = CurrentDependencyInfo.ValidVarName
+        this.VarNameOfFormulaStartCell = CurrentDependencyInfo.ValidVarName
     End If
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.UpdateLastStepName"
     
 End Sub
 
-Private Sub UpdateInputCellsForDefaultName(ByRef DependencyObjects As Collection)
+Private Sub UpdateInputCellsForDefaultName(ByRef DependencyObjects As Collection, ByVal TypeOfOperation As OperationType)
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.UpdateInputCellsForDefaultName"
     ' Iterate over the dependencies and update the ValidVarName of input cells without a name
+    
+    Dim Prefix As String
+    Prefix = IIf(TypeOfOperation = LET_STATEMENT_GENERATION, "Step", "Input")
+    
     Dim CurrentDependencyInfo As DependencyInfo
     Dim Counter As Long
     For Each CurrentDependencyInfo In DependencyObjects
         Counter = Counter + 1
         With CurrentDependencyInfo
             If .IsLabelAsInputCell And .ValidVarName = vbNullString Then
-                .ValidVarName = "Input" & Counter
+                .ValidVarName = Prefix & Counter
             End If
         End With
     Next CurrentDependencyInfo
@@ -1579,14 +1652,14 @@ Public Sub UpdateInputCellsValidVarNameNamingConvIfLetStepGen(ByRef DependencyOb
     Dim CurrentDependencyInfo As DependencyInfo
     
     Dim Prefix As String
-    Prefix = GetLetVarPrefix()
+    Prefix = FormulaFormatConfig.LetVarPrefix
     
     Dim NamingConv As VarNamingStyle
     NamingConv = GetNamingConv(False)
     
     For Each CurrentDependencyInfo In DependencyObjects
         With CurrentDependencyInfo
-            If .IsLabelAsInputCell And Not .IsUserSpecifiedName Then
+            If .IsLabelAsInputCell And Not .IsUserSpecifiedName And .ValidVarName <> vbNullString Then
                 .ValidVarName = Prefix & MakeValidLetVarName(.ValidVarName, NamingConv)
             End If
         End With
@@ -1615,7 +1688,7 @@ Private Sub UpdateBlankRangeLabelForDefaultName(ByRef DependencyObjects As Colle
     
     With CurrentDependencyInfo
         If Not .IsLabelAsInputCell And .ValidVarName = "_Step" & Counter And Not .IsUserSpecifiedName Then
-            .ValidVarName = GetLetVarPrefix() & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
+            .ValidVarName = FormulaFormatConfig.LetVarPrefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
         End If
     End With
     
@@ -1638,9 +1711,11 @@ Private Sub UpgradeDuplicateLetVarName(ByRef DependencyObjects As Collection _
         CurrentValidVarName = CurrentDependencyInfo.ValidVarName
         If CurrentValidVarName <> vbNullString Then
             ' Find a unique name for the current dependency
-            CurrentValidVarName = FindUniqueNameForCurrentDependency(CurrentDependencyInfo _
+            
+            CurrentValidVarName = CheckForBuiltInOrLambdaNameConflict(CurrentDependencyInfo)
+            CurrentValidVarName = FindUniqueNameForCurrentDependency(CurrentValidVarName, CurrentDependencyInfo.IsLabelAsInputCell _
                                                                      , SoFarVarNameCollection _
-                                                                     , UniqueInBothParamAndStep)
+                                                                      , UniqueInBothParamAndStep)
             CurrentDependencyInfo.ValidVarName = CurrentValidVarName
             
             ' So if we have same name in lambda param and in the LET Step then we want to store the LET Version.
@@ -1655,17 +1730,36 @@ Private Sub UpgradeDuplicateLetVarName(ByRef DependencyObjects As Collection _
 
 End Sub
 
-Private Function FindUniqueNameForCurrentDependency(ByVal CurrentDependencyInfo As DependencyInfo _
-                                                    , ByVal SoFarVarNameCollection As Collection _
-                                                    , ByVal UniqueInBothParamAndStep As Boolean) As String
+Private Function CheckForBuiltInOrLambdaNameConflict(CurrentDependencyInfo As DependencyInfo) As String
+    
+    Dim Result As String
+    With CurrentDependencyInfo
+        Result = .ValidVarName
+        If Not .IsLabelAsInputCell And Not .IsUserSpecifiedName Then
+            Do While IsBuiltInFunction(Result) Or Context.IsLambdaExists(Result)
+                If Text.ExtractNumberFromEnd(Result) = vbNullString Then
+                    Result = Text.PadIfNotPresent(Result, "_2", FROM_end)
+                Else
+                    Result = Text.IncrementOrDecrementEndNumber(Result, 1, False)
+                End If
+            Loop
+        End If
+    End With
+    
+    CheckForBuiltInOrLambdaNameConflict = Result
+    
+End Function
+
+Private Function FindUniqueNameForCurrentDependency(ByVal ValidVarName As String _
+                                                    , ByVal IsLabelAsInputCeell As Boolean _
+                                                     , ByVal SoFarVarNameCollection As Collection _
+                                                      , ByVal UniqueInBothParamAndStep As Boolean) As String
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.FindUniqueNameForCurrentDependency"
     ' Initialize a variable to store the ValidVarName
-    Dim ValidVarName As String
-    ValidVarName = CurrentDependencyInfo.ValidVarName
     
     ' If the current dependency is an input cell, find a unique name by incrementing a number
-    If CurrentDependencyInfo.IsLabelAsInputCell Then
+    If IsLabelAsInputCell Then
         FindUniqueNameForCurrentDependency = FindUniqueNameByIncrementingNumber(SoFarVarNameCollection _
                                                                                 , ValidVarName)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.FindUniqueNameForCurrentDependency"
@@ -1691,7 +1785,7 @@ Private Function FindUniqueNameForCurrentDependency(ByVal CurrentDependencyInfo 
         
         ' Update ValidVarName if there is a conflict
         If Text.ExtractNumberFromEnd(ValidVarName) = vbNullString Then
-            ValidVarName = Text.PadIfNotPresent(ValidVarName, "_2", FROM_END)
+            ValidVarName = Text.PadIfNotPresent(ValidVarName, "_2", FROM_end)
         Else
             ValidVarName = Text.IncrementOrDecrementEndNumber(ValidVarName, 1, False)
         End If
@@ -1707,15 +1801,15 @@ Private Sub Class_Terminate()
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.Class_Terminate"
     ' Check if the formula start cell exists and if so, clear the cache
-    If IsNotNothing(This.FormulaStartCell) Then ClearCatches
+    If IsNotNothing(this.FormulaStartCell) Then ClearCatches
     ' Nullify the mapping objects
-    Set This.StructuredFormulaManager = Nothing
+    Set this.StructuredFormulaManager = Nothing
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.Class_Terminate"
     
 End Sub
 
 Public Function FindStructuralFormulaText(ByVal ForCell As Range, ByVal FormulaText As String) As String
-    FindStructuralFormulaText = This.StructuredFormulaManager.FindStructuralFormulaText(ForCell, FormulaText)
+    FindStructuralFormulaText = this.StructuredFormulaManager.FindStructuralFormulaText(ForCell, FormulaText)
 End Function
 
 

@@ -17,29 +17,29 @@ Private Type TDependencyStats
     MinimumLevel As Long
 End Type
 
-Private This As TDependencyStats
+Private this As TDependencyStats
 
 Public Property Get HasAnyCellLabelAsInputCell() As Boolean
-    HasAnyCellLabelAsInputCell = This.HasAnyCellLabelAsInputCell
+    HasAnyCellLabelAsInputCell = this.HasAnyCellLabelAsInputCell
 End Property
 
 Public Property Get MaximumLevel() As Long
-    MaximumLevel = This.MaximumLevel
+    MaximumLevel = this.MaximumLevel
 End Property
 
 Public Property Get MinimumLevel() As Long
-    MinimumLevel = This.MinimumLevel
+    MinimumLevel = this.MinimumLevel
 End Property
 
 Public Sub UpdateLevel(ByVal NewLevel As Long)
     
     Logger.Log TRACE_LOG, "Enter DependenciesStat.UpdateLevel"
-    If This.MaximumLevel < NewLevel Then
-        This.MaximumLevel = NewLevel
+    If this.MaximumLevel < NewLevel Then
+        this.MaximumLevel = NewLevel
     End If
     
-    If This.MinimumLevel > NewLevel Then
-        This.MinimumLevel = NewLevel
+    If this.MinimumLevel > NewLevel Then
+        this.MinimumLevel = NewLevel
     End If
     Logger.Log TRACE_LOG, "Exit DependenciesStat.UpdateLevel"
     
@@ -48,8 +48,8 @@ End Sub
 Public Sub UpdateInputCellStats(ByVal IsLabelAsInputCell As Boolean)
     
     Logger.Log TRACE_LOG, "Enter DependenciesStat.UpdateInputCellStats"
-    If This.HasAnyCellLabelAsInputCell Then Exit Sub
-    This.HasAnyCellLabelAsInputCell = IsLabelAsInputCell
+    If this.HasAnyCellLabelAsInputCell Then Exit Sub
+    this.HasAnyCellLabelAsInputCell = IsLabelAsInputCell
     Logger.Log TRACE_LOG, "Exit DependenciesStat.UpdateInputCellStats"
     
 End Sub
