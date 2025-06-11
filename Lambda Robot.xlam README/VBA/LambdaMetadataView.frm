@@ -2,9 +2,9 @@ VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} LambdaMetadataView 
    Caption         =   "Lambda Properties"
    ClientHeight    =   11100
-   ClientLeft      =   -270
-   ClientTop       =   -1290
-   ClientWidth     =   13485
+   ClientLeft      =   -276
+   ClientTop       =   -1296
+   ClientWidth     =   13500
    OleObjectBlob   =   "LambdaMetadataView.frx":0000
    StartUpPosition =   2  'CenterScreen
 End
@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 '@IgnoreModule UndeclaredVariable, ProcedureNotUsed
 '@Folder "Lambda.Editor.Metadata.View"
 

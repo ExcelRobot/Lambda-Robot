@@ -3,7 +3,7 @@ Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} LETManagerUI
    Caption         =   "LET Steps Manager"
    ClientHeight    =   8120
    ClientLeft      =   -360
-   ClientTop       =   -1755
+   ClientTop       =   -1764
    ClientWidth     =   16140
    OleObjectBlob   =   "LETManagerUI.frx":0000
    WhatsThisHelp   =   -1  'True
@@ -13,6 +13,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+
 '@IgnoreModule UndeclaredVariable, ImplicitActiveSheetReference
 
 Option Explicit
