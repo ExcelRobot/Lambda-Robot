@@ -30,8 +30,11 @@ Private Type TSpillRangePartFormulaCreator
     IsAnyCellOfLastRow As Boolean
     TopCellRowDiff As Long
     TopCellColDiff As Long
+    CellsCount As Long
     RowCount As Long
     ColCount As Long
+    SpillRowCount As Long
+    SpillColCount As Long
 End Type
 
 Private this As TSpillRangePartFormulaCreator
@@ -43,87 +46,125 @@ Public Function GetFormula(ByVal SelectedCells As Range, ByVal DestinationCell A
     ExtractInfoFromSelectedCells SelectedCells, DestinationCell
     
     Dim Formula As String
-
+    Const MIN_ROW_OR_COL_COUNT As Long = 3
+    
+    Dim ImplicitPrefix As String
+    ImplicitPrefix = IIf(this.CellsCount = 1, IMPLICIT_INTERSECTION_OPERATOR, vbNullString)
+    
     Dim TakeWithParentCellRef As String
-    TakeWithParentCellRef = TAKE_FX_NAME & "(" & this.ParentCellFormulaRef
+    TakeWithParentCellRef = ImplicitPrefix _
+                            & TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN & this.ParentCellFormulaRef
     
     Dim TakeAndDropWithParentCellRef As String
-    TakeAndDropWithParentCellRef = TAKE_FX_NAME & "(" & DROP_FX_NAME & "(" & this.ParentCellFormulaRef
+    TakeAndDropWithParentCellRef = ImplicitPrefix _
+                                   & TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
+                                   & DROP_FN_NAME & FIRST_PARENTHESIS_OPEN & this.ParentCellFormulaRef
     
     With this
         ' Here order of these cases are important. If you want to make it independent then you have to change code
         ' and add validation. But as select case statement will go one by one, we can keep in this way.
         Select Case True
             Case .IsSpillingRangeIncluded
+                ' Whole spill range is included
                 Formula = this.ParentCellFormulaRef
             
             Case .IsTopLeftCellIncluded And .IsTopRightCellIncluded
-                Formula = TakeWithParentCellRef & "," & .RowCount & ")"
+                
+                ' First x row is included
+                Formula = TakeWithParentCellRef & "," & .RowCount & FIRST_PARENTHESIS_CLOSE
         
             Case .IsBottomLeftCellIncluded And .IsBottomRightCellIncluded
-                Formula = TakeWithParentCellRef & "," & "-" & .RowCount & ")"
+                
+                ' Last x row is included.
+                Formula = TakeWithParentCellRef & "," & "-" & .RowCount & FIRST_PARENTHESIS_CLOSE
         
             Case .IsTopLeftCellIncluded And .IsBottomLeftCellIncluded
-                Formula = TakeWithParentCellRef & ",," & .ColCount & ")"
-            
+                
+                ' first x col included.
+                Formula = TakeWithParentCellRef & ",," & .ColCount & FIRST_PARENTHESIS_CLOSE
+                
             Case .IsTopRightCellIncluded And .IsBottomRightCellIncluded
-                Formula = TakeWithParentCellRef & ",," & "-" & .ColCount & ")"
-            
+                
+                ' last x col is included.
+                Formula = TakeWithParentCellRef & ",," & "-" & .ColCount & FIRST_PARENTHESIS_CLOSE
+                
             Case .IsTopLeftCellIncluded
-                Formula = TakeWithParentCellRef & "," & .RowCount _
-                          & "," & .ColCount & ")"
+                
+                ' Spill Parent with x row and y col included.
+                Formula = TakeWithParentCellRef & "," & .RowCount & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
                 
             Case .IsTopRightCellIncluded
+                
+                ' first row last cell with x row and y col included.
                 Formula = TakeWithParentCellRef & "," & .RowCount _
-                          & "," & "-" & .ColCount & ")"
+                          & "," & "-" & .ColCount & FIRST_PARENTHESIS_CLOSE
                 
             Case .IsBottomLeftCellIncluded
+                
+                ' first col last cell with x row and y col included.
                 Formula = TakeWithParentCellRef & "," & "-" & .RowCount _
-                          & "," & .ColCount & ")"
+                          & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
                 
             Case .IsBottomRightCellIncluded
+                
+                ' last row last cell with x row and y col included.
                 Formula = TakeWithParentCellRef & "," & "-" & .RowCount _
-                          & "," & "-" & .ColCount & ")"
+                          & "," & "-" & .ColCount & FIRST_PARENTHESIS_CLOSE
             
             Case .IsAnyCellOfFirstCol And .IsAnyCellOfLastCol
+                
+                ' middle x rows included.
                 If .RowCount = 1 Then
-                    Formula = "INDEX(" & .ParentCellFormulaRef & "," & .TopCellRowDiff + 1 & ",)"
+                    Formula = ImplicitPrefix & INDEX_FN_NAME & FIRST_PARENTHESIS_OPEN & .ParentCellFormulaRef & "," & .TopCellRowDiff + 1 & ",)"
                 Else
-                    Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & ")" _
-                              & "," & .RowCount & ")"
+                    Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & FIRST_PARENTHESIS_CLOSE _
+                              & "," & .RowCount & FIRST_PARENTHESIS_CLOSE
                 End If
                 
             Case .IsAnyCellOfFirstRow And .IsAnyCellOfLastRow
+                
+                'middle x column included.
                 If .ColCount = 1 Then
-                    Formula = "INDEX(" & .ParentCellFormulaRef & ",," & .TopCellColDiff + 1 & ")"
+                    Formula = ImplicitPrefix & INDEX_FN_NAME & FIRST_PARENTHESIS_OPEN & .ParentCellFormulaRef & ",," & .TopCellColDiff + 1 & FIRST_PARENTHESIS_CLOSE
                 Else
-                    Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & ")" _
-                              & ",," & .ColCount & ")"
+                    Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & FIRST_PARENTHESIS_CLOSE _
+                              & ",," & .ColCount & FIRST_PARENTHESIS_CLOSE
                 End If
                 
             Case .IsAnyCellOfFirstCol
-                Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & ")" _
-                          & "," & .RowCount & "," & .ColCount & ")"
+                
+                ' first col any cell with x rows and y col
+                Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & FIRST_PARENTHESIS_CLOSE _
+                          & "," & .RowCount & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
             
             Case .IsAnyCellOfFirstRow
-                Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & ")" _
-                          & "," & .RowCount & "," & .ColCount & ")"
+                
+                ' first row any cell with x rows and y col
+                Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & FIRST_PARENTHESIS_CLOSE _
+                          & "," & .RowCount & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
                          
             Case .IsAnyCellOfLastCol
-                Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & ")" _
-                          & "," & .RowCount & "," & "-" & .ColCount & ")"
+                
+                ' last col any cell with x rows and y col
+                Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & FIRST_PARENTHESIS_CLOSE _
+                          & "," & .RowCount & "," & "-" & .ColCount & FIRST_PARENTHESIS_CLOSE
             
             Case .IsAnyCellOfLastRow
-                Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & ")" _
-                          & "," & "-" & .RowCount & "," & .ColCount & ")"
+                ' last row any cell with x rows and y col
+                Formula = TakeAndDropWithParentCellRef & ",," & .TopCellColDiff & FIRST_PARENTHESIS_CLOSE _
+                          & "," & "-" & .RowCount & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
             
                         
             Case .RowCount = 1 And .ColCount = 1
-                Formula = "INDEX(" & .ParentCellFormulaRef & "," & .TopCellRowDiff + 1 & "," & .TopCellColDiff + 1 & ")"
+            
+                ' Any middle single cell selection.
+                Formula = INDEX_FN_NAME & FIRST_PARENTHESIS_OPEN & .ParentCellFormulaRef & "," & .TopCellRowDiff + 1 & "," & .TopCellColDiff + 1 & FIRST_PARENTHESIS_CLOSE
             
             Case Else
+                
+                ' Any middle multiple cells selection.
                 Formula = TakeAndDropWithParentCellRef & "," & .TopCellRowDiff & "," _
-                          & .TopCellColDiff & ")" & "," & .RowCount & "," & .ColCount & ")"
+                          & .TopCellColDiff & FIRST_PARENTHESIS_CLOSE & "," & .RowCount & "," & .ColCount & FIRST_PARENTHESIS_CLOSE
                 
         End Select
     End With
@@ -153,6 +194,9 @@ Private Sub ExtractInfoFromSelectedCells(ByVal SelectedCells As Range, ByVal Des
         .IsTopLeftCellIncluded = IsSubRange(SelectedCells, .TopLeftCell)
         
         Set .SpillingRange = .SpillParentCell.SpillingToRange
+        this.SpillRowCount = .SpillingRange.Rows.CountLarge
+        this.SpillColCount = .SpillingRange.Columns.CountLarge
+        
         .IsSpillingRangeIncluded = (.SpillingRange.Address = SelectedCells.Address)
         Set .TopRightCell = .SpillingRange.Rows(1).Cells(.SpillingRange.Columns.CountLarge)
         .IsTopRightCellIncluded = IsSubRange(SelectedCells, .TopRightCell)
@@ -168,6 +212,7 @@ Private Sub ExtractInfoFromSelectedCells(ByVal SelectedCells As Range, ByVal Des
         .IsAnyCellOfLastCol = IsAnyCommonCell(SelectedCells, .SpillingRange.Columns(.SpillingRange.Columns.Count))
         .IsAnyCellOfLastRow = IsAnyCommonCell(SelectedCells, .SpillingRange.Rows(.SpillingRange.Rows.Count))
         
+        this.CellsCount = SelectedCells.Cells.CountLarge
         this.RowCount = SelectedCells.Rows.Count
         this.ColCount = SelectedCells.Columns.Count
         this.TopCellRowDiff = SelectedCells.Row - .SpillParentCell.Row

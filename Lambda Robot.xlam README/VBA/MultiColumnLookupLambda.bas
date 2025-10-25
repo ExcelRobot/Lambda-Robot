@@ -65,7 +65,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
     
     ' Create a TextConcatenator to build the filter part of the lambda formula
     Dim FilterPartFormula As TextConcatenator
-    Set FilterPartFormula = TextConcatenator.Create(LET_FX_NAME & FIRST_PARENTHESIS_OPEN & vbNewLine)
+    Set FilterPartFormula = TextConcatenator.Create(LET_FN_NAME & FIRST_PARENTHESIS_OPEN & vbNewLine)
     With FilterPartFormula
         ' Get the table or named range ref. Formula need to be like =TableOrNamedRangeOrSpillRangeRef
         .Concatenate THREE_SPACE & "_Table" & LIST_SEPARATOR _
@@ -73,13 +73,13 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
                      & LIST_SEPARATOR & vbNewLine
                      
         .Concatenate THREE_SPACE & "_LastColumnData" & LIST_SEPARATOR & ONE_SPACE _
-                     & CHOOSECOLS_FX_NAME & "(_Table" & LIST_SEPARATOR _
-                     & COLUMNS_FX_NAME & "(_Table))" & LIST_SEPARATOR & vbNewLine
+                     & CHOOSECOLS_FN_NAME & "(_Table" & LIST_SEPARATOR _
+                     & COLUMNS_FN_NAME & "(_Table))" & LIST_SEPARATOR & vbNewLine
     End With
 
     ' Create the Lambda parameter part of the formula
     Dim LambdaParamPartFormula As String
-    LambdaParamPartFormula = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+    LambdaParamPartFormula = EQUAL_SIGN & LAMBDA_FN_NAME & FIRST_PARENTHESIS_OPEN
     
     ' Get the header row of the spilling range
     Dim HeaderRow As Range
@@ -90,7 +90,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
     InvocationPart = FIRST_PARENTHESIS_OPEN
     
     Dim IncludeAllColumnsStepPart As String
-    IncludeAllColumnsStepPart = OR_FX_NAME & FIRST_PARENTHESIS_OPEN
+    IncludeAllColumnsStepPart = OR_FN_NAME & FIRST_PARENTHESIS_OPEN
     Dim FilterCriteriaStepPart As String
     
     
@@ -108,16 +108,16 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
         LambdaParamPartFormula = LambdaParamPartFormula & LEFT_BRACKET _
                                  & CurrentHeader & RIGHT_BRACKET & LIST_SEPARATOR
         
-        IncludeAllColumnsStepPart = IncludeAllColumnsStepPart & ISOMITTED_FX_NAME _
+        IncludeAllColumnsStepPart = IncludeAllColumnsStepPart & ISOMITTED_FN_NAME _
                                     & FIRST_PARENTHESIS_OPEN & CurrentHeader _
                                     & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR
         
         ' Build the filter part for the current column
-        FilterCriteriaStepPart = FilterCriteriaStepPart & IF_FX_NAME _
-                                 & FIRST_PARENTHESIS_OPEN & ISOMITTED_FX_NAME _
+        FilterCriteriaStepPart = FilterCriteriaStepPart & IF_FN_NAME _
+                                 & FIRST_PARENTHESIS_OPEN & ISOMITTED_FN_NAME _
                                  & FIRST_PARENTHESIS_OPEN & CurrentHeader & FIRST_PARENTHESIS_CLOSE _
                                  & LIST_SEPARATOR & " 1" & LIST_SEPARATOR _
-                                 & ONE_SPACE & FIRST_PARENTHESIS_OPEN & CHOOSECOLS_FX_NAME & "(_Table" _
+                                 & ONE_SPACE & FIRST_PARENTHESIS_OPEN & CHOOSECOLS_FN_NAME & "(_Table" _
                                  & LIST_SEPARATOR & ColIndex & ")=" & CurrentHeader & "))"
                                  
         If ColIndex <> HeaderRow.Columns.Count - 1 Then FilterCriteriaStepPart = FilterCriteriaStepPart & "*"
@@ -139,7 +139,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
                      & FilterCriteriaStepPart & LIST_SEPARATOR & vbNewLine
                      
         .Concatenate THREE_SPACE & "_Result" & LIST_SEPARATOR & ONE_SPACE _
-                     & FILTER_FX_NAME & FIRST_PARENTHESIS_OPEN & IF_FX_NAME _
+                     & FILTER_FN_NAME & FIRST_PARENTHESIS_OPEN & IF_FN_NAME _
                      & "(_IncludeAllColumns" & LIST_SEPARATOR _
                      & " _Table" & LIST_SEPARATOR & " _LastColumnData)" _
                      & LIST_SEPARATOR & " _FilterCriteria)" _

@@ -62,7 +62,7 @@ Private Function LoopBackToCell(ByVal FromCell As Range) As Range
         Set TopCell = Result.Cells(1)
         If Not Result.HasFormula Then
             Set Result = Nothing
-        ElseIf TopCell.HasFormula And TopCell.HasSpill Then
+        ElseIf TopCell.HasSpill Then
             ' If not entire spill range included or more than spill range is included then ignore it.
             If TopCell.SpillParent.SpillingToRange.Address <> Result.Address Then
                 Set Result = Nothing

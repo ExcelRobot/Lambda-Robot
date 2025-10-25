@@ -18,7 +18,7 @@ Public Sub PasteAsReferences(ByVal CopyFrom As Range, ByVal PasteTo As Range)
     ' If the structured reference is not empty, assign formula
     ' Print error in debug window if any occurs during assignment
     If StructuredRef <> vbNullString Then
-        AssignFormulaIfErrorPrintIntoDebugWindow PasteTo, EQUAL_SIGN & StructuredRef _
+        AssignFormulaIfErrorPrintIntoDebugWindow False, PasteTo, EQUAL_SIGN & StructuredRef _
                                                          , "Converted Structured Reference : "
     End If
     Logger.Log TRACE_LOG, "Exit modStructuredReference.PasteAsReferences"
@@ -33,7 +33,7 @@ Public Sub ConvertFormulaToStructuredRef(ByVal FromCell As Range)
     FinalFormula = GetConvertedStructuredFormula(FromCell, True)
     'Only assign formula if something is changed.
     If FinalFormula <> GetCellFormula(FromCell.Cells(1)) Then
-        AssignFormulaIfErrorPrintIntoDebugWindow FromCell.Cells(1), FinalFormula _
+        AssignFormulaIfErrorPrintIntoDebugWindow False, FromCell.Cells(1), FinalFormula _
                                                                    , "Converted Structured Reference : "
     End If
     Logger.Log TRACE_LOG, "Exit modStructuredReference.ConvertFormulaToStructuredRef"
@@ -73,6 +73,9 @@ Public Function GetConvertedStructuredFormula(ByVal FromCell As Range _
             Dim AreaStartTime As Double
             AreaStartTime = Timer()
             If CurrentRange Is Nothing Then
+                StructuredRef = CurrentDependency
+            ElseIf IsInputCell(CurrentRange, Nothing) And IgnoreIfInputCell Then
+                ' Ref Issue: Unexpected behavior when marked inputs contain a mix of values and formulas #125
                 StructuredRef = CurrentDependency
             Else
                 StructuredRef = ConvertToStructuredReference(CurrentRange, FromCell)
@@ -192,9 +195,9 @@ Private Function ConvertNormalRange(ByVal CopyFrom As Range, ByVal PasteTo As Ra
         Exit Function
         
     ElseIf CopyFrom.Rows.Count = 1 And IsFormulaPresent Then
-        FormulaName = HSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        FormulaName = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     ElseIf CopyFrom.Columns.Count = 1 And IsFormulaPresent Then
-        FormulaName = VSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        FormulaName = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     Else
         ConvertNormalRange = Prefix & CopyFrom.Address(False, False)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modStructuredReference.ConvertNormalRange"
@@ -746,7 +749,7 @@ Private Function CombineMultipleNamedRange(ByVal CopyFrom As Range, ByVal PasteT
     Dim NamedRangeRangeInColumns As Boolean
     FormulaName = GetStackFormulaForMultiNamedRange(CopyFrom, Temp.RefersToRange)
     If FormulaName = vbNullString Then Exit Function
-    NamedRangeRangeInColumns = (FormulaName = HSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN)
+    NamedRangeRangeInColumns = (FormulaName = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN)
     Dim CombinedRange As Range
     
     ' Loop through the named ranges and combine their addresses
@@ -877,25 +880,29 @@ Private Function ConvertColumnsToFormulaText(ByVal RefersToRange As Range _
     Dim RowIndex As Long
     RowIndex = CopyFrom.Cells(1).Row - RefersToRange.Cells(1).Row + 1
     
+    Dim ImplicitPrefix As String
+    ImplicitPrefix = IIf(CopyFrom.Cells.CountLarge = 1, IMPLICIT_INTERSECTION_OPERATOR, vbNullString)
+    
+    Dim Formula As String
     ' Check if CopyFrom covers the whole columns or rows of RefersToRange
     If CopyFrom.Rows.Count = RefersToRange.Rows.Count Then
         If ColIndex = 1 Then
             ' Return structured reference for the whole columns
-            ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN _
+            Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
                                           & LIST_SEPARATOR & CopyFrom.Columns.Count _
                                           & FIRST_PARENTHESIS_CLOSE
                                           
         ElseIf ColIndex + CopyFrom.Columns.Count - 1 = RefersToRange.Columns.Count Then
             ' Return structured reference for the whole columns
-            ConvertColumnsToFormulaText = DROP_FX_NAME & FIRST_PARENTHESIS_OPEN _
+            Formula = DROP_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
                                           & LIST_SEPARATOR & (ColIndex - 1) _
                                           & FIRST_PARENTHESIS_CLOSE
         Else
             ' Return structured reference for part of the columns
-            ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN _
-                                          & DROP_FX_NAME & FIRST_PARENTHESIS_OPEN _
+            Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
+                                          & DROP_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
                                           & LIST_SEPARATOR & (ColIndex - 1) _
                                           & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR _
@@ -905,39 +912,42 @@ Private Function ConvertColumnsToFormulaText(ByVal RefersToRange As Range _
     ElseIf CopyFrom.Columns.Count = RefersToRange.Columns.Count Then
         If RowIndex = 1 Then
             ' Return structured reference for the whole rows
-            ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN _
+            Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
                                           & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
                                           
         ElseIf RowIndex + CopyFrom.Rows.Count - 1 = RefersToRange.Rows.Count Then
             ' Return structured reference for the whole rows
-            ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN _
+            Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR & "-" _
                                           & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
         ElseIf RowIndex = 2 And RefersToRange.Rows.Count - CopyFrom.Rows.Count = 2 _
                And CopyFrom.Rows.Count > 1 Then
             ' Special case for structured reference when CopyFrom is in the middle of the rows
             If IsForTable Then
-                ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN & DROP_FX_NAME _
+                Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                               & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR & "1)" _
                                               & LIST_SEPARATOR _
                                               & RefersToRange.Rows.Count - 2 & FIRST_PARENTHESIS_CLOSE
             Else
-                ConvertColumnsToFormulaText = DROP_FX_NAME & FIRST_PARENTHESIS_OPEN & DROP_FX_NAME _
+                Formula = DROP_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                               & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR & "1)" _
                                               & LIST_SEPARATOR & "-1)"
             End If
         Else
             ' Return structured reference for part of the rows
-            ConvertColumnsToFormulaText = TAKE_FX_NAME & FIRST_PARENTHESIS_OPEN & DROP_FX_NAME _
+            Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                           & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR _
                                           & (RowIndex - 1) & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR _
                                           & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
                                           
         End If
-    Else
-        ConvertColumnsToFormulaText = vbNullString
     End If
+    
+    If Formula <> vbNullString Then Formula = ImplicitPrefix & Formula
+    
+    ConvertColumnsToFormulaText = Formula
+    
     Logger.Log TRACE_LOG, "Exit modStructuredReference.ConvertColumnsToFormulaText"
     
 End Function
@@ -1051,7 +1061,7 @@ Private Function CombineSpillRangesForContigiousArea(ByVal CopyFrom As Range, By
     Dim FormulaName As String
     Dim SpillRangeInColumns As Boolean
     SpillRangeInColumns = IsSpillRangeInColumns(CopyFrom)
-    FormulaName = IIf(SpillRangeInColumns, HSTACK_FX_NAME, VSTACK_FX_NAME) & FIRST_PARENTHESIS_OPEN
+    FormulaName = IIf(SpillRangeInColumns, HSTACK_FN_NAME, VSTACK_FN_NAME) & FIRST_PARENTHESIS_OPEN
     
     Do While True
         
@@ -1108,9 +1118,9 @@ Private Function GetStackingFormulaName(ByVal CopyFrom As Range) As String
     Logger.Log TRACE_LOG, "Enter modStructuredReference.GetStackingFormulaName"
     ' Determine the formula name for the stacking function (HSTACK or VSTACK)
     If IsInColumns(CopyFrom) Then
-        GetStackingFormulaName = HSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        GetStackingFormulaName = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     ElseIf IsInRows(CopyFrom) Then
-        GetStackingFormulaName = VSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        GetStackingFormulaName = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     Else
         GetStackingFormulaName = vbNullString
     End If
@@ -1241,7 +1251,7 @@ Private Function ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(ByVal CopyFrom
         FormulaText = Replace(NameToRefer, TABLE_DATA_MARKER, TABLE_HEADERS_MARKER) _
                       & LIST_SEPARATOR & FormulaText
                       
-        FxName = VSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        FxName = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     End If
     
     ' Check if CopyFrom intersects with the table totals row
@@ -1249,7 +1259,7 @@ Private Function ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(ByVal CopyFrom
     
     If IsTwoRangeEqual(Temp, Table.TotalsRowRange) Then
         FormulaText = FormulaText & Replace(NameToRefer, TABLE_DATA_MARKER, TABLE_TOTALS_MARKER) & LIST_SEPARATOR
-        FxName = VSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        FxName = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     End If
     
     ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal = FxName _
@@ -1291,10 +1301,10 @@ Private Function GetStackFormulaForMultiNamedRange(ByVal CopyFrom As Range _
     ' Determine if the CopyFrom range is stacked horizontally or vertically
     If CopyFrom.Rows.Count = CellIntersectingNamedRangeAndCopyFrom.Rows.Count _
        And CopyFrom.Columns.Count > CellIntersectingNamedRangeAndCopyFrom.Columns.Count Then
-        GetStackFormulaForMultiNamedRange = HSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        GetStackFormulaForMultiNamedRange = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     ElseIf CopyFrom.Columns.Count = CellIntersectingNamedRangeAndCopyFrom.Columns.Count _
            And CopyFrom.Rows.Count > CellIntersectingNamedRangeAndCopyFrom.Rows.Count Then
-        GetStackFormulaForMultiNamedRange = VSTACK_FX_NAME & FIRST_PARENTHESIS_OPEN
+        GetStackFormulaForMultiNamedRange = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     Else
         GetStackFormulaForMultiNamedRange = vbNullString
     End If

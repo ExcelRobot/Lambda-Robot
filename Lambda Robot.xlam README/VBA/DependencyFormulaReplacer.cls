@@ -102,7 +102,7 @@ Public Sub IncludeLambdaDependencies(ByVal LambdaInCell As Range _
         NewFormulaText = ReplaceAllDependentsWithNewVarName(NewFormulaText, this.AllDependency)
         NewFormulaText = FormatFormula(NewFormulaText)
         ' Assign the new formula, if there is an error, print into the debug window
-        AssignFormulaIfErrorPrintIntoDebugWindow LambdaInCell, NewFormulaText, "Independent Lambda : "
+        AssignFormulaIfErrorPrintIntoDebugWindow False, LambdaInCell, NewFormulaText, "Independent Lambda : "
     End If
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.IncludeLambdaDependencies"
     

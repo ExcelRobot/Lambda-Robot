@@ -18,8 +18,8 @@ Private Const CYCLE_LET_STEPS_SUB_NAME As String = "LetStepManager.CycleLETSteps
 Private Const CYCLE_LAST_STEP_IDENTIFIER As String = "CycleLETResultStep"
 
 Private Const PREVIOUS_STEP_MARKER As String = "{{LastStep}}"
-Private Const DEFAULT_STEP_NAME As String = "_Step1"
-Private Const DEFAULT_FIRST_STEP_NAME As String = "_Source"
+Private Const DEFAULT_STEP_NAME As String = "Step1"
+Private Const DEFAULT_FIRST_STEP_NAME As String = "Source"
 
 Private Type TLetStepManager
     AllNamedRanges As Collection
@@ -44,8 +44,8 @@ Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
     Logger.Log TRACE_LOG, "Enter LetStepManager.AddLetStep"
     ' Validating the input arguments
     ValidateInputArguments FormulaCell, StepFormula
-    If StepName = vbNullString Then StepName = DEFAULT_STEP_NAME
-    If Not Text.IsStartsWith(StepName, UNDER_SCORE) Then StepName = UNDER_SCORE & StepName
+    If StepName = vbNullString Then StepName = FormulaFormatConfig.LetVarPrefix & DEFAULT_STEP_NAME
+    If Not Text.IsStartsWith(StepName, FormulaFormatConfig.LetVarPrefix) Then StepName = FormulaFormatConfig.LetVarPrefix & StepName
     
     On Error GoTo ErrorHandler
     ' Retrieving the context data
@@ -85,12 +85,12 @@ Private Function ConvertToALetStatement(ByVal PlainFormula As String _
     ' Converting a plain formula to a LET statement
     Dim FinalFormula As String
     FinalFormula = EQUAL_LET_FIRST_PAREN & NEW_LINE _
-                   & THREE_SPACE & LastStepName & LIST_SEPARATOR _
+                   & THREE_SPACE & FormulaFormatConfig.LetVarPrefix & LastStepName & LIST_SEPARATOR _
                    & ONE_SPACE & Text.RemoveFromStartIfPresent(PlainFormula, EQUAL_SIGN)
 
     ' Completing the LET statement
     FinalFormula = FinalFormula & LIST_SEPARATOR & NEW_LINE & THREE_SPACE _
-                   & LastStepName & NEW_LINE & FIRST_PARENTHESIS_CLOSE
+                   & FormulaFormatConfig.LetVarPrefix & LastStepName & NEW_LINE & FIRST_PARENTHESIS_CLOSE
 
     ' Returning the LET statement
     ConvertToALetStatement = FinalFormula
@@ -223,7 +223,7 @@ Public Sub RemoveLastLETStep(ByVal FormulaCell As Range, Optional ByVal TargetCe
     
     If Not (this.IsLambdaFormulaWithLet Or this.IsCellStartWithLetFormula) Then
         MsgBox "Remove Last LET Steps command is only for cell having " _
-               & LET_FX_NAME & " or " & LAMBDA_FX_NAME & " formula." _
+               & LET_FN_NAME & " or " & LAMBDA_FN_NAME & " formula." _
                , vbCritical, "Remove Last LET Steps"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.RemoveLastLETStep"
         Exit Sub
@@ -276,9 +276,9 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     RetriveContextData FormulaCell
     
     If Not (this.IsLambdaFormulaWithLet Or this.IsCellStartWithLetFormula) Then
-        MsgBox "Cycle LET Steps command is only for cells having a " & LET_FX_NAME _
-               & " or " & LAMBDA_FX_NAME & "/" _
-               & LET_FX_NAME & " formula.", vbCritical, "Cycle LET Steps"
+        MsgBox "Cycle LET Steps command is only for cells having a " & LET_FN_NAME _
+               & " or " & LAMBDA_FN_NAME & "/" _
+               & LET_FN_NAME & " formula.", vbCritical, "Cycle LET Steps"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.CycleLETSteps"
         Exit Sub
     End If
@@ -455,7 +455,7 @@ Private Function UpdateLetPartsForCycling(ByVal LetParts As Variant, ByVal IsRes
     ElseIf CurrentLastStepIndex = LastRowIndex - 1 And LastStepName = SecondLastStepName Then
         LetParts(LastRowIndex, FirstColumnIndex) = LetParts(FirstRowIndex, FirstColumnIndex)
         ' But if it is referring the the third last step and second last step is our identifier then we have to remove our identifier and calc
-    ElseIf CurrentLastStepIndex = LastRowIndex - 2 And Text.RemoveFromStartIfPresent(SecondLastStepName, UNDER_SCORE) = CYCLE_LAST_STEP_IDENTIFIER Then
+    ElseIf CurrentLastStepIndex = LastRowIndex - 2 And Text.RemoveFromStartIfPresent(SecondLastStepName, FormulaFormatConfig.LetVarPrefix) = CYCLE_LAST_STEP_IDENTIFIER Then
         LetParts(LastRowIndex, FirstColumnIndex) = LTrim$(LetParts(LastRowIndex - 1, FirstColumnIndex + LET_PARTS_VALUE_COL_INDEX - 1))
         LetParts(LastRowIndex - 1, FirstColumnIndex + LET_PARTS_VALUE_COL_INDEX - 1) = vbNullString
         LetParts(LastRowIndex - 1, FirstColumnIndex) = vbNullString
@@ -474,7 +474,7 @@ Private Sub UpdateLetPartsIfReset(ByRef LetParts As Variant, ByVal FirstColumnIn
     Logger.Log TRACE_LOG, "Enter LetStepManager.UpdateLetPartsIfReset"
     Dim SecondLastStepName As String
     SecondLastStepName = LetParts(LastRowIndex - 1, FirstColumnIndex)
-    If Text.RemoveFromStartIfPresent(SecondLastStepName, UNDER_SCORE) = CYCLE_LAST_STEP_IDENTIFIER Then
+    If Text.RemoveFromStartIfPresent(SecondLastStepName, FormulaFormatConfig.LetVarPrefix) = CYCLE_LAST_STEP_IDENTIFIER Then
         LetParts(LastRowIndex, FirstColumnIndex) = LTrim$(LetParts(LastRowIndex - 1, FirstColumnIndex + LET_PARTS_VALUE_COL_INDEX - 1))
         LetParts(LastRowIndex - 1, FirstColumnIndex + LET_PARTS_VALUE_COL_INDEX - 1) = vbNullString
         LetParts(LastRowIndex - 1, FirstColumnIndex) = vbNullString
@@ -488,8 +488,8 @@ End Sub
 Private Function GetCorrectCycleLetStepResultName(ByVal PreviousStepName As String) As String
     
     Logger.Log TRACE_LOG, "Enter LetStepManager.GetCorrectCycleLetStepResultName"
-    If Text.IsStartsWith(PreviousStepName, UNDER_SCORE) Then
-        GetCorrectCycleLetStepResultName = UNDER_SCORE & CYCLE_LAST_STEP_IDENTIFIER
+    If Text.IsStartsWith(PreviousStepName, FormulaFormatConfig.LetVarPrefix) Then
+        GetCorrectCycleLetStepResultName = FormulaFormatConfig.LetVarPrefix & CYCLE_LAST_STEP_IDENTIFIER
     Else
         GetCorrectCycleLetStepResultName = CYCLE_LAST_STEP_IDENTIFIER
     End If

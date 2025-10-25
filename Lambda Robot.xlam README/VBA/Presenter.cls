@@ -387,41 +387,9 @@ End Property
 Private Sub IPresenter_UpdateMetadataInFormula()
     
     ' Check if the LambdaName already exists and if it's a SaveAs operation, prompt for overwriting
-    
-    If Not IsValidDefinedName(this.LambdaMetadata.LambdaName) And this.IsLambdaSaveOperation Then
-        
-        Dim Message As String
-        If Trim$(this.LambdaMetadata.LambdaName) = vbNullString Then
-            Message = "Lambda Name is blank. Please provide a valid name."
-        ElseIf IsA1C1RangeAddress(this.LambdaMetadata.LambdaName) Then
-            Message = """" & this.LambdaMetadata.LambdaName & """ is not a valid LAMBDA name as it is a valid cell address. Please provide a valid name."
-        Else
-            Message = """" & this.LambdaMetadata.LambdaName & """ is not a valid LAMBDA name. Please provide a valid name."
-        End If
-        
-        MsgBox Message, vbExclamation + vbOKOnly, APP_NAME
-        this.View.NameTextBox.SetFocus
-        Exit Sub
-    
-    ElseIf IsExistInCollection(this.MetaParser.AllNameInNameManager, this.LambdaMetadata.LambdaName) And this.IsLambdaSaveOperation Then
-        
-        If IsLambdaCreatedInExcelLabs(this.LambdaFormulaCell.Worksheet.Parent, this.LambdaMetadata.LambdaName) Then
-            MsgBox "A lambda by this name already exists in Excel Labs' Advanced Formula Editor. Please choose a different name.", vbOKOnly + vbExclamation
-            this.View.NameTextBox.SetFocus
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
-            Exit Sub
-        End If
-        
-        Dim Answer As VbMsgBoxResult
-        Answer = MsgBox("The name " & this.LambdaMetadata.LambdaName & " already exists. Do you want to over-write it?" _
-                        , vbYesNo + vbQuestion, APP_NAME)
-        If Answer = vbNo Then
-            this.View.NameTextBox.SetFocus
-            Logger.Log TRACE_LOG, "Exit Due to Exit Keyword Presenter.IPresenter_UpdateMetadataInFormula"
-            Exit Sub
-        End If
-        
-    End If
+    Dim IsValidToSave As Boolean
+    CheckLambdaNameValidity IsValidToSave
+    If Not IsValidToSave Then Exit Sub
     
     ' Generate the new lambda formula and update the cell or name manager accordingly
     Dim NewLambdaFormula As String
@@ -433,7 +401,7 @@ Private Sub IPresenter_UpdateMetadataInFormula()
         OldName.RefersTo = ReplaceNewlineWithChar10(NewLambdaFormula)
         modUtility.UpdateNameComment OldName, this.LambdaMetadata.NameManagerComment
     Else
-        AssignFormulaIfErrorPrintIntoDebugWindow this.LambdaFormulaCell, NewLambdaFormula, "Updated Formula : "
+        AssignFormulaIfErrorPrintIntoDebugWindow False, this.LambdaFormulaCell, NewLambdaFormula, "Updated Formula : "
         this.LambdaFormulaCell.Calculate
     End If
     Logger.Log DEBUG_LOG, "New Lambda Formula : " & NewLambdaFormula
@@ -449,6 +417,49 @@ Private Sub IPresenter_UpdateMetadataInFormula()
     Logger.Log TRACE_LOG, "Exit Presenter.IPresenter_UpdateMetadataInFormula"
     
 End Sub
+
+Private Sub CheckLambdaNameValidity(ByRef IsValidToSave As Boolean)
+    
+    IsValidToSave = True
+    If Not this.IsLambdaSaveOperation Then Exit Sub
+    
+    Dim Reason As String
+    Reason = modUtility.GetInvalidLambdaNameReason(this.LambdaMetadata.LambdaName)
+    
+    If Reason = vbNullString Then
+        
+        If IsExistInCollection(this.MetaParser.AllNameInNameManager, this.LambdaMetadata.LambdaName) Then
+            If IsLambdaCreatedInExcelLabs(this.LambdaFormulaCell.Worksheet.Parent, this.LambdaMetadata.LambdaName) Then
+                Reason = "A lambda by this name already exists in Excel Labs' Advanced Formula Editor. Please choose a different name."
+            Else
+                Dim Answer As VbMsgBoxResult
+                Answer = MsgBox("The name " & this.LambdaMetadata.LambdaName & " already exists. Do you want to over-write it?" _
+                                , vbYesNo + vbQuestion, APP_NAME)
+                
+                Reason = vbNullString
+                If Answer = vbYes Then
+                    IsValidToSave = True
+                Else
+                    IsValidToSave = False
+                End If
+                
+            End If
+        End If
+                        
+    End If
+    
+    If Reason <> vbNullString Then
+        MsgBox Reason, vbExclamation + vbOKOnly, APP_NAME
+        IsValidToSave = False
+    End If
+    
+    If Not IsValidToSave Then
+        this.View.NameTextBox.SetFocus
+        Exit Sub
+    End If
+    
+End Sub
+
 
 '@ImpureFunction.
 Private Function GenerateNewLambda(ByVal LambdaMetadata As Metadata, ByVal MetaParser As MetadataParser) As String

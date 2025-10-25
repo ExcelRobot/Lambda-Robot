@@ -133,6 +133,40 @@ NextUsedLambdaName:
     
 End Sub
 
+Private Sub PrintFormulaTokens()
+    
+    Dim Formula As String
+    Formula = ActiveCell.Formula2Local
+    
+    If Formula = vbNullString Then
+        Exit Sub
+    End If
+    
+    #If DEVELOPMENT_MODE Then
+        Dim ParseResult As OARobot.FormulaParseResult
+    #Else
+        Dim ParseResult As Object
+    #End If
+    
+    Set ParseResult = ParseFormula(Formula, , False)
+    Dim V As Variant
+    Set V = ParseResult.Expr.Tokens
+    
+    Dim CurrentToken As OARobot.Token
+    Dim Counter As Long
+    For Counter = 0 To V.Count - 1
+        Set CurrentToken = V.Item(Counter)
+        
+        Select Case CurrentToken.Tag
+            Case TokenTag_ExcelEtaFunction, TokenTag_ExcelFunction, TokenTag_Name
+                Debug.Print CurrentToken.String, CurrentToken.TokenName, CurrentToken.Tag
+        End Select
+
+    Next Counter
+    
+
+End Sub
+
 Private Function GetAllUsedLambdas(ByVal AllUniqueFormulas As Collection _
                                    , ByVal AllLambdas As Collection) As Collection
     
@@ -173,7 +207,7 @@ Private Sub KeepFormulasIfLambdaIsUsedByTextParsing(ByRef AllUniqueFormulas As C
 End Sub
 
 Private Function IsAnyLambdaBeingUsed(ByVal Formula As String _
-                                      , ByVal AllLambdas As Collection)
+                                      , ByVal AllLambdas As Collection) As Boolean
     
     Logger.Log TRACE_LOG, "Enter modUnUsedLambdas.IsAnyLambdaBeingUsed"
     Dim IsPresent As Boolean

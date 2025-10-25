@@ -266,7 +266,7 @@ Private Function UpdateLetFormulaForCellRefWithProperFormulaText(ByVal LetFormul
             End If
         ElseIf .IsInsideNamedRangeOrTable Then
             FormulaText = .NameInFormula
-        ElseIf .HasFormula And (.HasAnyDependency Or Not .IsDemotedFromParameterCellToLetStep) Then
+        ElseIf .HasFormula And (.HasAnyDependency Or Not .IsDemotedFromParameterCellToLetStep Or .IsExpandByUser) Then
             FormulaText = modUtility.RemoveStartingSingleQuoteAndEqualSign(ReplacedRefFormula)
             FormulaText = EncloseWithParenForMultiTerm(FormulaText)
         ElseIf IsConvertToAbsoluteRangeRef Then

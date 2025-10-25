@@ -49,6 +49,17 @@ Public Function GetStructuredFormula(ByVal ForCell As Range) As String
     
 End Function
 
+Public Sub RemoveStructuredRef(ByVal ForCell As Range)
+    
+    Dim FullyQualifiedCellRef As String
+    FullyQualifiedCellRef = ConvertToFullyQualifiedCellRef(ForCell.Cells(1))
+    
+    If IsExistInCollection(this.QualifiedCellRefVsStructuredFormulaMap, FullyQualifiedCellRef) Then
+        this.QualifiedCellRefVsStructuredFormulaMap.Remove FullyQualifiedCellRef
+    End If
+    
+End Sub
+
 Public Function GetLetStepLambdaRefs(ByVal ForCell As Range) As Dictionary
     
     Logger.Log TRACE_LOG, "Enter StructuredRefManager.GetLetStepLambdaRefs"
@@ -79,6 +90,8 @@ Public Sub ConvertRangeRefToStructuralRef(ByVal ForCell As Range)
     If Not modUtility.IsExistInCollection(this.QualifiedCellRefVsStructuredFormulaMap, CellRef) Then
         Dim Formula As String
         '        Debug.Assert ForCell.Address <> "$J$3"
+        ' Bug when user mark a specific input cells as a not input cell then we need to consider that.
+        ' Like when we run Generate LET Statement and then click Expand on a input cell.
         Formula = GetConvertedStructuredFormula(ForCell, True)
         Formula = modUtility.GetLambdaDefIfLETStepRefCell(ForCell, Formula, this.FormulaStartCellInSheet)
         UpdateLETStepLambdaRefCell Formula, CellRef

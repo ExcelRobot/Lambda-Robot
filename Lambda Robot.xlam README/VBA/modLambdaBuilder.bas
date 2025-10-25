@@ -102,14 +102,18 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
     
     If IsNotNothing(CurrentLambdaInfo) Then
         ' Assign the generated let statement to the cell and print it in the debug window if there's an error
-        AssignFormulaIfErrorPrintIntoDebugWindow PutLetOnCell, CurrentLambdaInfo.LetFormula _
+        Dim IsErrorOnAddingFormula As Boolean
+        AssignFormulaIfErrorPrintIntoDebugWindow IsErrorOnAddingFormula, PutLetOnCell, CurrentLambdaInfo.LetFormula _
                                                               , "Generated Let Statement : "
         ' Force calculation after assigning formula
         PutLetOnCell.Calculate
         AutofitFormulaBar PutLetOnCell
         
+        
         Dim FormulaResultAfterCommand As Variant
-        FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        If Not IsErrorOnAddingFormula Then
+            FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        End If
         
         If Not IsUndo Then
             ' Check if FormulaRange and PutLetOnCell are the same, if so, store FormulaRange for future use, otherwise store PutLetOnCell
@@ -129,7 +133,7 @@ Public Sub GenerateLetStatement(ByVal FormulaRange As Range, ByVal PutLetOnCell 
             ShowAlertIfBeforeAndAfterCommandResultIsDifferent FormulaResultBeforCommand _
                                                               , FormulaResultAfterCommand _
                                                                , "Generate LET Statement" _
-                                                                  , GetLETStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList)
+                                                                  , GetLETStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList, IsErrorOnAddingFormula)
             
             ' Assign the current procedure to undo stack
             AssingOnUndo "GenerateLetStatement"
@@ -201,7 +205,8 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
     If IsNotNothing(CurrentLambdaInfo) Then
         Dim FormulaText As String
         FormulaText = FormatFormula(ReplaceNewlineWithChar10(CurrentLambdaInfo.LambdaFormula & CurrentLambdaInfo.InvocationArgument))
-        AssignFormulaIfErrorPrintIntoDebugWindow PutLambdaOnCell, FormulaText, "Formula : "
+        Dim IsErrorOnAddingFormula As Boolean
+        AssignFormulaIfErrorPrintIntoDebugWindow IsErrorOnAddingFormula, PutLambdaOnCell, FormulaText, "Formula : "
 
         ' Include any lambda dependencies
         IncludeLambdaDependencies PutLambdaOnCell, IsUndo, True
@@ -210,7 +215,9 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
         PutLambdaOnCell.Activate
         
         Dim FormulaResultAfterCommand As Variant
-        FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        If Not IsErrorOnAddingFormula Then
+            FormulaResultAfterCommand = GetFormulaResult(FormulaRange)
+        End If
         
         ' Handle undo state
         If Not IsUndo Then
@@ -230,7 +237,7 @@ Public Sub GenerateLambdaStatement(ByVal FormulaRange As Range _
             ShowAlertIfBeforeAndAfterCommandResultIsDifferent FormulaResultBeforCommand _
                                                               , FormulaResultAfterCommand _
                                                                , "Generate LAMBDA Statement" _
-                                                                , GetLAMBDAStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList)
+                                                                , GetLAMBDAStatementRangeRequiredFXAlertMessage(CurrentLambdaInfo.RangeReqFXList, IsErrorOnAddingFormula)
             
             AssingOnUndo "GenerateLambdaStatement"
         End If
@@ -404,7 +411,7 @@ Public Sub LetToLambda(ByVal LetFormulaCell As Range, ByVal PutLambdaOnCell As R
     ' Convert LetFormula to Lambda and assign it to target cell
     Dim FormulaText As String
     FormulaText = LETToLAMBDAConverter.ConvertLetToLambda(GetCellFormula(LetFormulaCell))
-    AssignFormulaIfErrorPrintIntoDebugWindow PutLambdaOnCell, FormulaText, "Formula : "
+    AssignFormulaIfErrorPrintIntoDebugWindow False, PutLambdaOnCell, FormulaText, "Formula : "
     
     If Not IsUndo Then
         ' Saving the cell that may need to be reverted to in the future
@@ -449,7 +456,7 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
     ' Check if more than one cell is selected in LetFormulaCell
     ' If more than one cell is selected, display a message box and exit the function
     If LetFormulaCell.Cells.Count > 1 Then
-        Reason = "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
+        Reason = "Unable to convert " & LET_FN_NAME & " to " & LAMBDA_FN_NAME _
                  & ". Only one cell at a time allowed."
     ElseIf Not LetFormulaCell.HasFormula Then
         Reason = "No formula found on " & LetFormulaCell.Address
@@ -460,10 +467,10 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
         ' Also check if the cell is not empty or already contains a formula
         ' If it's not empty or contains a formula, display a message box and exit the function
         If IsError(PutLambdaOnCell) Then
-            Reason = "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
+            Reason = "Unable to convert " & LET_FN_NAME & " to " & LAMBDA_FN_NAME _
                      & ".  Destination range is not empty."
         ElseIf PutLambdaOnCell.Value <> vbNullString Or PutLambdaOnCell.HasFormula Then
-            Reason = "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
+            Reason = "Unable to convert " & LET_FN_NAME & " to " & LAMBDA_FN_NAME _
                      & ".  Destination range is not empty."
         End If
     End If
@@ -575,7 +582,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
     ' Check if the formula does not start with LAMBDA
     If Not IsLambdaFunction(FormulaText) Then
         ' If not, inform the user and exit the subroutine
-        MsgBox ForCell.Address & " doesn't contains any " & LAMBDA_FX_NAME & " def." _
+        MsgBox ForCell.Address & " doesn't contains any " & LAMBDA_FN_NAME & " def." _
                , vbCritical + vbInformation, "Mark Lambda As LET Step"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaBuilder.MarkLambdaAsLETStep"
         GoTo ExitMethod
@@ -607,7 +614,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
     ' Working with named ranges in the workbook
     With AddToBook
         ' Check if a named range exists for the LETStep function
-        If Context.IsNamedRangeExist(AddToBook, LETSTEP_UNDERSCORE_PREFIX & FxName) Then
+        If Context.IsNamedRangeExists(AddToBook, LETSTEP_UNDERSCORE_PREFIX & FxName) Then
             ' If it exists, update the reference
             .Names(LETSTEP_UNDERSCORE_PREFIX & FxName).RefersTo = FormulaText
         Else
@@ -616,7 +623,7 @@ Public Sub MarkLambdaAsLETStep(ByVal ForCell As Range)
         End If
         
         ' Repeat the process for the LETStepRef named range
-        If Context.IsNamedRangeExist(AddToBook, LETSTEPREF_UNDERSCORE_PREFIX & FxName) Then
+        If Context.IsNamedRangeExists(AddToBook, LETSTEPREF_UNDERSCORE_PREFIX & FxName) Then
             .Names(LETSTEPREF_UNDERSCORE_PREFIX & FxName).RefersTo = EQUAL_SIGN & RangeReference
         Else
             .Names.Add LETSTEPREF_UNDERSCORE_PREFIX & FxName, EQUAL_SIGN & RangeReference

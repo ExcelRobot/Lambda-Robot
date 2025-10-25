@@ -282,11 +282,16 @@ End Property
 Public Property Get FormulaText() As String
     
     Logger.Log TRACE_LOG, "Enter DependencyInfo.FormulaText"
-    If Not this.HasFormula And Not IsNumeric(this.FormulaText) And this.FormulaText <> vbNullString Then
+    
+    If Not this.HasFormula _
+       And Not IsNumeric(this.FormulaText) _
+       And this.FormulaText <> vbNullString _
+       And Not this.IsReferByNamedRange Then
         FormulaText = Text.PadIfNotPresent(this.FormulaText, QUOTES, FROM_BOTH)
     Else
         FormulaText = this.FormulaText
     End If
+    
     Logger.Log TRACE_LOG, "Exit DependencyInfo.FormulaText"
     
 End Property

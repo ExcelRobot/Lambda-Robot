@@ -126,7 +126,7 @@ Public Function TranslateApplicationLanguageFormulaToEnUS(ByVal Formula As Strin
 
 End Function
 
-Sub TranslateUsingExcelSettings()
+Public Sub TranslateUsingExcelSettings()
 
     Dim txf As New OARobot.FormulaTranslatorFactory
     Dim tx As OARobot.FormulaTranslator

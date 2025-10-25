@@ -82,10 +82,10 @@ Private Sub UpdateBasicStats(ByRef LambdaInvocationCell As Range)
     Dim FunctionDef As String
     ' Identifying the function type and setting up the function definition
     Select Case FunctionName
-        Case LET_FX_NAME
+        Case LET_FN_NAME
             this.CellFunctionType = LET_IN_CELL
             FunctionDef = FormulaText
-        Case LAMBDA_FX_NAME
+        Case LAMBDA_FN_NAME
             this.CellFunctionType = LAMBDA_IN_CELL
             FunctionDef = FormulaText
             this.LambdaName = modUtility.GetOldNameFromComment(LambdaInvocationCell, LAMBDA_NAME_NOTE_PREFIX)
@@ -117,7 +117,7 @@ Private Function GetFunctionDefFromNamedRange(ByVal FunctionName As String _
     ' Checking if the function type is neither Lambda nor Let
     If IsNothing(CurrentName) Then
         this.CellFunctionType = OTHER_FUNCTION_OR_BLANK
-        this.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
+        this.ReasonToBeNotValid = "No " & LAMBDA_FN_NAME & " or " & LET_FN_NAME & " Found"
     Else
         Dim RefersTo As String
         RefersTo = CurrentName.RefersTo
@@ -136,7 +136,7 @@ Private Function GetFunctionDefFromNamedRange(ByVal FunctionName As String _
             End If
         Else
             this.CellFunctionType = OTHER_FUNCTION_OR_BLANK
-            this.ReasonToBeNotValid = "No " & LAMBDA_FX_NAME & " or " & LET_FX_NAME & " Found"
+            this.ReasonToBeNotValid = "No " & LAMBDA_FN_NAME & " or " & LET_FN_NAME & " Found"
         End If
     End If
     GetFunctionDefFromNamedRange = FunctionDef
@@ -222,7 +222,7 @@ Public Sub ConstructSteps()
     If this.CellFunctionType = OTHER_FUNCTION_OR_BLANK Then
         ' Displaying a message box if there's no LET or LAMBDA functions
         MsgBox "Unable to deconstruct formula steps. " & this.LambdaInvocationCell.Address(False, False) _
-               & " has no " & LET_FX_NAME & " or " & LAMBDA_FX_NAME _
+               & " has no " & LET_FN_NAME & " or " & LAMBDA_FN_NAME _
                & " functions or formula has extra part.", vbExclamation + vbOKOnly, APP_NAME
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword BuildLambdaSteps.ConstructSteps"
         Exit Sub
@@ -288,7 +288,6 @@ Private Sub AuditLambdaParameters(ByRef PutOnCell As Range, ByRef HeadersRange A
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.AuditLambdaParameters"
     Dim CurrentParam As Mapper
-    Dim CalculationFunction As String
     Dim CellReference As String
     For Each CurrentParam In this.LambdaArgumentsName
         PlaceStepFormula PutOnCell, HeadersRange, CellReference, CurrentParam.Value, CurrentParam.Key
@@ -308,7 +307,7 @@ Private Sub PlaceStepFormula(ByRef PutOnCell As Range _
     
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.PlaceStepFormula"
     ' Setting the cell value
-    PutOnCell.Offset(-1, 0).Value = Text.RemoveFromStartIfPresent(VarName, UNDER_SCORE, IGNORE_CASE)
+    PutOnCell.Offset(-1, 0).Value = Text.RemoveFromStartIfPresent(VarName, FormulaFormatConfig.LetVarPrefix, IGNORE_CASE)
     
     ' Setting HeadersRange
     If IsNothing(HeadersRange) Then
@@ -347,7 +346,7 @@ Private Sub PlaceStepFormula(ByRef PutOnCell As Range _
             Formula = UpdateForPreviousLetVar(CalculationFunction, this.VarNameVsCalculationAreaMap, True)
             Formula = UpdateForIsOmitted(Formula)
             Dim Prefix As String
-            Prefix = LETSTEP_PREFIX & IIf(Text.IsStartsWith(VarName, UNDER_SCORE), vbNullString, UNDER_SCORE)
+            Prefix = LETSTEP_PREFIX & IIf(Text.IsStartsWith(VarName, FormulaFormatConfig.LetVarPrefix), vbNullString, FormulaFormatConfig.LetVarPrefix)
             CreateLETStepNames PutOnCell, Prefix, VarName, Formula
             CellReference = Prefix & VarName
         ElseIf PutOnCell.HasSpill Then
@@ -449,9 +448,10 @@ Private Sub UpdateLetVarNameAndCalculation(ByRef LetVarName As String, ByRef Cal
         
 End Sub
 
-Private Sub CreateLETStepNames(ByVal PutOnCell As Range, ByVal Prefix As String _
-                                                        , ByVal LetVarName As String _
-                                                         , ByVal Formula As String)
+Private Sub CreateLETStepNames(ByVal PutOnCell As Range _
+                               , ByVal Prefix As String _
+                                , ByVal LetVarName As String _
+                                 , ByVal Formula As String)
                                                   
     Logger.Log TRACE_LOG, "Enter BuildLambdaSteps.CreateLETStepNames"
     Dim AddToSheet As Worksheet
@@ -463,7 +463,7 @@ Private Sub CreateLETStepNames(ByVal PutOnCell As Range, ByVal Prefix As String 
     Dim LetStepFXName As String
     LetStepFXName = Prefix & LetVarName
     ' Check if a named range exists with the same name as LetStepFxName
-    If Context.IsLocalScopedNamedRangeExist(AddToSheet, LetStepFXName) Then
+    If Context.IsLocalScopedNamedRangeExists(AddToSheet, LetStepFXName) Then
         ' If it does exist, delete it
         AddToSheet.Names(QualifiedSheetName & LetStepFXName).Delete
     End If
@@ -475,7 +475,7 @@ Private Sub CreateLETStepNames(ByVal PutOnCell As Range, ByVal Prefix As String 
     Dim LetStepRefName As String
     LetStepRefName = VBA.Replace(LetStepFXName, LETSTEP_UNDERSCORE_PREFIX, LETSTEPREF_UNDERSCORE_PREFIX)
     ' Check if a named range exists with the same name as LetStepRefName
-    If Context.IsLocalScopedNamedRangeExist(AddToSheet, LetStepRefName) Then
+    If Context.IsLocalScopedNamedRangeExists(AddToSheet, LetStepRefName) Then
         ' If it does exist, delete it
         AddToSheet.Names(QualifiedSheetName & LetStepRefName).Delete
     End If

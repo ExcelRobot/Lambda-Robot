@@ -169,6 +169,7 @@ Private Function IsValidToCheckOnLeftCellForLabel(ByVal InvalidRegionForNameCell
     
     Result = ( _
              IsCellBlank(OneCellLeft) _
+             And Not OneCellLeft.MergeCells _
              And OneCellLeft.Column > 1 _
              And Not IsCellHidden(OneCellLeft) _
              )
@@ -229,9 +230,13 @@ Private Function IsProbableLetVarName(ByVal CurrentCell As Range, ByVal InvalidR
     Dim Result As Boolean
     If IsNothing(CurrentCell) Then
         Result = False
+    ElseIf CurrentCell.MergeCells Then
+        Result = False
     ElseIf IsError(CurrentCell.Value) Then
         Result = False
     ElseIf Application.WorksheetFunction.Trim(CurrentCell.Value) = vbNullString Then
+        Result = False
+    ElseIf Len(Application.WorksheetFunction.Trim(CurrentCell.Value)) > MAX_ALLOWED_LET_STEP_NAME_LENGTH Then
         Result = False
     ElseIf HasDynamicFormula(CurrentCell) Or CurrentCell.HasFormula Then
         Result = False
@@ -325,7 +330,7 @@ Public Function ConvertToValidLetVarName(ByVal GivenName As String) As String
     
 End Function
 
-Public Function MakeValidName(ByVal GivenInvalidName As String _
+Private Function MakeValidName(ByVal GivenInvalidName As String _
                               , NamingConv As VarNamingStyle) As String
     
     Dim ValidName As String
@@ -374,7 +379,7 @@ Public Function MakeValidName(ByVal GivenInvalidName As String _
     
 End Function
 
-Public Function IsValidLetVarName(ByVal NameToCheck As String) As Boolean
+Private Function IsValidLetVarName(ByVal NameToCheck As String) As Boolean
     IsValidLetVarName = ( _
                         NameToCheck = RemoveInvalidCharcters(NameToCheck, False) _
                         And Not IsA1C1RangeAddress(NameToCheck) _
@@ -382,12 +387,32 @@ Public Function IsValidLetVarName(ByVal NameToCheck As String) As Boolean
                         )
 End Function
 
-Public Function IsValidDefinedName(ByVal NameToCheck As String) As Boolean
-    IsValidDefinedName = ( _
-                         NameToCheck = RemoveInvalidCharcters(NameToCheck, False) _
-                         And Not IsA1C1RangeAddress(NameToCheck) _
-                         And Trim$(NameToCheck) <> vbNullString _
-                         )
+Public Function IsValidLambdaName(ByVal NameToCheck As String) As Boolean
+    IsValidLambdaName = (GetInvalidLambdaNameReason(NameToCheck) = vbNullString)
+End Function
+
+Public Function GetInvalidLambdaNameReason(ByVal NameToCheck As String) As String
+    
+    Dim Reason As String
+    Dim TrimmedName As String
+    TrimmedName = Trim$(NameToCheck)
+
+    If TrimmedName = vbNullString Then
+        Reason = "Lambda Name is blank. Please provide a valid name."
+    ElseIf IsA1C1RangeAddress(TrimmedName) Then
+        Reason = """" & TrimmedName & """ is not a valid LAMBDA name as it is a valid cell address. Please provide a valid name."
+    ElseIf TrimmedName <> RemoveInvalidCharcters(TrimmedName, False) Then
+        Reason = """" & TrimmedName & """ contains invalid characters. Please provide a valid name."
+    ElseIf IsBuiltInFunction(TrimmedName) Then
+        Reason = """" & TrimmedName & """ is a built-in Excel function name. Please choose a different name."
+    ElseIf Len(TrimmedName) > modSharedConstant.MAX_LAMBDA_NAME_CHAR_COUNT Then
+        Reason = """" & TrimmedName & """ is very long LAMBDA Name. Please keep it short (less than " & modSharedConstant.MAX_LAMBDA_NAME_CHAR_COUNT + 1 & " characters)."
+    Else
+        Reason = vbNullString
+    End If
+
+    GetInvalidLambdaNameReason = Reason
+    
 End Function
 
 Private Function ReplaceLineBreak(ByVal Text As String, ReplaceWith As String) As String
@@ -1214,7 +1239,7 @@ Public Function IsOptionalArgument(ByVal LetOrLambdaFormula As String, ByVal Nam
     
     ' Check if the given argument is an optional argument in the LET or LAMBDA formula.
     Dim IsOmittedText As String
-    IsOmittedText = ISOMITTED_FX_NAME & FIRST_PARENTHESIS_OPEN _
+    IsOmittedText = ISOMITTED_FN_NAME & FIRST_PARENTHESIS_OPEN _
                     & NameInFormula & FIRST_PARENTHESIS_CLOSE
     IsOptionalArgument = Text.Contains(LetOrLambdaFormula, IsOmittedText, CONSIDER_CASE)
     
@@ -1747,11 +1772,11 @@ End Function
 Public Function IsLetForOuterLambda(ByVal NewTokenizedFormula As Variant _
                                     , Optional ByVal LetIndex As Long = -1) As Boolean
     
-    If LetIndex = -1 Then LetIndex = modUtility.FirstIndexOf(NewTokenizedFormula, LET_FX_NAME, , True)
+    If LetIndex = -1 Then LetIndex = modUtility.FirstIndexOf(NewTokenizedFormula, LET_FN_NAME, , True)
     Dim NumberOfLambda As Long
     Dim Counter As Long
     For Counter = LetIndex - 1 To LBound(NewTokenizedFormula, 1) Step -1
-        If NewTokenizedFormula(Counter, LBound(NewTokenizedFormula, 2)) = LAMBDA_FX_NAME Then
+        If NewTokenizedFormula(Counter, LBound(NewTokenizedFormula, 2)) = LAMBDA_FN_NAME Then
             NumberOfLambda = NumberOfLambda + 1
         End If
     Next Counter
@@ -1818,7 +1843,7 @@ End Function
 Public Sub ScrollToDependencyDataRange(ByVal Table As ListObject)
     
     ' Scrolls to the dependency data range in the specified table.
-    Application.GoTo Table.Range, True
+    Application.Goto Table.Range, True
     Table.Range(1, 1).Select
     
 End Sub
@@ -1833,9 +1858,10 @@ Public Sub AssingOnUndo(ByVal UndoForMethod As String)
     
 End Sub
 
-Public Sub AssignFormulaIfErrorPrintIntoDebugWindow(ByVal PutFormulaOnCell As Range _
-                                                    , ByVal FormulaText As String _
-                                                     , Optional ByVal Message As String = vbNullString)
+Public Sub AssignFormulaIfErrorPrintIntoDebugWindow(ByRef IsErrorAddingFormula As Boolean _
+                                                    , ByVal PutFormulaOnCell As Range _
+                                                     , ByVal FormulaText As String _
+                                                      , Optional ByVal Message As String = vbNullString)
     
     ' Assigns a formula to the specified cell and prints the formula into the debug window if an error occurs.
     On Error GoTo PrintFormulaToDebugWindow
@@ -1843,6 +1869,7 @@ Public Sub AssignFormulaIfErrorPrintIntoDebugWindow(ByVal PutFormulaOnCell As Ra
     Exit Sub
 
 PrintFormulaToDebugWindow:
+    IsErrorAddingFormula = True
     Debug.Print Message & FormulaText
     
 End Sub
@@ -1884,20 +1911,20 @@ Public Function UpdateForIsOmitted(ByVal GivenFormula As String) As String
     
     Const VAR_PLACE_HOLDER As String = "{VarName}"
     Dim IsOmittedWithBlank As String
-    IsOmittedWithBlank = OR_FX_NAME & FIRST_PARENTHESIS_OPEN & ISOMITTED_FX_NAME _
-                         & "(" & VAR_PLACE_HOLDER & ")" & LIST_SEPARATOR & AND_FX_NAME _
-                         & FIRST_PARENTHESIS_OPEN & ISBLANK_FX_NAME & "(" & VAR_PLACE_HOLDER & ")))"
+    IsOmittedWithBlank = OR_FN_NAME & FIRST_PARENTHESIS_OPEN & ISOMITTED_FN_NAME _
+                         & FIRST_PARENTHESIS_OPEN & VAR_PLACE_HOLDER & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR & AND_FN_NAME _
+                         & FIRST_PARENTHESIS_OPEN & ISBLANK_FN_NAME & FIRST_PARENTHESIS_OPEN & VAR_PLACE_HOLDER & ")))"
                          
     Dim IsOmittedWithBlankAndSpace As String
     
-    IsOmittedWithBlankAndSpace = OR_FX_NAME & FIRST_PARENTHESIS_OPEN _
-                                 & ISOMITTED_FX_NAME & "(" & VAR_PLACE_HOLDER & ")" _
+    IsOmittedWithBlankAndSpace = OR_FN_NAME & FIRST_PARENTHESIS_OPEN _
+                                 & ISOMITTED_FN_NAME & FIRST_PARENTHESIS_OPEN & VAR_PLACE_HOLDER & FIRST_PARENTHESIS_CLOSE _
                                  & LIST_SEPARATOR & ONE_SPACE _
-                                 & AND_FX_NAME & FIRST_PARENTHESIS_OPEN _
-                                 & ISBLANK_FX_NAME & "(" & VAR_PLACE_HOLDER & ")))"
+                                 & AND_FN_NAME & FIRST_PARENTHESIS_OPEN _
+                                 & ISBLANK_FN_NAME & FIRST_PARENTHESIS_OPEN & VAR_PLACE_HOLDER & ")))"
 
     Dim IsOmittedWithParen As String
-    IsOmittedWithParen = ISOMITTED_FX_NAME & FIRST_PARENTHESIS_OPEN
+    IsOmittedWithParen = ISOMITTED_FN_NAME & FIRST_PARENTHESIS_OPEN
 
     Dim AllPosition As Collection
     Set AllPosition = Text.FindAllIndexOf(GivenFormula, IsOmittedWithParen, FROM_START, IGNORE_CASE)
@@ -1923,7 +1950,7 @@ Public Function UpdateForIsOmitted(ByVal GivenFormula As String) As String
         SearchTextWithSpace = VBA.Replace(IsOmittedWithBlankAndSpace, VAR_PLACE_HOLDER, RefAfterIsOmitted)
         
         Dim LengthOfORAndOpenParen As String
-        LengthOfORAndOpenParen = Len(OR_FX_NAME & "(")
+        LengthOfORAndOpenParen = Len(OR_FN_NAME & FIRST_PARENTHESIS_OPEN)
         
         If CurrentIndex - LengthOfORAndOpenParen <= 0 Then
             ' Update with OR one
@@ -1950,14 +1977,17 @@ Public Function GetMatchingVarNameDependency(ByVal VarName As String _
     ' Returns the DependencyInfo object that matches the given VarName from the provided collection.
     ' VarName: The variable name to search for.
     ' FromCollection: The collection to search for the matching DependencyInfo.
-
+    
+    Dim Result As DependencyInfo
     Dim CurrentDependencyInfo As DependencyInfo
     For Each CurrentDependencyInfo In FromCollection
         If CurrentDependencyInfo.ValidVarName = VarName Then
-            Set GetMatchingVarNameDependency = CurrentDependencyInfo
-            Exit Function
+            Set Result = CurrentDependencyInfo
+            Exit For
         End If
     Next CurrentDependencyInfo
+    
+    Set GetMatchingVarNameDependency = Result
     
 End Function
 
@@ -2662,7 +2692,7 @@ Public Sub MoveColumnToRightOfScreen(ByVal StartCell As Range)
     Dim PreviousStatus As Boolean
     PreviousStatus = Application.ScreenUpdating
     Application.ScreenUpdating = False
-    Application.GoTo StartCell, True
+    Application.Goto StartCell, True
     Dim Count As Long
     Dim Temp As Range
     Set Temp = StartCell
@@ -2676,15 +2706,15 @@ Public Sub MoveColumnToRightOfScreen(ByVal StartCell As Range)
         End If
         Count = Count + 1
         Set Temp = StartCell.Offset(0, -1 * Count)
-        Application.GoTo Temp, True
+        Application.Goto Temp, True
     Loop
 
     If Count < StartCell.Column Then
         ' If the count is less than the StartCell column, move to the last visible column.
         Set Temp = StartCell.Offset(0, -1 * Count)
-        Application.GoTo Temp, True
+        Application.Goto Temp, True
     End If
-    If Temp.Row <> 1 Then Application.GoTo Temp.Offset(-1, 0), True
+    If Temp.Row <> 1 Then Application.Goto Temp.Offset(-1, 0), True
     StartCell.Select
     Application.ScreenUpdating = PreviousStatus
     Exit Sub
@@ -2709,11 +2739,11 @@ Public Sub DeleteLETStepNamedRangesHavingError(Optional ByVal FromWorkbook As Wo
         If Text.Contains(CurrentName.RefersTo, REF_ERR_KEYWORD) _
            And Text.IsStartsWith(CurrentName.Name, LETSTEPREF_PREFIX) Then
             On Error Resume Next
-            Dim LetStep_FX_Name As String
-            LetStep_FX_Name = LETSTEP_UNDERSCORE_PREFIX _
+            Dim LetStep_FN_NAME As String
+            LetStep_FN_NAME = LETSTEP_UNDERSCORE_PREFIX _
                               & Text.AfterDelimiter(CurrentName.Name, UNDER_SCORE)
             CurrentName.Delete
-            Set CurrentName = FromWorkbook.Names(LetStep_FX_Name)
+            Set CurrentName = FromWorkbook.Names(LetStep_FN_NAME)
             CurrentName.Delete
             On Error GoTo 0
         End If
@@ -2780,7 +2810,7 @@ Private Function IsCellAddressUsed(ByVal ForRange As Range, ByVal CurrentPrecede
     CleanPrecedency = Replace(CurrentPrecedency, DOLLAR_SIGN, vbNullString)
     
     Dim SheetQualifiedRef As String
-    SheetQualifiedRef = GetRangeRefWithSheetName(ForRange, False)
+    SheetQualifiedRef = GetRangeRefWithSheetName(ForRange, False, False)
     
     IsCellAddressUsed = ( _
                         SheetQualifiedRef = CleanPrecedency _
@@ -2843,12 +2873,8 @@ Public Function IsArrayAllocated(ByVal Arr As Variant) As Boolean
         ' is True, the array is allocated. Otherwise,
         ' the array is not allocated.
         '''''''''''''''''''''''''''''''''''''''
-        If LBound(Arr) <= UBound(Arr) Then
-            ' no error. array has been allocated.
-            IsArrayAllocated = True
-        Else
-            IsArrayAllocated = False
-        End If
+        ' no error. array has been allocated.
+        IsArrayAllocated = (LBound(Arr) <= UBound(Arr))
     Else
         ' error. unallocated array
         IsArrayAllocated = False
@@ -2907,9 +2933,10 @@ Public Function IsExpandAble(ByVal ForCell As Range) As Boolean
     If IsNotNothing(CurrentName) Then
         ' Check if the address of the current named range is same as input cell address
         If CurrentName.RefersToRange.Address <> ForCell.Address Then Exit Function
-
-        ' Check if the input cell has only one cell and that cell has a formula
-    ElseIf ForCell.Cells.Count = 1 And ForCell.HasFormula Then
+    End If
+    
+    ' Check if the input cell has only one cell and that cell has a formula
+    If ForCell.Cells.Count = 1 And ForCell.HasFormula Then
         ' If true, the cell is expandable
         IsExpandAble = True
         ' Check if the input cell is part of a spill range
@@ -3309,7 +3336,7 @@ Public Function IsReferenceFromDifferentBook(ByVal PrecedentsRef As String _
         Dim ResolvedRange As Range
         Set ResolvedRange = RangeResolver.GetRange(PrecedentsRef, CheckAgainstBook)
         If ResolvedRange Is Nothing Then
-            If Context.IsNamedRangeExist(CheckAgainstBook, PrecedentsRef) Then
+            If Context.IsNamedRangeExists(CheckAgainstBook, PrecedentsRef) Then
                 Result = False
             Else
                 Err.Raise 13, "Range Resolver", "Can't find range from PrecedentsRef"
@@ -3687,3 +3714,53 @@ Public Function GetLocalPathFromOneDrivePath(OneDrivePath As String) As String
     Next
     
 End Function
+
+
+Public Function IsSameNameUsed(ByVal DependencyObjects As Collection, ByVal NewValidVarName As String)
+    
+    ' This will check if we have a named range with the provided NewValidVarName.
+    ' This to ensure that param name and named range name doesn't conflict each other.
+    
+    Dim Result As Boolean
+    Result = False
+    
+    Dim LcaseNewValidVarName As String
+    LcaseNewValidVarName = LCase$(NewValidVarName)
+    
+    Dim CurrentDep As DependencyInfo
+    For Each CurrentDep In DependencyObjects
+        If CurrentDep.IsReferByNamedRange Then
+            If LCase(CurrentDep.ForName.Name) = LcaseNewValidVarName Then
+                Result = True
+                Exit For
+            End If
+        End If
+    Next CurrentDep
+    
+    IsSameNameUsed = Result
+    
+End Function
+
+Public Function IsSameTableNameUsed(ByVal DependencyObjects As Collection, ByVal NewValidVarName As String)
+    
+    ' This will check if we have a table name with the provided NewValidVarName.
+    ' This to ensure that param name and table name doesn't conflict each other.
+    
+    Dim Result As Boolean
+    Result = False
+    
+    Dim LcaseNewValidVarName As String
+    LcaseNewValidVarName = LCase$(NewValidVarName)
+    
+    Dim CurrentDep As DependencyInfo
+    For Each CurrentDep In DependencyObjects
+        If CurrentDep.IsTableRef And LCase(CurrentDep.NameInFormula) = LcaseNewValidVarName Then
+            Result = True
+            Exit For
+        End If
+    Next CurrentDep
+    
+    IsSameTableNameUsed = Result
+    
+End Function
+

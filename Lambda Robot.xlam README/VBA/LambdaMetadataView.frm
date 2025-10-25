@@ -335,7 +335,7 @@ Private Sub InitializeView(ByVal View As LambdaMetadataView)
         
         With CurrentControl
             .ColumnCount = 2
-            .ColumnWidths = "147 pt;379.45 pt"
+            .ColumnWidths = "147 pt;379 pt"
             .TextAlign = fmTextAlignLeft
         End With
         

@@ -48,6 +48,7 @@ Public NonLambdas As Collection
 Public RangeRefNamedRanges As Collection
 Private CachedBookName As String
 Private IsContextExtracted As Boolean
+Private AllTablesDic As Scripting.Dictionary
 
 Public Sub ExtractContextFromCell(ByVal FromCell As Range, ByVal CalledFromMethod As String)
     
@@ -118,6 +119,7 @@ Public Sub ExtractContext(ByVal ForBook As Workbook, ByVal CalledFromMethod As S
     ' And if we don't set then it will pull again and again.
     
     UpdateNamedRangesCollection ForBook
+    UpdateTableDictionary ForBook
     CachedBookName = ForBook.Name
     IsContextExtracted = True
     
@@ -202,6 +204,7 @@ Private Sub UpdateNamedRangesCollection(ByVal ForBook As Workbook)
     If LOG_CONTEXT_TIMING Then StartTime = Timer
     
     Set AllNamedRangeDic = New Scripting.Dictionary
+    AllNamedRangeDic.CompareMode = vbTextCompare
     
     Set AllNamedRangeColl = New Collection
     Set Lambdas = New Collection
@@ -213,6 +216,7 @@ Private Sub UpdateNamedRangesCollection(ByVal ForBook As Workbook)
         
         ' Ignore built in and filter related named ranges
         If Not IsBuiltInName(CurrentName) Then
+'            Debug.Print CurrentName.Name
             If Not Text.IsEndsWith(CurrentName.Name, "!_FilterDatabase") Then
             
                 AllNamedRangeDic.Add CurrentName.Name, CurrentName
@@ -244,6 +248,22 @@ Private Sub UpdateNamedRangesCollection(ByVal ForBook As Workbook)
     
 End Sub
 
+Private Sub UpdateTableDictionary(ByVal ForBook As Workbook)
+    
+    Set AllTablesDic = New Scripting.Dictionary
+    AllTablesDic.CompareMode = vbTextCompare
+    
+    Dim CurrentSheet As Worksheet
+    For Each CurrentSheet In ForBook.Worksheets
+        
+        Dim CurrentTable As ListObject
+        For Each CurrentTable In CurrentSheet.ListObjects
+            AllTablesDic.Add CurrentTable.Name, CurrentSheet.Name
+        Next CurrentTable
+        
+    Next CurrentSheet
+    
+End Sub
 
 ' Check if the outer function is LAMBDA or not and it is the entire function.
 Private Function IsLambdaName(ByVal CurrentName As Name) As Boolean
@@ -317,6 +337,7 @@ Private Function GetAllNamedRangeFromBook(ByVal FromBook As Workbook _
             Set Result = New Collection
         Else
             Set Result = New Scripting.Dictionary
+            Result.CompareMode = vbTextCompare
         End If
         
         Dim CurrentName As Name
@@ -361,7 +382,36 @@ Public Function GetAllRangeRefNamedRangeFromBook(ByVal FromBook As Workbook) As 
     
 End Function
 
-Public Function IsNamedRangeExist(ByVal SearchInBook As Workbook _
+Public Function IsTableExists(ByVal SearchInBook As Workbook _
+                              , ByVal TableName As String) As Boolean
+    
+    Dim IsExist As Boolean
+    If SearchInBook.Name = CachedBookName Then
+        IsExist = AllTablesDic.Exists(TableName)
+    Else
+        
+        If LOG_CONTEXT_TIMING Then Debug.Print "This shouldn't happened too often: IsTableExists"
+        
+        Dim CurrentSheet As Worksheet
+        For Each CurrentSheet In SearchInBook.Worksheets
+        
+            Dim CurrentTable As ListObject
+            For Each CurrentTable In CurrentSheet.ListObjects
+                If LCase$(CurrentTable.Name) = LCase$(TableName) Then
+                    IsExist = True
+                    Exit For
+                End If
+            Next CurrentTable
+        
+        Next CurrentSheet
+        
+    End If
+    
+    IsTableExists = IsExist
+    
+End Function
+
+Public Function IsNamedRangeExists(ByVal SearchInBook As Workbook _
                                   , ByVal NameOfTheNamedRange As String) As Boolean
     
     ' Checks if a named range exists in the given workbook.
@@ -373,18 +423,18 @@ Public Function IsNamedRangeExist(ByVal SearchInBook As Workbook _
         If LOG_CONTEXT_TIMING Then Debug.Print "This shouldn't happened too often: IsNamedRangeExist"
         Dim CurrentName As Name
         For Each CurrentName In SearchInBook.Names
-            If CurrentName.Name = NameOfTheNamedRange Then
+            If LCase$(CurrentName.Name) = LCase$(NameOfTheNamedRange) Then
                 IsExist = True
                 Exit For
             End If
         Next CurrentName
     End If
     
-    IsNamedRangeExist = IsExist
+    IsNamedRangeExists = IsExist
     
 End Function
 
-Public Function IsLocalScopedNamedRangeExist(ScopeSheet As Worksheet _
+Public Function IsLocalScopedNamedRangeExists(ScopeSheet As Worksheet _
                                              , NamedRangeName As String) As Boolean
     
     Dim SheetQualifiedName As String
@@ -392,6 +442,8 @@ Public Function IsLocalScopedNamedRangeExist(ScopeSheet As Worksheet _
     If Not Text.Contains(NamedRangeName, SHEET_NAME_SEPARATOR) Then
         SheetQualifiedName = GetSheetRefForRangeReference(ScopeSheet.Name, False) & NamedRangeName
     End If
+    
+    SheetQualifiedName = LCase$(SheetQualifiedName)
     
     Dim Result As Boolean
     If ScopeSheet.Parent.Name = CachedBookName Then
@@ -401,14 +453,14 @@ Public Function IsLocalScopedNamedRangeExist(ScopeSheet As Worksheet _
        If LOG_CONTEXT_TIMING Then Debug.Print "This shouldn't happened too often: IsLocalScopedNamedRangeExist"
         Dim CurrentName As Name
         For Each CurrentName In ScopeSheet.Names
-            If CurrentName.Name = SheetQualifiedName Then
+            If LCase$(CurrentName.Name) = SheetQualifiedName Then
                 Result = True
                 Exit For
             End If
         Next CurrentName
     End If
     
-    IsLocalScopedNamedRangeExist = Result
+    IsLocalScopedNamedRangeExists = Result
     
 End Function
 

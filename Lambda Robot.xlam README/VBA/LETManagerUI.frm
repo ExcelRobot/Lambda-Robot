@@ -42,10 +42,12 @@ Public Property Set Parser(ByVal RHS As FormulaParser)
 End Property
 
 Private Sub CancelButton_Click()
+    
     Logger.Log TRACE_LOG, "Enter LETManagerUI.CancelButton_Click"
     this.Parser.IsProcessTerminatedByUser = True
     Me.Hide
     Logger.Log TRACE_LOG, "Exit LETManagerUI.CancelButton_Click"
+    
 End Sub
 
 Private Sub SelectAgainAfterExclude(ByVal ForListBox As MSForms.ListBox _
@@ -59,8 +61,10 @@ Private Sub SelectAgainAfterExclude(ByVal ForListBox As MSForms.ListBox _
 
     With ForListBox
         If SelectedRowIndex >= .ListCount Then
+            .ListIndex = .ListCount - 1
             .Selected(.ListCount - 1) = True
         Else
+            .ListIndex = SelectedRowIndex
             .Selected(SelectedRowIndex) = True
         End If
     End With
@@ -160,6 +164,7 @@ Private Sub ExpandButton_Click()
         .IsInsideNamedRangeOrTable = False
         .IsReferByNamedRange = False
         .IsExpandByUser = True
+        .IsLabelAsInputCell = False
     End With
 
     ' Recalculate and update the DependencyObjects
@@ -296,47 +301,66 @@ Private Sub RenameForListBox(ByVal ForListBox As MSForms.ListBox)
     SelectedDependencyVarName = GetSelectedItemVarName(ForListBox)
 
     ' Update the variable name and valid variable name for the selected item
-    UpdateForNewName SelectedDependencyVarName
-
-    ' Recalculate and update the DependencyObjects
-    RecalculateAndUpdateDependencyCollection
-
-    ' Update the ListBox based on the updated collection
-    UpdateListBoxFromCollection
+    UpdateForNewName SelectedDependencyVarName, ForListBox
 
     ' Select the row back in the ListBox if it was previously selected
-    If SelectedRowIndex <> -1 Then ForListBox.Selected(SelectedRowIndex) = True
+    If SelectedRowIndex <> -1 Then
+        ForListBox.ListIndex = SelectedRowIndex
+        ForListBox.Selected(SelectedRowIndex) = True
+    End If
 
     Logger.Log TRACE_LOG, "Exit LETManagerUI.RenameForListBox"
 
 End Sub
 
-Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String)
-
-    Logger.Log TRACE_LOG, "Enter LETManagerUI.UpdateForNewName"
+Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String _
+                             , ByVal ForListBox As MSForms.ListBox)
+    
+    Logger.Log TRACE_LOG, "Enter ParamSelector.UpdateForNewName"
     ' Check if a valid item is selected in the ListBox
     If SelectedDependencyVarName = vbNullString Then Exit Sub
-
+    
     ' Get the DependencyInfo for the selected item
     Dim SelectedDependency As DependencyInfo
     Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
                                                           , this.DependencyObjects)
-
+    
     ' Prompt the user to enter a new name for the variable
     Dim NewName As String
     NewName = InputBox("Enter new name:", "Parameter/Step Name", SelectedDependencyVarName)
-
+    
     ' Check if the user entered a new name or canceled the input box
     If NewName = vbNullString Or NewName = "False" Then Exit Sub
-
-    ' Update the range label and valid variable name for the selected item
-    With SelectedDependency
-        .RangeLabel = NewName
-        .IsUserSpecifiedName = True
-        .ValidVarName = ConvertToValidLetVarName(.RangeLabel)
-    End With
-    Logger.Log TRACE_LOG, "Exit LETManagerUI.UpdateForNewName"
-
+    
+    Dim NewValidVarName As String
+    NewValidVarName = ConvertToValidLetVarName(NewName)
+    
+    Dim Message As String
+    If IsSameNameUsed(this.DependencyObjects, NewValidVarName) Then
+        Message = "'" & NewValidVarName & "' conflicts with range name. This is an existing range name in your workbook and may result in unexpected behavior."
+        MsgBox Message, vbInformation + vbOKOnly, APP_NAME
+        Exit Sub
+    ElseIf IsSameTableNameUsed(this.DependencyObjects, NewValidVarName) Then
+        Message = "'" & NewValidVarName & "' conflicts with table name. This is an existing table name in your workbook and may result in unexpected behavior."
+        MsgBox Message, vbInformation + vbOKOnly, APP_NAME
+        Exit Sub
+    End If
+        
+    SelectedDependency.RangeLabel = NewName
+    SelectedDependency.IsUserSpecifiedName = True
+        
+    If NewValidVarName = SelectedDependencyVarName Then Exit Sub
+    SelectedDependency.ValidVarName = NewValidVarName
+    
+    Dim ListBoxData As Variant
+    ListBoxData = ForListBox.List
+    ListBoxData(ForListBox.ListIndex, 0) = NewValidVarName
+    ForListBox.List = ListBoxData
+    
+    Me.Preview.Value = RenameLambdaParamOrLetStep(Me.Preview.Value, SelectedDependencyVarName, NewValidVarName, False)
+    
+    Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateForNewName"
+    
 End Sub
 
 Private Sub RenameStepButton_Click()
@@ -437,7 +461,7 @@ Private Function NumberOfItemSelected(ByVal ForListBox As MSForms.ListBox) As Lo
 
 End Function
 
-Private Sub EnableOrDisableExpandButton(SelectedItemCount As Long)
+Private Sub EnableOrDisableExpandButton(ByVal SelectedItemCount As Long)
 
     Logger.Log TRACE_LOG, "Enter LETManagerUI.EnableOrDisableExpandButton"
 
@@ -464,9 +488,9 @@ Private Sub EnableOrDisableExpandButton(SelectedItemCount As Long)
     With SelectedDependency
 
         ' Check if the ExpandButton should be enabled or disabled based on the selected item's properties
-       If .IsUserMarkAsValue Then
+        If .IsUserMarkAsValue Then
             Me.ExpandButton.Enabled = False
-        ElseIf Not .IsInsideNamedRangeOrTable And Not .IsDemotedFromParameterCellToLetStep Then
+        ElseIf .IsLabelAsInputCell Then
             Me.ExpandButton.Enabled = False
         Else
             Me.ExpandButton.Enabled = IsExpandAble(RangeResolver.GetRange(.RangeReference))
@@ -531,7 +555,6 @@ Private Sub ValueButton_Click()
 
         Dim FormulaText As String
         If IsNothing(ResolvedRange) And .IsReferByNamedRange Then
-            '@TODO: What if i have error on const named range.
             FormulaText = modUtility.ConvertToValueFormula(Evaluate(.NameInFormula))
         Else
             FormulaText = modUtility.ConvertToValueFormula(ResolvedRange.Value)
@@ -539,12 +562,11 @@ Private Sub ValueButton_Click()
 
         ' Check if the cell value can be treated as an array constant.
         ' If it can, mark it as a formula, else, mark it as a constant value.
-        If Left$(FormulaText, 1) = LEFT_BRACE Then
+        .HasFormula = True
+        If Left$(FormulaText, 1) = LEFT_BRACE And Right(FormulaText, 1) = RIGHT_BRACE Then
             .FormulaText = EQUAL_SIGN & FormulaText
-            .HasFormula = True
         Else
             .FormulaText = FormulaText
-            .HasFormula = False
         End If
 
         ' Since it is a "Value" step, it has no dependencies.

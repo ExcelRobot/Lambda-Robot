@@ -102,16 +102,15 @@ Private Sub RemoveMetadataAndAddNote(ByVal ToCell As Range, ByVal LambdaFormula 
     UpdateOrAddLambdaNameNote ToCell, LambdaName, LAMBDA_NAME_NOTE_PREFIX
     
     ' Attempt to update the cell formula with the new formula text.
-    ' If any error occurs, it is handled in the 'PutFormulaUsingSendKeys' part.
-    On Error GoTo PutFormulaUsingSendKeys
+    ' If any error occurs, it is handled in the 'PutFormulaAsText' part.
+    On Error GoTo PutFormulaAsText
     FormulaText = ReplaceNewlineWithChar10(FormulaText)
     UpdateFormulaAndCalculate ToCell, FormulaText
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.RemoveMetadataAndAddNote"
     Exit Sub
     
-PutFormulaUsingSendKeys:
-    ' If an error occurs while trying to update the cell formula,
-    ' we use SendKeys to put the formula
+PutFormulaAsText:
+    ' If an error occurs while trying to update the cell formula, use Text number format and add the formula.
     PutFormulaWhichHasError ToCell, FormulaText
     ToCell.Calculate
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.RemoveMetadataAndAddNote"
@@ -300,6 +299,9 @@ Private Sub SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined(ByVal ForCel
                , vbOKOnly + vbInformation, "Save Lambda"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveAndUpdateLambdaMetadataConsideringLambdaNameDefined"
         Exit Sub
+    ElseIf Not modUtility.IsValidLambdaName(LambdaName) Then
+        MsgBox modUtility.GetInvalidLambdaNameReason(LambdaName), vbOKOnly + vbInformation, "Save Lambda"
+        Exit Sub
     End If
     
     
@@ -456,10 +458,10 @@ Private Function RemoveSpaceBetweenEqualAndLambdaText(ByVal LambadaFormula As St
     
     Logger.Log TRACE_LOG, "Enter modLambdaEditor.RemoveSpaceBetweenEqualAndLambdaText"
     Dim FindText As String
-    FindText = EQUAL_SIGN & ONE_SPACE & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+    FindText = EQUAL_SIGN & ONE_SPACE & LAMBDA_FN_NAME & FIRST_PARENTHESIS_OPEN
     
     Dim ReplaceText As String
-    ReplaceText = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+    ReplaceText = EQUAL_SIGN & LAMBDA_FN_NAME & FIRST_PARENTHESIS_OPEN
     
     RemoveSpaceBetweenEqualAndLambdaText = Replace(LambadaFormula, FindText, ReplaceText, 1, 1, vbTextCompare)
     Logger.Log TRACE_LOG, "Exit modLambdaEditor.RemoveSpaceBetweenEqualAndLambdaText"
@@ -567,13 +569,10 @@ Public Sub SaveLambdaAsAfterTakingUserInput(ByVal OfCell As Range _
     Dim NewName As String
     NewName = CurrentPresenter.LambdaMetadata.LambdaName
     ' If invalid, alert the user and exit the subroutine
-    If NewName = vbNullString Then
-        MsgBox "Unable to save Lambda formula.  Lambda Name is not valid.", vbExclamation + vbOKOnly, APP_NAME
-        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modLambdaEditor.SaveLambdaAsAfterTakingUserInput"
-        Exit Sub
-    ElseIf Not IsValidDefinedName(NewName) Then
-        MsgBox "Unable to save Lambda formula. '" & NewName & "' is not valid lambda name.", vbExclamation + vbOKOnly, APP_NAME
-        Exit Sub
+    Dim InvalidityReason As String
+    InvalidityReason = modUtility.GetInvalidLambdaNameReason(NewName)
+    If InvalidityReason <> vbNullString Then
+        MsgBox "Unable to save Lambda formula.  " & InvalidityReason, vbExclamation + vbOKOnly, APP_NAME
     End If
 
     ' Update or add a note containing the lambda name
@@ -699,6 +698,10 @@ Public Sub CancelEditLambda(ByVal OfCell As Range)
     
     ' Delete the comment in the cell containing the Lambda name
     DeleteComment OfCell
+    
+    If Not OfCell.HasFormula Then
+        GoTo ExitMethod
+    End If
     
     ' Replace the Lambda formula with the Lambda name and get the invocation part
     Dim NewFormula As String

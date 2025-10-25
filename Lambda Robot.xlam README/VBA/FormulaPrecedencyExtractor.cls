@@ -243,7 +243,7 @@ Private Sub ResolveRangeLabelConflictForCurrDependency(ByRef CurrentDependency A
         If IsNotNothing(.RangeLabelCell) Then
             .RangeLabel = .RangeLabelCell.Value
             .ValidVarName = MakeValidLetVarName(.RangeLabel, GetNamingConv(.IsLabelAsInputCell))
-            .ValidVarName = CorrectValidVarNameForNamedRange(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
+            .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
         Else
             .RangeLabel = vbNullString
             .ValidVarName = vbNullString
@@ -429,6 +429,7 @@ Public Sub UpdateValidVarForUsedNamedRanges(ByRef AllDependency As Collection)
         With CurrentDependency
             If Not .IsReferByNamedRange And IsExistInCollection(UsedNamedRanges, .ValidVarName) Then
                 .ValidVarName = FindUniqueNameByIncrementingNumber(UsedNamedRanges, .ValidVarName)
+                .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
             End If
         End With
     Next CurrentDependency
@@ -501,7 +502,7 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range _
     If IsFormulaLengthCrossedExcelCharacterLimit() Then Exit Sub
     
     ' Uncomment the line below for debugging purposes.
-    ' Debug.Assert FormulaStartCell.Address(False, False) <> "I4"
+'     Debug.Assert FormulaStartCell.Address(False, False) <> "E10"
      
     On Error GoTo ExitMethod
 
@@ -549,6 +550,7 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range _
                 Dim IsAnyDep As Boolean
                 IsAnyDep = True
                 ' Debug.Assert IsNotNothing(CurrentRange)
+                'Debug.Assert RangeReference <> "Sheet5!B2"
                 If IsNothing(CurrentRange) And IsLocalOrGlobalNamedRangeExist(.NameInFormula, this.FormulaStartCellSheetName) Then
                     FormulaText = GetNamedRangeByNameInFormula(.NameInFormula, this.FormulaStartCellSheetName).RefersTo
                     IsAnyDep = False
@@ -577,7 +579,6 @@ Private Sub FindDependency(ByVal FormulaStartCell As Range _
             End If
         End With
 
-NextDirectPrecedent:
     Next CurrentDirectPrecedent
 
     Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.FindDependency"
@@ -836,6 +837,9 @@ Private Function IsNoMorePrecedency(ByVal ForCell As Range) As Boolean
 
     If IsNotNothing(ModifiedDependencyInfo) Then
         With ModifiedDependencyInfo
+            
+            'Debug.Assert Not .IsExpandByUser
+            
             Result = ( _
                      .IsLabelAsInputCell _
                      Or Not .HasFormula _
@@ -857,7 +861,7 @@ Private Function IsNoMorePrecedency(ByVal ForCell As Range) As Boolean
         ' Allow extracting dependency if it is inside table and that is the start cell for which we are generating lambda/let.
         Result = True
     ElseIf IsReferedByNamedRange(ForCell) Then
-        Result = Not (Text.Contains(ForCell.Name.Name, LETSTEPREF_UNDERSCORE_PREFIX))
+        Result = Not (Text.Contains(this.AllDependency.Item(RangeReference).ForName.Name, LETSTEPREF_UNDERSCORE_PREFIX))
     Else
         Result = False
     End If
@@ -1055,7 +1059,7 @@ Private Sub UpdateNewDependencyIfNoModified(ByVal CurrentDependency As Dependenc
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.UpdateNewDependencyIfNoModified"
     With CurrentDependency
-    
+        'Debug.Assert RangeReference <> "Sheet5!B2"
         .FormulaText = FormulaText
         .HasFormula = HasFormula(CurrentCell)
             
@@ -1097,12 +1101,23 @@ Private Sub UpdateNewDependencyIfNoModified(ByVal CurrentDependency As Dependenc
         End If
      
         .ValidVarName = MakeValidLetVarName(.RangeLabel, GetNamingConv(.IsLabelAsInputCell))
-        .ValidVarName = CorrectValidVarNameForNamedRange(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
+        .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
         
     End With
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.UpdateNewDependencyIfNoModified"
     
 End Sub
+
+Private Function CorrectValidVarNameForTableAndName(ByVal ValidVarName As String _
+                                                    , ByVal IsRefByName As Boolean _
+                                                     , ByVal IsLabelAsInputCell As Boolean) As String
+    
+    Dim Result As String
+    Result = CorrectValidVarNameForNamedRange(ValidVarName, IsRefByName, IsLabelAsInputCell)
+    Result = CorrectValidVarNameForTable(Result, IsLabelAsInputCell)
+    CorrectValidVarNameForTableAndName = Result
+    
+End Function
 
 Private Function IsReferredByCellAddress(ByVal CurrentRange As Range, ByVal NameInFormula As String) As Boolean
     
@@ -1134,6 +1149,7 @@ Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As Dependenc
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.UpdateNewDependencyFromModified"
     With CurrentDependency
         
+        'Debug.Assert RangeReference <> "Sheet5!B2"
         .HasFormula = ModifiedDependencyInfo.HasFormula
         .IsUserSpecifiedName = ModifiedDependencyInfo.IsUserSpecifiedName
         If Not .HasFormula Then
@@ -1142,15 +1158,13 @@ Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As Dependenc
 
         .FormulaText = ModifiedDependencyInfo.FormulaText
         .Is3DRangeRef = ModifiedDependencyInfo.Is3DRangeRef
+        .IsExpandByUser = ModifiedDependencyInfo.IsExpandByUser
         
         If ModifiedDependencyInfo.IsExpandByUser Then
-            '@TODO: Need to update here.
             .RangeLabel = FindRangeLabel(RangeReference, CurrentCell, True)
             Set .RangeLabelCell = FindLetVarNameCell(CurrentCell)
-            .ValidVarName = MakeValidLetVarName(.RangeLabel, GetNamingConv(False))
         Else
             .RangeLabel = ModifiedDependencyInfo.RangeLabel
-            .ValidVarName = ModifiedDependencyInfo.ValidVarName
         End If
 
         If ModifiedDependencyInfo.IsUserMarkAsParameterCell Then
@@ -1159,11 +1173,20 @@ Private Sub UpdateNewDependencyFromModified(ByVal CurrentDependency As Dependenc
             .IsLabelAsInputCell = False
         ElseIf ModifiedDependencyInfo.IsUserMarkAsValue Then
             .IsLabelAsInputCell = False
+        ElseIf ModifiedDependencyInfo.IsMarkAsNotLetStatementByUser Then
+            .IsLabelAsInputCell = False
+        ElseIf ModifiedDependencyInfo.IsExpandByUser Then
+            .IsLabelAsInputCell = False
         Else
             .IsLabelAsInputCell = IsInputCell(CurrentCell, this.DependencySearchInRegion)
         End If
 
         .IsReferByNamedRange = ModifiedDependencyInfo.IsReferByNamedRange
+        
+        ' We may have a scenario where we moved param to step or step to param and need to change the ValidVarName
+        ' Or Expanding the named range.
+        .ValidVarName = CorrectValidVarNameForTableAndName(MakeValidLetVarName(.RangeLabel, GetNamingConv(False)), .IsReferByNamedRange, .IsLabelAsInputCell)
+        
         .IsInsideNamedRangeOrTable = ModifiedDependencyInfo.IsInsideNamedRangeOrTable
         .IsUserMarkAsParameterCell = ModifiedDependencyInfo.IsUserMarkAsParameterCell
         .IsMarkAsNotLetStatementByUser = ModifiedDependencyInfo.IsMarkAsNotLetStatementByUser
@@ -1247,13 +1270,15 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
     ' Corrects the valid variable name for a named range that is also referred to by another named range.
     ' ValidVarName: The valid variable name for the named range.
     ' IsReferedByNamedRange: True if the named range is referred to by another named range, False otherwise.
-
+    
+    Dim Prefix As String
+    Prefix = FormulaFormatConfig.LetVarPrefix
     ' If the named range is referred to by another named range and the current name exists in the named range collection,
     ' add an underscore to the beginning of the name.
     If IsReferedByNamedRange And IsLocalOrGlobalNamedRangeExist(ValidVarName, this.FormulaStartCellSheetName) Then
-        ValidVarName = Text.PadIfNotPresent(ValidVarName, UNDER_SCORE, FROM_START)
+        ValidVarName = Text.PadIfNotPresent(ValidVarName, Prefix, FROM_START)
     End If
-
+    
     ' If the corrected valid variable name does not exist in the named range collection, return it.
     If Not IsLocalOrGlobalNamedRangeExist(ValidVarName, this.FormulaStartCellSheetName) Then
         CorrectValidVarNameForNamedRange = ValidVarName
@@ -1265,7 +1290,7 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
     ' a unique name is found.
     
     If Not IsInputCell Then
-        If Not IsLocalOrGlobalNamedRangeExist(Text.PadIfNotPresent(ValidVarName, UNDER_SCORE, FROM_START), this.FormulaStartCellSheetName) Then
+        If Not IsLocalOrGlobalNamedRangeExist(Text.PadIfNotPresent(ValidVarName, Prefix, FROM_START), this.FormulaStartCellSheetName) Then
             CorrectValidVarNameForNamedRange = ValidVarName
             Logger.Log TRACE_LOG, "Exit Due to Exit Keyword FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
             Exit Function
@@ -1287,6 +1312,41 @@ Private Function CorrectValidVarNameForNamedRange(ByVal ValidVarName As String _
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.CorrectValidVarNameForNamedRange"
     
 End Function
+
+Private Function CorrectValidVarNameForTable(ByVal ValidVarName As String _
+                                             , ByVal IsInputCell As Boolean) As String
+    
+    Dim Prefix As String
+    Prefix = FormulaFormatConfig.LetVarPrefix
+    
+    ' If the corrected valid variable name does not exist in the table collection, return it.
+    If Not Context.IsTableExists(this.FormulaInWorkbook, ValidVarName) Then
+        CorrectValidVarNameForTable = ValidVarName
+        Exit Function
+    End If
+    
+    If Not IsInputCell Then
+        If Not Context.IsTableExists(this.FormulaInWorkbook, Text.PadIfNotPresent(ValidVarName, Prefix, FROM_START)) Then
+            CorrectValidVarNameForTable = ValidVarName
+            Exit Function
+        End If
+    End If
+    
+    Dim Counter As Long
+    Counter = 2
+    Do While True
+        If Context.IsTableExists(this.FormulaInWorkbook, ValidVarName & UNDER_SCORE & Counter) Then
+            Counter = Counter + 1
+        Else
+            Exit Do
+        End If
+    Loop
+
+    ' Return the corrected valid variable name with the counter appended.
+    CorrectValidVarNameForTable = ValidVarName & UNDER_SCORE & Counter
+    
+End Function
+
 
 Private Function GenerateDependencyStats(ByVal AllDependency As Collection) As DependenciesStat
     
@@ -1556,7 +1616,10 @@ Public Sub AddPrefixOnInputCells(ByRef ObjectsCollection As Collection)
     For Each CurrentDependency In ObjectsCollection
         With CurrentDependency
             If .ValidVarName <> vbNullString And Not .IsUserSpecifiedName And .IsLabelAsInputCell Then
-                .ValidVarName = Text.PadIfNotPresent(MakeValidLetVarName(.ValidVarName, GetNamingConv(False)), LetVarPrefix, FROM_START)
+                Dim NewName As String
+                NewName = Text.PadIfNotPresent(MakeValidLetVarName(.ValidVarName, GetNamingConv(False)), LetVarPrefix, FROM_START)
+                NewName = CorrectValidVarNameForTableAndName(NewName, .IsReferByNamedRange, .IsLabelAsInputCell)
+                .ValidVarName = NewName
             End If
         End With
     Next CurrentDependency
@@ -1589,6 +1652,7 @@ Public Sub AddPrefixOnValidVarNameForNonInputCells(ByRef ObjectsCollection As Co
                 Else
                     .ValidVarName = Text.PadIfNotPresent(.ValidVarName, LetVarPrefix, FROM_START)
                 End If
+                .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
                 
             End If
         End With
@@ -1613,11 +1677,17 @@ Private Sub UpdateLastStepName(ByRef DependencyObjects As Collection)
         Dim Prefix As String
         Prefix = FormulaFormatConfig.LetVarPrefix
         
-        If Not CurrentDependencyInfo.IsUserSpecifiedName Then
-            CurrentDependencyInfo.ValidVarName = Prefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
-        End If
+        With CurrentDependencyInfo
+            
+            If Not .IsUserSpecifiedName Then
+                .ValidVarName = Prefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
+                .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
+            End If
         
-        this.VarNameOfFormulaStartCell = CurrentDependencyInfo.ValidVarName
+            this.VarNameOfFormulaStartCell = .ValidVarName
+            
+        End With
+        
     End If
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.UpdateLastStepName"
     
@@ -1629,7 +1699,7 @@ Private Sub UpdateInputCellsForDefaultName(ByRef DependencyObjects As Collection
     ' Iterate over the dependencies and update the ValidVarName of input cells without a name
     
     Dim Prefix As String
-    Prefix = IIf(TypeOfOperation = LET_STATEMENT_GENERATION, "Step", "Input")
+    Prefix = IIf(TypeOfOperation = LET_STATEMENT_GENERATION, DEFAULT_LET_STEP_LABEL, DEFAULT_PARAM_LABEL)
     
     Dim CurrentDependencyInfo As DependencyInfo
     Dim Counter As Long
@@ -1637,7 +1707,7 @@ Private Sub UpdateInputCellsForDefaultName(ByRef DependencyObjects As Collection
         Counter = Counter + 1
         With CurrentDependencyInfo
             If .IsLabelAsInputCell And .ValidVarName = vbNullString Then
-                .ValidVarName = Prefix & Counter
+                .ValidVarName = CorrectValidVarNameForTableAndName(Prefix & Counter, .IsReferByNamedRange, .IsLabelAsInputCell)
             End If
         End With
     Next CurrentDependencyInfo
@@ -1661,6 +1731,7 @@ Public Sub UpdateInputCellsValidVarNameNamingConvIfLetStepGen(ByRef DependencyOb
         With CurrentDependencyInfo
             If .IsLabelAsInputCell And Not .IsUserSpecifiedName And .ValidVarName <> vbNullString Then
                 .ValidVarName = Prefix & MakeValidLetVarName(.ValidVarName, NamingConv)
+                .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
             End If
         End With
     Next CurrentDependencyInfo
@@ -1678,7 +1749,8 @@ Private Sub UpdateBlankRangeLabelForDefaultName(ByRef DependencyObjects As Colle
         With CurrentDependencyInfo
             If Not .IsLabelAsInputCell Then Counter = Counter + 1
             If .ValidVarName = vbNullString Then
-                .ValidVarName = "_Step" & Counter
+                .ValidVarName = FormulaFormatConfig.LetVarPrefix & DEFAULT_LET_STEP_LABEL & Counter
+                .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
             End If
         End With
     Next CurrentDependencyInfo
@@ -1687,8 +1759,11 @@ Private Sub UpdateBlankRangeLabelForDefaultName(ByRef DependencyObjects As Colle
     Set CurrentDependencyInfo = DependencyObjects.Item(DependencyObjects.Count)
     
     With CurrentDependencyInfo
-        If Not .IsLabelAsInputCell And .ValidVarName = "_Step" & Counter And Not .IsUserSpecifiedName Then
+        If Not .IsLabelAsInputCell _
+           And .ValidVarName = FormulaFormatConfig.LetVarPrefix & DEFAULT_LET_STEP_LABEL & Counter _
+           And Not .IsUserSpecifiedName Then
             .ValidVarName = FormulaFormatConfig.LetVarPrefix & MakeValidLetVarName(LCase$(LAST_STEP_NAME), GetNamingConv(False))
+            .ValidVarName = CorrectValidVarNameForTableAndName(.ValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
         End If
     End With
     
@@ -1707,24 +1782,34 @@ Private Sub UpgradeDuplicateLetVarName(ByRef DependencyObjects As Collection _
     ' Loop through the Dependency Objects Collection and replace duplicate ValidVarName with unique names
     Dim CurrentDependencyInfo As DependencyInfo
     For Each CurrentDependencyInfo In DependencyObjects
-        Dim CurrentValidVarName As String
-        CurrentValidVarName = CurrentDependencyInfo.ValidVarName
-        If CurrentValidVarName <> vbNullString Then
-            ' Find a unique name for the current dependency
+        
+        With CurrentDependencyInfo
+        
+            Dim CurrentValidVarName As String
+            CurrentValidVarName = .ValidVarName
+            If CurrentValidVarName <> vbNullString Then
+                ' Find a unique name for the current dependency
             
-            CurrentValidVarName = CheckForBuiltInOrLambdaNameConflict(CurrentDependencyInfo)
-            CurrentValidVarName = FindUniqueNameForCurrentDependency(CurrentValidVarName, CurrentDependencyInfo.IsLabelAsInputCell _
-                                                                     , SoFarVarNameCollection _
-                                                                      , UniqueInBothParamAndStep)
-            CurrentDependencyInfo.ValidVarName = CurrentValidVarName
+                CurrentValidVarName = CheckForBuiltInOrLambdaNameConflict(CurrentDependencyInfo)
+                CurrentValidVarName = FindUniqueNameForCurrentDependency(CurrentValidVarName, .IsLabelAsInputCell _
+                                                                                             , SoFarVarNameCollection _
+                                                                                              , UniqueInBothParamAndStep)
+                
+                If Not .IsUserSpecifiedName Then
+                    CurrentValidVarName = CorrectValidVarNameForTableAndName(CurrentValidVarName, .IsReferByNamedRange, .IsLabelAsInputCell)
+                End If
+                
+                .ValidVarName = CurrentValidVarName
             
-            ' So if we have same name in lambda param and in the LET Step then we want to store the LET Version.
-            If IsExistInCollection(SoFarVarNameCollection, CurrentValidVarName) Then
-                SoFarVarNameCollection.Remove CurrentValidVarName
+                ' So if we have same name in lambda param and in the LET Step then we want to store the LET Version.
+                If IsExistInCollection(SoFarVarNameCollection, CurrentValidVarName) Then
+                    SoFarVarNameCollection.Remove CurrentValidVarName
+                End If
+                SoFarVarNameCollection.Add CurrentDependencyInfo, CurrentValidVarName
+            
             End If
-            SoFarVarNameCollection.Add CurrentDependencyInfo, CurrentValidVarName
-            
-        End If
+        End With
+        
     Next CurrentDependencyInfo
     Logger.Log TRACE_LOG, "Exit FormulaPrecedencyExtractor.UpgradeDuplicateLetVarName"
 
@@ -1813,3 +1898,9 @@ Public Function FindStructuralFormulaText(ByVal ForCell As Range, ByVal FormulaT
 End Function
 
 
+Public Sub RemoveStructuredRef(ByVal ForCell As Range)
+    
+    ' Wrapper sub. Just delegate the work
+    this.StructuredFormulaManager.RemoveStructuredRef ForCell
+    
+End Sub

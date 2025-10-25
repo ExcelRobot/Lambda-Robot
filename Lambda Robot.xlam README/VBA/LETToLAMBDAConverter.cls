@@ -34,7 +34,7 @@ Private Sub Initialize(ByVal LetFormula As String)
     this.FirstColIndex = LBound(this.LetParts, 2)
     
     ' Initialize the lambda argument part of the final string to be built
-    this.LambdaArgumentPart = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+    this.LambdaArgumentPart = EQUAL_SIGN & LAMBDA_FN_NAME & FIRST_PARENTHESIS_OPEN
     
     ' Initialize the lambda invocation part of the final string to be built
     this.LambdaInvocationPart = FIRST_PARENTHESIS_OPEN
@@ -69,8 +69,8 @@ Public Function ConvertLetToLambda(ByVal LetFormula As String) As String
     
     ' If the returned result is not an array, that means no LET function was found in the cell, hence a message box pops up to notify the user
     If Not IsArray(this.LetParts) Then
-        MsgBox "Unable to convert " & LET_FX_NAME & " to " & LAMBDA_FX_NAME _
-               & ".  No " & LET_FX_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
+        MsgBox "Unable to convert " & LET_FN_NAME & " to " & LAMBDA_FN_NAME _
+               & ".  No " & LET_FN_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
         Exit Function
     End If
     

@@ -155,7 +155,7 @@ Private Function LambdaToLetOperationInvalidMessage(ByVal LambdaFormulaCell As R
     Dim Result As String
     ' Validation: Ensure only one cell is selected to convert from LAMBDA to LET.
     If LambdaFormulaCell.Cells.Count > 1 Then
-        Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
+        Result = "Unable to convert " & LAMBDA_FN_NAME & " to " & LET_FN_NAME _
                  & ". Only one cell at a time allowed."
     ElseIf Not LambdaFormulaCell.HasFormula Then
         Result = "No formula found on " & LambdaFormulaCell.Address & " ."
@@ -165,11 +165,11 @@ Private Function LambdaToLetOperationInvalidMessage(ByVal LambdaFormulaCell As R
         
         ' If target cell is not empty or contains errors, show a message and exit the method.
         If IsError(PutLetOnCell) Then
-            Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
+            Result = "Unable to convert " & LAMBDA_FN_NAME & " to " & LET_FN_NAME _
                      & ". Destination cell not empty."
         
         ElseIf PutLetOnCell.Value <> vbNullString Or PutLetOnCell.HasFormula Then
-            Result = "Unable to convert " & LAMBDA_FX_NAME & " to " & LET_FX_NAME _
+            Result = "Unable to convert " & LAMBDA_FN_NAME & " to " & LET_FN_NAME _
                      & ". Destination cell not empty."
         End If
         
@@ -200,7 +200,7 @@ Public Function ConvertLambdaToLet(ByVal FormulaText As String) As String
 
     ' If the breakdown doesn't return an array, it means no LAMBDA function was found in the cell
     If Not IsArray(LambdaParts) Then
-        MsgBox "No " & LAMBDA_FX_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
+        MsgBox "No " & LAMBDA_FN_NAME & " function found.", vbExclamation + vbOKOnly, APP_NAME
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modAuditLambdaSteps.ConvertLambdaToLet"
         Exit Function
     End If

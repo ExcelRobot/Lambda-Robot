@@ -36,10 +36,14 @@ Public Function IsBuiltInFunction(ByVal FunctionName As String) As Boolean
     
     Set ParseResult = ParseFormula(EQUAL_SIGN & FunctionName & FIRST_PARENTHESIS_OPEN & FIRST_PARENTHESIS_CLOSE)
     
-    If Not ParseResult.ParseSuccess Then Err.Raise 13, "IsBuiltInFunction", "Formula parsing failed."
+    Dim Result As Boolean
+    If Not ParseResult.ParseSuccess Then
+        Result = False
+    Else
+        Result = (ParseResult.Expr.Tokens(0).Tag = FXTagEnumValue)
+    End If
     
-    IsBuiltInFunction = (ParseResult.Expr.Tokens(0).Tag = FXTagEnumValue)
-    
+    IsBuiltInFunction = Result
     
 End Function
 
@@ -237,7 +241,7 @@ Public Function GetUptoLambdaParamDefPart(ByVal LambdaFormula As String) As Stri
         
         Set Parameters = ParsedFormulaResult.Expr.AsLambda.Parameters
         Dim ParamDefPart As String
-        ParamDefPart = EQUAL_SIGN & LAMBDA_FX_NAME & FIRST_PARENTHESIS_OPEN
+        ParamDefPart = EQUAL_SIGN & LAMBDA_FN_NAME & FIRST_PARENTHESIS_OPEN
         Dim CurrentParam As Object
         
         Dim Counter As Long
@@ -1028,7 +1032,7 @@ Private Sub ReplaceStepNameWithCellRefExample()
     Formula = "=MMULT(" & vbNewLine & _
               "INDEX(D6:M13, MID(AA6#, StepName * 2 - 1, 2), StepName)," & vbNewLine & _
               "TOCOL(StepName) ^ 0" & vbNewLine & _
-              ")"
+              FIRST_PARENTHESIS_CLOSE
     
     Debug.Print "Input Formula : " & vbNewLine & vbNewLine & Formula & vbNewLine
     
@@ -1056,6 +1060,30 @@ Private Sub TestReplaceTokenWithNewToken()
     End If
     
 End Sub
+
+Public Function RenameLambdaParamOrLetStep(ByVal OnFormula As String _
+                                           , ByVal OldName As String _
+                                            , ByVal NewName As String _
+                                             , ByVal IsLambdaParam As Boolean)
+    
+    #If DEVELOPMENT_MODE Then
+        Dim InputExpr As OARobot.Expr
+    #Else
+        Dim InputExpr As Object
+    #End If
+    
+    Set InputExpr = GetExpr(OnFormula)
+    
+    Dim NewFormula As String
+    If IsLambdaParam Then
+        NewFormula = InputExpr.RenameLambdaName(OldName, NewName).Formula(True)
+    Else
+        NewFormula = InputExpr.RenameLetName(OldName, NewName).Formula(True)
+    End If
+    
+    RenameLambdaParamOrLetStep = NewFormula
+    
+End Function
 
 Public Function ReplaceTokenWithNewToken(ByVal OnFormula As String _
                                          , ByVal OldToken As String, NewToken As String) As String
@@ -1086,7 +1114,7 @@ Private Sub ReplaceCellRefWithStepNameExample()
     Formula = "=MMULT(" & vbNewLine & _
               "INDEX(D6:M13, MID(AA6#, Q6# * 2 - 1, 2), Q6#)," & vbNewLine & _
               "TOCOL(Q6#) ^ 0" & vbNewLine & _
-              ")"
+              FIRST_PARENTHESIS_CLOSE
     
     RunReplaceCellRefWithStepNameTest Formula, "StepName", "Q6#", "Sheet 1", Replace(Formula, "Q6#", "StepName")
     
@@ -1253,23 +1281,43 @@ Public Function GetNamingConv(IsForParam As Boolean) As VarNamingStyle
     
 End Function
 
-Public Function GetUsedLambdas(ByVal Formula As String, ByVal AllLambdas As Collection _
-                                                       , Optional ByVal IsR1C1 As Boolean = False) As Variant
+Public Function GetUsedLambdas(ByVal Formula As String _
+                               , ByVal AllLambdas As Collection _
+                                , Optional ByVal IsR1C1 As Boolean = False) As Variant
     
-    Dim UsedFunctions As Variant
-    UsedFunctions = GetUsedFunctions(Formula, IsR1C1)
+    #If DEVELOPMENT_MODE Then
+        Dim ParseResult As OARobot.FormulaParseResult
+        Dim CurrentToken As OARobot.Token
+    #Else
+        Dim ParseResult As Object
+        Dim CurrentToken As Object
+    #End If
     
-    If Not IsArrayAllocated(UsedFunctions) Then Exit Function
+    Set ParseResult = ParseFormula(Formula, , IsR1C1)
+    
+    Dim V As Variant
+    Set V = ParseResult.Expr.Tokens
     
     Dim AllUsedLambdas As Collection
     Set AllUsedLambdas = New Collection
     
-    Dim CurrentUsedFX As Variant
-    For Each CurrentUsedFX In UsedFunctions
-        If IsExistInCollection(AllLambdas, CStr(CurrentUsedFX)) Then
-            AddToCollectionIfNotExist AllUsedLambdas, CurrentUsedFX, CStr(CurrentUsedFX)
-        End If
-    Next CurrentUsedFX
+    Const ETA_FN_TAG As Long = 35
+    Const EXCEL_FN_TAG As Long = 31
+    Const NAME_TAG As Long = 30
+    
+    Dim Counter As Long
+    For Counter = 0 To V.Count - 1
+        Set CurrentToken = V.Item(Counter)
+        
+        Select Case CurrentToken.Tag
+            Case ETA_FN_TAG, EXCEL_FN_TAG, NAME_TAG
+                Logger.Log DEBUG_LOG, CurrentToken.String, CurrentToken.TokenName, CurrentToken.Tag
+                If IsExistInCollection(AllLambdas, CurrentToken.String) Then
+                    AddToCollectionIfNotExist AllUsedLambdas, CurrentToken.String, CurrentToken.String
+                End If
+        End Select
+
+    Next Counter
     
     GetUsedLambdas = CollectionToArray(AllUsedLambdas)
     

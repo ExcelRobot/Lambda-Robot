@@ -307,7 +307,7 @@ Public Function GetParameters(Optional ByVal InitialSpace As String = THREE_SPAC
        
 End Function
 
-Public Function GetParametersForLambdaListing()
+Public Function GetParametersForLambdaListing() As Variant
     
     Dim Data As Variant
     Data = this.Parameters.ReadAll()

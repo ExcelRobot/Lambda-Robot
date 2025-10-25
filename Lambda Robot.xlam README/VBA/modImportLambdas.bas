@@ -100,7 +100,7 @@ Private Sub AddNameIfValid(ByVal CurrentName As Name _
     
     With CurrentName
         
-        If Not Context.IsNamedRangeExist(AddToBook, .Name) Then
+        If Not Context.IsNamedRangeExists(AddToBook, .Name) Then
             AddToBook.Names.Add .Name, .RefersTo, .Visible
         ElseIf ReplaceIfExists Then
             AddToBook.Names(.Name).RefersTo = .RefersTo
@@ -111,7 +111,7 @@ Private Sub AddNameIfValid(ByVal CurrentName As Name _
     
 End Sub
 
-Private Function IsWorkbookOpen(ByVal BookName As String)
+Private Function IsWorkbookOpen(ByVal BookName As String) As Boolean
         
     Logger.Log TRACE_LOG, "Enter modImportLambdas.IsWorkbookOpen"
     On Error Resume Next

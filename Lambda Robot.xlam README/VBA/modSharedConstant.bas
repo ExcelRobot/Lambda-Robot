@@ -30,36 +30,36 @@ Public Const FALSE_KEYWORD As String = "FALSE"
 
 
 ' Excel Formulas related constants
-Public Const LET_FX_NAME As String = "LET"
-Public Const LAMBDA_FX_NAME As String = "LAMBDA"
-Public Const ISOMITTED_FX_NAME As String = "ISOMITTED"
-Public Const DROP_FX_NAME As String = "DROP"
-Public Const TAKE_FX_NAME As String = "TAKE"
-Public Const VSTACK_FX_NAME As String = "VSTACK"
-Public Const HSTACK_FX_NAME As String = "HSTACK"
-Public Const OR_FX_NAME As String = "OR"
-Public Const AND_FX_NAME As String = "AND"
-Public Const ISBLANK_FX_NAME As String = "ISBLANK"
-Public Const CHOOSECOLS_FX_NAME As String = "CHOOSECOLS"
-Public Const COLUMNS_FX_NAME As String = "COLUMNS"
-Public Const IF_FX_NAME As String = "IF"
-Public Const FILTER_FX_NAME As String = "FILTER"
-Public Const ROWS_FX_NAME As String = "ROWS"
-Public Const NA_FX_NAME As String = "NA"
-Public Const SWITCH_FX_NAME As String = "SWITCH"
-Public Const MAP_FX_NAME As String = "MAP"
-Public Const BYROW_FX_NAME As String = "BYROW"
-Public Const TOROW_FX_NAME As String = "TOROW"
-Public Const CHOOSEROWS_FX_NAME As String = "CHOOSEROWS"
-Public Const ISNUMBER_FX_NAME As String = "ISNUMBER"
-Public Const XMATCH_FX_NAME As String = "XMATCH"
-Public Const EXPAND_FX_NAME As String = "EXPAND"
-Public Const TYPE_FX_NAME As String = "TYPE"
-Public Const SORTBY_FX_NAME As String = "SORTBY"
-Public Const IFERROR_FX_NAME As String = "IFERROR"
-Public Const INDEX_FX_NAME As String = "INDEX"
-Public Const SEQUENCE_FX_NAME As String = "SEQUENCE"
-Public Const OFFSET_FX_NAME As String = "OFFSET"
+Public Const LET_FN_NAME As String = "LET"
+Public Const LAMBDA_FN_NAME As String = "LAMBDA"
+Public Const ISOMITTED_FN_NAME As String = "ISOMITTED"
+Public Const DROP_FN_NAME As String = "DROP"
+Public Const TAKE_FN_NAME As String = "TAKE"
+Public Const VSTACK_FN_NAME As String = "VSTACK"
+Public Const HSTACK_FN_NAME As String = "HSTACK"
+Public Const OR_FN_NAME As String = "OR"
+Public Const AND_FN_NAME As String = "AND"
+Public Const ISBLANK_FN_NAME As String = "ISBLANK"
+Public Const CHOOSECOLS_FN_NAME As String = "CHOOSECOLS"
+Public Const COLUMNS_FN_NAME As String = "COLUMNS"
+Public Const IF_FN_NAME As String = "IF"
+Public Const FILTER_FN_NAME As String = "FILTER"
+Public Const ROWS_FN_NAME As String = "ROWS"
+Public Const NA_FN_NAME As String = "NA"
+Public Const SWITCH_FN_NAME As String = "SWITCH"
+Public Const MAP_FN_NAME As String = "MAP"
+Public Const BYROW_FN_NAME As String = "BYROW"
+Public Const TOROW_FN_NAME As String = "TOROW"
+Public Const CHOOSEROWS_FN_NAME As String = "CHOOSEROWS"
+Public Const ISNUMBER_FN_NAME As String = "ISNUMBER"
+Public Const XMATCH_FN_NAME As String = "XMATCH"
+Public Const EXPAND_FN_NAME As String = "EXPAND"
+Public Const TYPE_FN_NAME As String = "TYPE"
+Public Const SORTBY_FN_NAME As String = "SORTBY"
+Public Const IFERROR_FN_NAME As String = "IFERROR"
+Public Const INDEX_FN_NAME As String = "INDEX"
+Public Const SEQUENCE_FN_NAME As String = "SEQUENCE"
+Public Const OFFSET_FN_NAME As String = "OFFSET"
 Public Const EQUAL_LET_FIRST_PAREN As String = "=LET("
 Public Const LET_AND_OPEN_PAREN As String = "LET("
 Public Const LAMBDA_AND_OPEN_PAREN As String = "LAMBDA("
@@ -70,6 +70,7 @@ Public Const RIGHT_BRACKET As String = "]"
 Public Const ARRAY_CONST_COLUMN_SEPARATOR As String = ","
 Public Const ARRAY_CONST_ROW_SEPARATOR As String = ";"
 Public Const LIST_SEPARATOR As String = ","
+Public Const IMPLICIT_INTERSECTION_OPERATOR As String = "@"
 
 ' @Defined Independent Const
 
@@ -86,7 +87,8 @@ Public Const LAMBDA_PARTS_VALUE_COL_INDEX As Long = 5
 Public Const INPUT_CELL_BACKGROUND_COLOR As Long = 13434879
 Public Const INPUT_CELL_FONT_COLOR As Long = 16711680
 Public Const FONT_COLOR_INDEX As Long = -65536
-Public Const MAX_ALLOWED_LET_STEP_NAME_LENGTH As Long = 255
+Public Const MAX_ALLOWED_LET_STEP_NAME_LENGTH As Long = 100
+Public Const MAX_LAMBDA_NAME_CHAR_COUNT As Long = 100
 Public Const MAX_LENGTH_OF_FORMULA As Long = 8192
 Public Const NEW_LINE As String = vbNewLine
 Public Const KEY_VALUE_SEPARATOR As String = " - "
@@ -106,6 +108,8 @@ Public Const FIRST_PARENTHESIS_CLOSE As String = ")"
 
 Public Const MAXIMUM_ALLOWABLE_DEPENDENCY_LEVEL As Long = 1048576
 Public Const LAST_STEP_NAME As String = "Result"
+Public Const DEFAULT_LET_STEP_LABEL As String = "Step"
+Public Const DEFAULT_PARAM_LABEL As String = "Input"
 
 Public Const ARGUMENT_SEPARATOR As String = "Argument Seperator"
 Public Const LET_STEP_NAME_TOKEN As String = "Let Step Name"
@@ -143,21 +147,29 @@ Public Const CUSTOMPROPERTIES_LET_VAR As String = METADATA_IDENTIFIER & "CustomP
 Public Const SOURCE_NAME_LET_VAR As String = METADATA_IDENTIFIER & "Source"
 Public Const GIST_URL_LET_VAR As String = METADATA_IDENTIFIER & "gistURL"
 
-Public Function GetLETStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection) As String
+Public Function GetLETStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection _
+                                                           , ByVal IsErrorOnAddingFormula As Boolean) As String
+    
+    Dim StartLine As String
+    If IsErrorOnAddingFormula Then
+        StartLine = "The generated LET formula is invalid in some way."
+    Else
+        StartLine = "The generated LET formula is not returning the correct result."
+    End If
     
     Dim Msg As String
     If FXList.Count = 1 Then
-        Msg = "The generated LET formula is not returning the correct result. " _
-              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+        Msg = StartLine & " " _
+              & "This may be because your formulas are using this function: " & vbNewLine & vbNewLine & FXList.Item(1) _
               & vbNewLine & vbNewLine _
               & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
               
     ElseIf FXList.Count = 0 Then
-        Msg = "The generated LET formula is not returning the correct result."
+        Msg = StartLine
         
     ElseIf FXList.Count > 1 Then
-        Msg = "The generated LET formula is not returning the correct result. " _
-              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+        Msg = StartLine & " " _
+              & "This may be because your formulas are using these functions: " & vbNewLine & vbNewLine & ConcatenateCollection(FXList, ", ") _
               & vbNewLine & vbNewLine _
               & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
               
@@ -167,21 +179,29 @@ Public Function GetLETStatementRangeRequiredFXAlertMessage(ByVal FXList As Colle
     
 End Function
 
-Public Function GetLAMBDAStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection) As String
+Public Function GetLAMBDAStatementRangeRequiredFXAlertMessage(ByVal FXList As Collection _
+                                                              , ByVal IsErrorOnAddingFormula As Boolean) As String
+    
+    Dim StartLine As String
+    If IsErrorOnAddingFormula Then
+        StartLine = "The generated LAMBDA formula is invalid in some way."
+    Else
+        StartLine = "The generated LAMBDA is not returning the correct result."
+    End If
     
     Dim Msg As String
     If FXList.Count = 1 Then
-        Msg = "The generated LAMBDA is not returning the correct result. " _
-              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+        Msg = StartLine & " " _
+              & "This may be because your formulas are using this function: " & vbNewLine & vbNewLine & FXList.Item(1) _
               & vbNewLine & vbNewLine _
               & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
               
     ElseIf FXList.Count = 0 Then
-        Msg = "The generated LAMBDA is not returning the correct result."
+        Msg = StartLine
         
     ElseIf FXList.Count > 1 Then
-        Msg = "The generated LAMBDA is not returning the correct result. " _
-              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+        Msg = StartLine & " " _
+              & "This may be because your formulas are using these functions: " & vbNewLine & vbNewLine & ConcatenateCollection(FXList, ", ") _
               & vbNewLine & vbNewLine _
               & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
               
@@ -196,7 +216,7 @@ Public Function GetAFSCommandRangeRequiredFXAlertMessage(ByVal FXList As Collect
     Dim Msg As String
     If FXList.Count = 1 Then
         Msg = "The audited formula is not returning the same result as the original formula. " _
-              & "This may be because your formulas are using this function: " & FXList.Item(1) & "." _
+              & "This may be because your formulas are using this function: " & vbNewLine & vbNewLine & FXList.Item(1) _
               & vbNewLine & vbNewLine _
               & "Note: this function expects ranges to be passed and may not work as you expect with arrays."
               
@@ -205,7 +225,7 @@ Public Function GetAFSCommandRangeRequiredFXAlertMessage(ByVal FXList As Collect
         
     ElseIf FXList.Count > 1 Then
         Msg = "The audited formula is not returning the same result as the original formula. " _
-              & "This may be because your formulas are using these functions: " & ConcatenateCollection(FXList, ", ") & "." _
+              & "This may be because your formulas are using these functions: " & vbNewLine & vbNewLine & ConcatenateCollection(FXList, ", ") _
               & vbNewLine & vbNewLine _
               & "Note: these functions expect ranges to be passed and may not work as you expect with arrays."
               

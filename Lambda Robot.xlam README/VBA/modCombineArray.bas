@@ -100,10 +100,10 @@ Private Function SplitAreaByAddress(ByVal AreaRange As Range, ByVal Destination 
         Dim AddressArray() As String
         If RowSplits >= ColumnSplits Then
             AddressArray() = Split(SplitByRows(AreaRange), ",")
-            StackFXName = VSTACK_FX_NAME
+            StackFXName = VSTACK_FN_NAME
         Else
             AddressArray() = Split(SplitByColumns(AreaRange), ",")
-            StackFXName = HSTACK_FX_NAME
+            StackFXName = HSTACK_FN_NAME
         End If
         
         Dim Index As Long
@@ -118,7 +118,7 @@ Private Function SplitAreaByAddress(ByVal AreaRange As Range, ByVal Destination 
                               & SplitAreaByAddress(SplitAreaRange, Destination)
         Next
         
-        FormulaExpression = StackFXName & "(" & SplittedAddress & ")"
+        FormulaExpression = StackFXName & FIRST_PARENTHESIS_OPEN & SplittedAddress & FIRST_PARENTHESIS_CLOSE
         
     End If
 

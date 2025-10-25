@@ -115,7 +115,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L678)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.CancelEditLambda](./VBA/modLambdaEditor.bas#L677)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell AND ExcelActiveCellHasComment |
 | Launch Codes | <code>cle</code> |
 
@@ -131,7 +131,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.ClearInputFormatting](./VBA/modLambdaBuilder.bas#L538)([Selection])</code> |
+| Macro Expression | <code>[modLambdaBuilder.ClearInputFormatting](./VBA/modLambdaBuilder.bas#L545)([Selection])</code> |
 | Launch Codes | <code>ci</code> |
 
 [^Top](#oa-robot-definitions)
@@ -238,7 +238,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L152)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L156)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>gl</code> |
 
@@ -264,7 +264,7 @@
 
 ### Generate Multi Column Lookup Lambda
 
-*Generate multi column lookup lambda from ActiveCell. It will return nth column value by using n\-1 parameter and filter by them.*
+*Generate multi column lookup lambda from ActiveCell. It will return nth column value by using n\-1 parameter and filter by them. *
 
 <sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA`</sup>
 
@@ -329,7 +329,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.LetToLambda](./VBA/modLambdaBuilder.bas#L372)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.LetToLambda](./VBA/modLambdaBuilder.bas#L379)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -360,7 +360,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.MarkAsInputCells](./VBA/modLambdaBuilder.bas#L521)([[Selection]],False)</code> |
+| Macro Expression | <code>[modLambdaBuilder.MarkAsInputCells](./VBA/modLambdaBuilder.bas#L528)([[Selection]],False)</code> |
 | Launch Codes | <code>i</code> |
 
 [^Top](#oa-robot-definitions)
@@ -375,7 +375,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.MarkLambdaAsLETStep](./VBA/modLambdaBuilder.bas#L564)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.MarkLambdaAsLETStep](./VBA/modLambdaBuilder.bas#L571)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula OR ExcelActiveCellIsSpillParent |
 
 [^Top](#oa-robot-definitions)
@@ -406,7 +406,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L152)([[Clipboard]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaBuilder.GenerateLambdaStatement](./VBA/modLambdaBuilder.bas#L156)([[Clipboard]],[[ActiveCell]])</code> |
 | User Context Filter | ClipboardHasExcelData AND ExcelCopiedRangeIsNotEmpty AND ExcelCopiedRangeIsSingleCell |
 | Launch Codes | <code>pl</code> |
 
@@ -422,7 +422,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L627)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.RemoveLambda](./VBA/modLambdaEditor.bas#L626)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -481,7 +481,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.SaveLambda](./VBA/modLambdaEditor.bas#L181)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.SaveLambda](./VBA/modLambdaEditor.bas#L180)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>sl</code> |
 
@@ -497,7 +497,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L479)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLambdaEditor.SaveLambdaAs](./VBA/modLambdaEditor.bas#L481)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 | Launch Codes | <code>sla</code> |
 

@@ -22,6 +22,7 @@ Private Type TParamSelector
     DependencyObjects As Collection
     Counter As Long
     LastActiveListBox As MSForms.ListBox
+    IsUnselectingFromAnotherListbox As Boolean
 End Type
 
 Private this As TParamSelector
@@ -109,8 +110,10 @@ Private Sub SelectAgainAfterExclude(ByVal ForListBox As MSForms.ListBox, ByVal S
     
     With ForListBox
         If SelectedRowIndex >= .ListCount Then
+            .ListIndex = .ListCount - 1
             .Selected(.ListCount - 1) = True
         Else
+            .ListIndex = SelectedRowIndex
             .Selected(SelectedRowIndex) = True
         End If
     End With
@@ -138,20 +141,34 @@ Private Function GetItemVarName(ByVal ForListBox As MSForms.ListBox, ByVal FromI
     
 End Function
 
-Private Sub ExcludeStepButton_Click()
+Private Sub ExcludeButton_Click()
     
-    Logger.Log TRACE_LOG, "Enter ParamSelector.ExcludeStepButton_Click"
+    Logger.Log TRACE_LOG, "Enter ParamSelector.ExcludeButton_Click"
     ' Get the variable name of the selected item in the StepsListBox
     Dim SelectedDependencyVarName As String
-    
+    Dim SelectedDependency As DependencyInfo
     Dim IsAnyItemSelected As Boolean
+    
+    If Me.ParametersListBox.ListIndex <> -1 Then
+        IsAnyItemSelected = True
+        SelectedDependencyVarName = GetItemVarName(Me.ParametersListBox, Me.ParametersListBox.ListIndex)
+        Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
+                                                              , this.DependencyObjects)
+    
+        ' Mark the selected dependency as not being a Let statement by the user and mark as not input cell.
+        SelectedDependency.IsLabelAsInputCell = False
+        SelectedDependency.IsMarkAsNotLetStatementByUser = True
+        UpdateListBoxAfterExclude Me.ParametersListBox
+        Exit Sub
+    End If
+    
+    
     Dim Index As Long
     For Index = 0 To Me.StepsListBox.ListCount - 1
         If Me.StepsListBox.Selected(Index) Then
             IsAnyItemSelected = True
             SelectedDependencyVarName = GetItemVarName(Me.StepsListBox, Index)
             ' Get the DependencyInfo object that matches the selected variable name
-            Dim SelectedDependency As DependencyInfo
             Set SelectedDependency = GetMatchingVarNameDependency(SelectedDependencyVarName _
                                                                   , this.DependencyObjects)
     
@@ -164,7 +181,7 @@ Private Sub ExcludeStepButton_Click()
         ' Update the StepsListBox after the exclusion
         UpdateListBoxAfterExclude Me.StepsListBox
     End If
-    Logger.Log TRACE_LOG, "Exit ParamSelector.ExcludeStepButton_Click"
+    Logger.Log TRACE_LOG, "Exit ParamSelector.ExcludeButton_Click"
     
 End Sub
 
@@ -279,7 +296,7 @@ Private Sub UpdateSelectionIfForTheFirstTime()
         Me.RenameParamButton.Enabled = False
         Me.MakeStepButton.Enabled = False
         Me.RenameStepButton.Enabled = False
-        Me.ExcludeStepButton.Enabled = False
+        Me.ExcludeButton.Enabled = False
         Me.MakeParamButton.Enabled = False
         Me.ValueButton.Enabled = False
         Me.ExpandButton.Enabled = False
@@ -350,14 +367,27 @@ Private Sub ParametersListBox_Change()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.ParametersListBox_Change"
     
+    If this.IsUnselectingFromAnotherListbox Then
+        Me.RenameParamButton.Enabled = False
+        Me.MakeStepButton.Enabled = False
+        Me.MakeOptionalButton.Enabled = False
+        Exit Sub
+    End If
+    
     ' Check if any item is selected in the ParametersListBox
     Dim IsAnyItemSelected As Boolean
     IsAnyItemSelected = (Me.ParametersListBox.ListIndex <> -1)
     
+    this.IsUnselectingFromAnotherListbox = True
+    CustomizeListBox.SelectOptionAllOfListbox Me.StepsListBox, False
+    this.IsUnselectingFromAnotherListbox = False
     ' Enable or disable buttons based on selection
     Me.RenameParamButton.Enabled = IsAnyItemSelected
     Me.MakeStepButton.Enabled = IsAnyItemSelected
     Me.MakeOptionalButton.Enabled = IsAnyItemSelected
+    
+    Me.ValueButton.Enabled = IsAnyItemSelected
+    Me.ExcludeButton.Enabled = IsAnyItemSelected
     
     ' Select the last focused range in the ListBox
     SelectLastFocusRange Me.ParametersListBox
@@ -410,10 +440,10 @@ Private Function FindFirstSelectedIndex(ByVal ForListBox As MSForms.ListBox) As 
 End Function
 
 Private Sub RenameParamButton_Click()
-    RenameForListBox Me.ParametersListBox
+    RenameForListBox Me.ParametersListBox, True
 End Sub
 
-Private Sub RenameForListBox(ByVal ForListBox As MSForms.ListBox)
+Private Sub RenameForListBox(ByVal ForListBox As MSForms.ListBox, ByVal IsParamName As Boolean)
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.RenameForListBox"
     
@@ -426,22 +456,21 @@ Private Sub RenameForListBox(ByVal ForListBox As MSForms.ListBox)
     SelectedDependencyVarName = GetSelectedItemVarName(ForListBox)
     
     ' Update the variable name and valid variable name for the selected item
-    UpdateForNewName SelectedDependencyVarName
-    
-    ' Recalculate and update the DependencyObjects
-    RecalculateAndUpdateDependencyCollection
-    
-    ' Update the ListBox based on the updated collection
-    UpdateListBoxFromCollection
+    UpdateForNewName SelectedDependencyVarName, ForListBox, IsParamName
     
     ' Select the row back in the ListBox if it was previously selected
-    If SelectedRowIndex <> -1 Then ForListBox.Selected(SelectedRowIndex) = True
-    
-    Logger.Log TRACE_LOG, "Exit ParamSelector.RenameForListBox"
+    If SelectedRowIndex <> -1 Then
+        ForListBox.ListIndex = SelectedRowIndex
+        ForListBox.Selected(SelectedRowIndex) = True
+    End If
+
+'    Logger.Log TRACE_LOG, "Exit ParamSelector.RenameForListBox"
     
 End Sub
 
-Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String)
+Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String _
+                             , ByVal ForListBox As MSForms.ListBox _
+                             , ByVal IsParamName As Boolean)
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.UpdateForNewName"
     ' Check if a valid item is selected in the ListBox
@@ -459,12 +488,33 @@ Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String)
     ' Check if the user entered a new name or canceled the input box
     If NewName = vbNullString Or NewName = "False" Then Exit Sub
     
-    ' Update the range label and valid variable name for the selected item
-    With SelectedDependency
-        .RangeLabel = NewName
-        .IsUserSpecifiedName = True
-        .ValidVarName = ConvertToValidLetVarName(.RangeLabel)
-    End With
+    Dim NewValidVarName As String
+    NewValidVarName = ConvertToValidLetVarName(NewName)
+    
+    Dim Message As String
+    If IsSameNameUsed(this.DependencyObjects, NewValidVarName) Then
+        Message = "'" & NewValidVarName & "' conflicts with range name. This is an existing range name in your workbook and may result in unexpected behavior."
+        MsgBox Message, vbInformation + vbOKOnly, APP_NAME
+        Exit Sub
+    ElseIf IsSameTableNameUsed(this.DependencyObjects, NewValidVarName) Then
+        Message = "'" & NewValidVarName & "' conflicts with table name. This is an existing table name in your workbook and may result in unexpected behavior."
+        MsgBox Message, vbInformation + vbOKOnly, APP_NAME
+        Exit Sub
+    End If
+        
+    SelectedDependency.RangeLabel = NewName
+    SelectedDependency.IsUserSpecifiedName = True
+        
+    If NewValidVarName = SelectedDependencyVarName Then Exit Sub
+    SelectedDependency.ValidVarName = NewValidVarName
+    
+    Dim ListBoxData As Variant
+    ListBoxData = ForListBox.List
+    ListBoxData(ForListBox.ListIndex, 0) = NewValidVarName
+    ForListBox.List = ListBoxData
+    
+    Me.Preview.Value = RenameLambdaParamOrLetStep(Me.Preview.Value, SelectedDependencyVarName, NewValidVarName, IsParamName)
+    
     Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateForNewName"
     
 End Sub
@@ -472,7 +522,7 @@ End Sub
 Private Sub RenameStepButton_Click()
     
     ' Call RenameForListBox for StepsListBox
-    RenameForListBox Me.StepsListBox
+    RenameForListBox Me.StepsListBox, False
     
 End Sub
 
@@ -497,33 +547,34 @@ Private Sub StepsListBox_Change()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.StepsListBox_Change"
     
+    If this.IsUnselectingFromAnotherListbox Then
+        Me.RenameStepButton.Enabled = False
+        Me.MakeParamButton.Enabled = False
+        Me.ExpandButton.Enabled = False
+        Exit Sub
+    End If
+    
     Dim SelectedItemCount As Long
     SelectedItemCount = NumberOfItemSelected(Me.StepsListBox)
-    Dim IsEnableExceptExcludeButton As Boolean
-    Dim IsEnableExcludeButton As Boolean
+    Dim IsOnlyOneStepSelected As Boolean
+    IsOnlyOneStepSelected = (SelectedItemCount = 1)
     
-    If SelectedItemCount = 0 Then
-        
-        IsEnableExceptExcludeButton = False
-        IsEnableExcludeButton = False
-        
-    ElseIf SelectedItemCount = 1 Then
-        
-        IsEnableExceptExcludeButton = True
-        IsEnableExcludeButton = True
-        
-    ElseIf SelectedItemCount > 1 Then
-        
-        IsEnableExceptExcludeButton = False
-        IsEnableExcludeButton = True
-        
+    If SelectedItemCount > 0 Then
+        this.IsUnselectingFromAnotherListbox = True
+        CustomizeListBox.SelectOptionAllOfListbox Me.ParametersListBox, False
+        this.IsUnselectingFromAnotherListbox = False
     End If
 
     ' Enable or disable buttons based on selection
-    Me.RenameStepButton.Enabled = IsEnableExceptExcludeButton
-    Me.ExcludeStepButton.Enabled = IsEnableExcludeButton
-    Me.MakeParamButton.Enabled = IsEnableExceptExcludeButton
-    Me.ValueButton.Enabled = IsEnableExceptExcludeButton
+    Me.RenameStepButton.Enabled = IsOnlyOneStepSelected
+    Me.MakeParamButton.Enabled = IsOnlyOneStepSelected
+    Me.ValueButton.Enabled = IsOnlyOneStepSelected
+    
+    ' Enable Value button and Exclude button even one param is selected.
+    If Not IsOnlyOneStepSelected And Me.ParametersListBox.ListIndex <> -1 Then
+        Me.ValueButton.Enabled = True
+        Me.ExcludeButton.Enabled = True
+    End If
     
     ' Enable or disable the ExpandButton based on the selected item in the ListBox
     EnableOrDisableExpandButton SelectedItemCount
@@ -703,8 +754,13 @@ Private Sub ValueButton_Click()
     
     Logger.Log TRACE_LOG, "Enter ParamSelector.ValueButton_Click"
     ' Handles the click event of the ValueButton.
+    
     Dim SelectedDependencyVarName As String
-    SelectedDependencyVarName = GetSelectedItemVarName(Me.StepsListBox)
+    If Me.ParametersListBox.ListIndex <> -1 Then
+        SelectedDependencyVarName = GetSelectedItemVarName(Me.ParametersListBox)
+    Else
+        SelectedDependencyVarName = GetSelectedItemVarName(Me.StepsListBox)
+    End If
     
     ' Check if any item is selected in the Steps ListBox
     If SelectedDependencyVarName = vbNullString Then Exit Sub
@@ -719,31 +775,31 @@ Private Sub ValueButton_Click()
     ' Update the selected DependencyInfo as a "Value" step and set its properties accordingly.
     With SelectedDependency
         
+        ' Since it is a "Value" step, it has no dependencies.
+        .IsLabelAsInputCell = False
+        .IsUserMarkAsParameterCell = False
         .IsUserMarkAsValue = True
+        .HasAnyDependency = False
+        .IsDemotedFromParameterCellToLetStep = True
         
         Dim ResolvedRange As Range
         Set ResolvedRange = RangeResolver.GetRange(.RangeReference)
         
         Dim FormulaText As String
         If IsNothing(ResolvedRange) And .IsReferByNamedRange Then
-            '@TODO: What if i have error on const named range.
             FormulaText = modUtility.ConvertToValueFormula(Evaluate(.NameInFormula))
         Else
             FormulaText = modUtility.ConvertToValueFormula(ResolvedRange.Value)
         End If
         
         ' Check if the cell value can be treated as an array constant.
-        ' If it can, mark it as a formula, else, mark it as a constant value.
-        If Left$(FormulaText, 1) = LEFT_BRACE Then
+        .HasFormula = True
+        If Left$(FormulaText, 1) = LEFT_BRACE And Right(FormulaText, 1) = RIGHT_BRACE Then
             .FormulaText = EQUAL_SIGN & FormulaText
-            .HasFormula = True
         Else
             .FormulaText = FormulaText
-            .HasFormula = False
         End If
         
-        ' Since it is a "Value" step, it has no dependencies.
-        .HasAnyDependency = False
     End With
     
     ' Update the DependencyObjects and the ListBox.

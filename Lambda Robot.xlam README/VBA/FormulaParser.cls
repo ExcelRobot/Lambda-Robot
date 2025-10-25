@@ -23,15 +23,12 @@ Private Type TFormulaParser
     CurrentLambdaInfo As LetOrLambdaInfo
     LambdaInvocationArgument As String
     DependencySearchInRegion As Range
-    AFEScriptCode As Variant
     IsAddToNameManager As Boolean
     IsExportable As Boolean
     PutDependencyOnTable As ListObject
     IsProcessTerminatedByUser As Boolean
-    IsLetNeededInLambda As Boolean
     InitialDependencyDataForReset As Variant
     FormulaGen As LETORLAMBDAGenerator
-    IsLetNeededInLetFormula As Boolean
 End Type
 
 Private this  As TFormulaParser

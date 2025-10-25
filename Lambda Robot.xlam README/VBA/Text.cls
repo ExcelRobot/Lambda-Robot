@@ -891,7 +891,7 @@ Public Function SplitText(ByVal OperationOnText As String _
 End Function
 
 Private Function SplitTextIgnoreDelInsideQuote(ByVal OperationOnText As String _
-                                                 , ByVal Delimiter As String)
+                                                 , ByVal Delimiter As String) As Variant
     Dim InQuotes As Boolean
     InQuotes = False
     Dim StartIndex As Long
