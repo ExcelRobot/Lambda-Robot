@@ -254,6 +254,7 @@ Private Sub MakeParamButton_Click()
         .IsMarkAsNotLetStatementByUser = False
         .IsUserMarkAsParameterCell = True
         .IsDemotedFromParameterCellToLetStep = False
+        .IsOptional = False
     End With
     
     ' Update the StepsListBox after the exclusion

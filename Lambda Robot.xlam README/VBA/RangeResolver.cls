@@ -136,7 +136,7 @@ Public Function GetRange(ByVal RangeReference As String _
         Dim CurrentSheet As Worksheet
         Set CurrentSheet = GetSheetRefFromRangeRef(RangeReference, CurrentBook, DefaultSheet)
         If Text.Contains(RangeReference, SHEET_NAME_SEPARATOR) Then
-            Set Result = CurrentSheet.Range(Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end))
+            Set Result = CurrentSheet.Range(Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_END))
         ElseIf Context.IsNamedRangeExists(CurrentBook, RangeReference) Then
             Set Result = CurrentBook.Names(RangeReference).RefersToRange
         ElseIf IsTableExist(CurrentBook, RangeReference) Then
@@ -180,10 +180,10 @@ Private Function GetSheetRefFromRangeRef(ByVal RangeRef As String _
         SheetName = vbNullString
     ElseIf Text.IsStartsWith(RangeRef, SINGLE_QUOTE & LEFT_BRACKET) _
            Or Text.IsStartsWith(RangeRef, LEFT_BRACKET) Then
-        SheetName = Text.BetweenDelimiter(RangeRef, RIGHT_BRACKET, SHEET_NAME_SEPARATOR, , , , FROM_end)
+        SheetName = Text.BetweenDelimiter(RangeRef, RIGHT_BRACKET, SHEET_NAME_SEPARATOR, , , , FROM_END)
         SheetName = Text.RemoveFromEndIfPresent(SheetName, SINGLE_QUOTE)
     Else
-        SheetName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        SheetName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
     End If
     
     SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
@@ -237,9 +237,9 @@ Private Function IsAnotherWorkbookTableOrNamedRangeRef(ByVal RangeRef As String 
     Dim Result As Boolean
     
     If IsValidForOtherBookStructuredRef Then
-        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
             
-        BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
         BookName = Text.RemoveFromBothEndIfPresent(BookName, SINGLE_QUOTE)
         BookName = UnEscapeSingleQuote(BookName)
             
@@ -288,7 +288,7 @@ Private Function GetWorkbookFromRangeRef(ByVal RangeRef As String _
     Dim NamedOrTableOrRangePart As String
     
     If Text.Contains(RangeRef, SHEET_NAME_SEPARATOR) Then
-        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        NamedOrTableOrRangePart = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
         
         If Text.IsStartsWith(RangeRef, SINGLE_QUOTE & LEFT_BRACKET) _
            Or Text.IsStartsWith(RangeRef, LEFT_BRACKET) Then
@@ -296,7 +296,7 @@ Private Function GetWorkbookFromRangeRef(ByVal RangeRef As String _
             BookName = UnEscapeSingleQuote(BookName)
         Else
             
-            BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+            BookName = Text.BeforeDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
             BookName = Text.RemoveFromBothEndIfPresent(BookName, SINGLE_QUOTE)
             BookName = UnEscapeSingleQuote(BookName)
             

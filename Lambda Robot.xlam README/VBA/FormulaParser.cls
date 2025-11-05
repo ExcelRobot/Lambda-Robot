@@ -232,7 +232,8 @@ ResetCalculation:
 
 End Sub
 
-Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection, ByVal TypeOfOperation As OperationType)
+Public Sub RecalculatePrecedencyAgain(ByVal UserModifiedDependency As Collection _
+                                      , ByVal TypeOfOperation As OperationType)
     
     Logger.Log TRACE_LOG, "Enter FormulaParser.RecalculatePrecedencyAgain"
     ' This sub recalculates the precedence again after user modification of dependencies.
@@ -306,10 +307,28 @@ Private Function ReorderForUserModifiedDependency(ByVal DependencyData As Varian
 
         Dim SecondRangeRefIndex As Long
         SecondRangeRefIndex = FirstIndexOf(DependencyData, SecondRangeRef, 2, True)
-
+        
+        Const IS_OPTIONAL_COL As Long = 12
+        
+        Dim IsValidToMoveDown As Boolean
+        IsValidToMoveDown = True
+        
+        ' If we move a let statement to param and we had optional args in the param then it would create issue.
+        ' So we need to only allow moving up and down if valid.
+        ' if first one is optional but second one is not then don't move because we have the DependencyData already sorted.
+        
+        If FirstRangeRefIndex > SecondRangeRefIndex And FirstRangeRefIndex <> -1 And SecondRangeRefIndex <> -1 Then
+                
+            If DependencyData(FirstRangeRefIndex, IS_OPTIONAL_COL) And Not DependencyData(SecondRangeRefIndex, IS_OPTIONAL_COL) Then
+                IsValidToMoveDown = False
+            End If
+            
+        Else
+            IsValidToMoveDown = False
+        End If
+        
         ' Check if reorder is required or not.
-        If FirstRangeRefIndex > SecondRangeRefIndex _
-           And FirstRangeRefIndex <> -1 And SecondRangeRefIndex <> -1 Then
+        If IsValidToMoveDown Then
             ' We need to bring
             MoveDownRowInPlace DependencyData, SecondRangeRefIndex, FirstRangeRefIndex - 1
         End If
@@ -321,7 +340,9 @@ Private Function ReorderForUserModifiedDependency(ByVal DependencyData As Varian
     
 End Function
 
-Private Sub MoveDownRowInPlace(OnArray As Variant, ByVal RowIndex As Long, ByVal MoveDownAfterIndex As Long)
+Private Sub MoveDownRowInPlace(OnArray As Variant _
+                               , ByVal RowIndex As Long _
+                                , ByVal MoveDownAfterIndex As Long)
     
     Logger.Log TRACE_LOG, "Enter FormulaParser.MoveDownRowInPlace"
     Dim Index As Long

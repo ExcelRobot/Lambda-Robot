@@ -507,9 +507,9 @@ Private Function MakeAbsoluteReference(ByVal RangeAddress As String _
     
     Dim Result As String
     If Is3DReference(RangeAddress) Then
-        Result = Text.BeforeDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_end) & _
+        Result = Text.BeforeDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_END) & _
                  SHEET_NAME_SEPARATOR & _
-                 GetRangeReference(Range(Text.AfterDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_end)), True)
+                 GetRangeReference(Range(Text.AfterDelimiter(RangeAddress, SHEET_NAME_SEPARATOR, , FROM_END)), True)
     Else
         Dim CurrentRange As Range
         Set CurrentRange = RangeResolver.GetRangeForDependency(RangeAddress, HelperCell)
@@ -738,7 +738,7 @@ Private Function GetAbsoluteRefForNameInFormula(ByVal RangeRef As String _
     
     If Text.Contains(NameInFormula, SHEET_NAME_SEPARATOR) _
        And Not Text.Contains(Ref, SHEET_NAME_SEPARATOR) Then
-        Ref = Text.BeforeDelimiter(NameInFormula, SHEET_NAME_SEPARATOR, , FROM_end) _
+        Ref = Text.BeforeDelimiter(NameInFormula, SHEET_NAME_SEPARATOR, , FROM_END) _
               & SHEET_NAME_SEPARATOR & Ref
     End If
     

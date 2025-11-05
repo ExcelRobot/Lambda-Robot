@@ -1823,7 +1823,7 @@ Private Function CheckForBuiltInOrLambdaNameConflict(CurrentDependencyInfo As De
         If Not .IsLabelAsInputCell And Not .IsUserSpecifiedName Then
             Do While IsBuiltInFunction(Result) Or Context.IsLambdaExists(Result)
                 If Text.ExtractNumberFromEnd(Result) = vbNullString Then
-                    Result = Text.PadIfNotPresent(Result, "_2", FROM_end)
+                    Result = Text.PadIfNotPresent(Result, "_2", FROM_END)
                 Else
                     Result = Text.IncrementOrDecrementEndNumber(Result, 1, False)
                 End If
@@ -1870,7 +1870,7 @@ Private Function FindUniqueNameForCurrentDependency(ByVal ValidVarName As String
         
         ' Update ValidVarName if there is a conflict
         If Text.ExtractNumberFromEnd(ValidVarName) = vbNullString Then
-            ValidVarName = Text.PadIfNotPresent(ValidVarName, "_2", FROM_end)
+            ValidVarName = Text.PadIfNotPresent(ValidVarName, "_2", FROM_END)
         Else
             ValidVarName = Text.IncrementOrDecrementEndNumber(ValidVarName, 1, False)
         End If

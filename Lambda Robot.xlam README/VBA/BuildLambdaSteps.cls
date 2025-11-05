@@ -233,6 +233,11 @@ Public Sub ConstructSteps()
     Dim PutOnCell As Range
     Set PutOnCell = this.StepStartCell
     
+    On Error GoTo HandleError
+    Dim CalcMode As XlCalculation
+    CalcMode = Application.Calculation
+    Application.Calculation = xlCalculationManual
+    
     Dim HeadersRange As Range
     ' If it is lambda either in cell or in name manager.
     If this.CellFunctionType = LAMBDA_FROM_NAME_MANAGER Or this.CellFunctionType = LAMBDA_IN_CELL Then
@@ -253,7 +258,7 @@ Public Sub ConstructSteps()
         this.VarNameVsCalculationAreaMap.Add Mapper.Create(LetVarName, CellReference), LetVarName
         FormatAndMoveWindowToLastCell this.StepStartCell, PutOnCell.Address
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword BuildLambdaSteps.ConstructSteps"
-        Exit Sub
+        GoTo CleanExit
     End If
     
     ' Iterating through the LetParts array
@@ -280,6 +285,16 @@ Public Sub ConstructSteps()
         
     Next CurrentRowIndex
     FormatAndMoveWindowToLastCell HeadersRange, CellReference
+    
+CleanExit:
+    Application.Calculation = CalcMode
+    Exit Sub
+    
+
+HandleError:
+    Application.Calculation = CalcMode
+    Err.Raise Err.Number, Err.Source, Err.Description, Err.HelpFile, Err.HelpContext
+    
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.ConstructSteps"
     
 End Sub
@@ -587,5 +602,7 @@ Private Sub Class_Terminate()
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.Class_Terminate"
 
 End Sub
+
+
 
 

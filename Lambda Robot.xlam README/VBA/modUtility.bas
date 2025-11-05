@@ -1116,11 +1116,11 @@ Public Function IsA1C1RangeAddress(ByVal GivenRangeAddress As String) As Boolean
            And Text.Contains(GivenRangeAddress, CurrentRange.Worksheet.Name) Then
             
             Dim SheetName As String
-            SheetName = Text.BeforeDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_end)
+            SheetName = Text.BeforeDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_END)
             SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
             
             Dim CellAddress As String
-            CellAddress = RemoveDollarSign(Text.AfterDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_end))
+            CellAddress = RemoveDollarSign(Text.AfterDelimiter(GivenRangeAddress, SHEET_NAME_SEPARATOR, , FROM_END))
             
             Result = ( _
                      Text.IsEqual(SheetName, CurrentRange.Worksheet.Name, IGNORE_CASE) _
@@ -1514,7 +1514,7 @@ Public Function ExtractNameFromLocalNameRange(ByVal LocalName As String) As Stri
     ' Extracts the name from a local named range.
     Dim Result As String
     If Text.Contains(LocalName, SHEET_NAME_SEPARATOR) Then
-        Result = Text.AfterDelimiter(LocalName, SHEET_NAME_SEPARATOR, , FROM_end)
+        Result = Text.AfterDelimiter(LocalName, SHEET_NAME_SEPARATOR, , FROM_END)
     Else
         Result = LocalName
     End If
@@ -1592,7 +1592,7 @@ Public Function FindUniqueNameByIncrementingNumber(ByVal AllNameMap As Collectio
     End If
 
     If Text.ExtractNumberFromEnd(StartName) = vbNullString Then
-        StartName = Text.PadIfNotPresent(StartName, "_2", FROM_end)
+        StartName = Text.PadIfNotPresent(StartName, "_2", FROM_END)
     End If
 
     Do While modUtility.IsExistInCollection(AllNameMap, StartName)
@@ -1705,7 +1705,7 @@ Public Function RemoveSheetQualifierIfPresent(ByVal RangeRef As String) As Strin
     Dim Result As String
     
     If Text.Contains(RangeRef, SHEET_NAME_SEPARATOR) Then
-        Result = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        Result = Text.AfterDelimiter(RangeRef, SHEET_NAME_SEPARATOR, , FROM_END)
     Else
         Result = RangeRef
     End If
@@ -2242,14 +2242,14 @@ Public Function GetStartSheetRangeRefIf3DRef(ByVal RangeReference As String) As 
     Dim UpdatedRangeRef As String
     If Is3DReference(RangeReference) Then
         
-        UpdatedRangeRef = Text.BeforeDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end)
-        UpdatedRangeRef = Text.BeforeDelimiter(UpdatedRangeRef, ":", , FROM_end)
+        UpdatedRangeRef = Text.BeforeDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_END)
+        UpdatedRangeRef = Text.BeforeDelimiter(UpdatedRangeRef, ":", , FROM_END)
         If Text.IsStartsWith(UpdatedRangeRef, SINGLE_QUOTE) Then
             UpdatedRangeRef = UpdatedRangeRef & SINGLE_QUOTE
         End If
         
         UpdatedRangeRef = UpdatedRangeRef & SHEET_NAME_SEPARATOR _
-                          & Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_end)
+                          & Text.AfterDelimiter(RangeReference, SHEET_NAME_SEPARATOR, , FROM_END)
     Else
         UpdatedRangeRef = RangeReference
     End If
@@ -3320,7 +3320,7 @@ Public Function IsReferenceFromDifferentBook(ByVal PrecedentsRef As String _
     ElseIf Is3DReference(PrecedentsRef) Then
         
         Dim BookAndSheetsNamePart As String
-        BookAndSheetsNamePart = Text.RemoveFromStartIfPresent(Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_end), SINGLE_QUOTE)
+        BookAndSheetsNamePart = Text.RemoveFromStartIfPresent(Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_END), SINGLE_QUOTE)
         If Text.IsStartsWith(BookAndSheetsNamePart, LEFT_BRACKET) Then
             BookAndSheetsNamePart = Text.BetweenDelimiter(BookAndSheetsNamePart, LEFT_BRACKET, RIGHT_BRACKET)
             Result = (CheckAgainstBook.Name <> BookAndSheetsNamePart)
@@ -3329,7 +3329,7 @@ Public Function IsReferenceFromDifferentBook(ByVal PrecedentsRef As String _
     ElseIf Text.Contains(PrecedentsRef, SHEET_NAME_SEPARATOR) Then
         
         Dim SheetName As String
-        SheetName = Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_end)
+        SheetName = Text.BeforeDelimiter(PrecedentsRef, SHEET_NAME_SEPARATOR, , FROM_END)
         SheetName = Text.RemoveFromBothEndIfPresent(SheetName, SINGLE_QUOTE)
         SheetName = UnEscapeSingleQuote(SheetName)
         
@@ -3448,7 +3448,7 @@ Public Function Is3DReference(ByVal Ref As String) As Boolean
     Else
         
         Dim SheetsName As String
-        SheetsName = Text.RemoveFromBothEndIfPresent(Text.BeforeDelimiter(Ref, SHEET_NAME_SEPARATOR, 1, FROM_end), SINGLE_QUOTE)
+        SheetsName = Text.RemoveFromBothEndIfPresent(Text.BeforeDelimiter(Ref, SHEET_NAME_SEPARATOR, 1, FROM_END), SINGLE_QUOTE)
         SheetsName = UnEscapeSingleQuote(SheetsName)
         Result = Text.Contains(SheetsName, ":")
         

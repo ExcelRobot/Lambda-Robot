@@ -346,7 +346,7 @@ Private Function GetNameManagerComment() As String
 
     ' Create comment for NameManager based on metadata
     If this.Description <> vbNullString Then
-        Result = Text.PadIfNotPresent(modUtility.RemoveEscapeQuotes(this.Description), ".", FROM_end) & Space(2)
+        Result = Text.PadIfNotPresent(modUtility.RemoveEscapeQuotes(this.Description), ".", FROM_END) & Space(2)
     End If
     Dim ParameterData As String
     ParameterData = GetParameters(HASH_SIGN, False)

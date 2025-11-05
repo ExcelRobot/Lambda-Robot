@@ -16,7 +16,7 @@ Option Explicit
 
 Public Enum RelativePosition
     FROM_START = 1
-    FROM_end = -1
+    FROM_END = -1
     FROM_BOTH = 2
 End Enum
 
@@ -138,7 +138,7 @@ Public Function FindAllIndexOf(ByVal OperationOnText As String _
     
     If SearchDirection = FROM_START Then
         Set FindAllIndexOf = AllIndex
-    ElseIf SearchDirection = FROM_end Then
+    ElseIf SearchDirection = FROM_END Then
         Set FindAllIndexOf = ReverseIndexCollection(AllIndex)
     Else
         Err.Raise 13, "Text.FindAllIndexOf", "Invalid SearchDirection"
@@ -474,7 +474,7 @@ Public Function PositionOf(ByVal OperationOnText As String _
             Result = InStr(FROM_START, OperationOnText, SubString, ComparisionOpt)
             
         Case Occurrence.LAST
-            Result = InStrRev(OperationOnText, SubString, FROM_end, ComparisionOpt)
+            Result = InStrRev(OperationOnText, SubString, FROM_END, ComparisionOpt)
             
         Case Occurrence.ALL
             Set Result = FindAllIndexOf(OperationOnText, SubString, FROM_START, ComparisionType)
@@ -762,12 +762,12 @@ Public Function PadIfNotPresent(ByVal OperationOnText As String _
     Select Case PadDirection
         Case RelativePosition.FROM_BOTH
             OperationOnText = PadIfNotPresent(OperationOnText, PadText, FROM_START)
-            Result = PadIfNotPresent(OperationOnText, PadText, FROM_end)
+            Result = PadIfNotPresent(OperationOnText, PadText, FROM_END)
         Case RelativePosition.FROM_START
             If Not IsStartsWith(OperationOnText, PadText, ComparisionType) Then
                 Result = PadText & OperationOnText
             End If
-        Case RelativePosition.FROM_end
+        Case RelativePosition.FROM_END
             If Not IsEndsWith(OperationOnText, PadText, ComparisionType) Then
                 Result = OperationOnText & PadText
             End If
@@ -1047,7 +1047,7 @@ End Function
 '       OperationOnText -> A string param on which we want to conduct our operation.
 '@ExampleCall : Text.ExtractNumberFromEnd("ismailhosen1997")  >> 1997
 Public Function ExtractNumberFromEnd(ByVal OperationOnText As String) As String
-    ExtractNumberFromEnd = ExtractNumber(OperationOnText, FROM_end)
+    ExtractNumberFromEnd = ExtractNumber(OperationOnText, FROM_END)
 End Function
 
 '@Description: This will extract all the numbers from the beginning.

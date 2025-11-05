@@ -63,9 +63,29 @@ Public Sub ImportAllLambdas(ByVal FileName As String _
     Const METHOD_NAME As String = "ImportAllLambdas"
     Context.ExtractContext SourceBook, METHOD_NAME
     
+    Dim TablesName As Scripting.Dictionary
+    Set TablesName = New Scripting.Dictionary
+    
+    Dim CurrentTable As ListObject
+    Dim CurrentSheet As Worksheet
+    For Each CurrentSheet In SourceBook.Worksheets
+        For Each CurrentTable In CurrentSheet.ListObjects
+            TablesName.Add CurrentTable.Name, CurrentTable.Name
+        Next CurrentTable
+    Next CurrentSheet
+    
+    Dim FirstSheet As Worksheet
+    Set FirstSheet = SourceBook.Worksheets(1)
+    
     Dim CurrentName As Name
     For Each CurrentName In SourceBook.Names
-        AddNameIfValid CurrentName, AddToBook, ReplaceIfExists
+        
+        If Not HasTableReferenceInRefersTo(TablesName, CurrentName.RefersTo, FirstSheet) Then
+            AddNameIfValid CurrentName, AddToBook, ReplaceIfExists
+        Else
+            Logger.Log DEBUG_LOG, CurrentName.Name & " has table reference. skip this one..."
+        End If
+        
     Next CurrentName
     
     If IsNeedToClose Then
@@ -86,6 +106,44 @@ ErrHandler:
     Logger.Log TRACE_LOG, "Exit modImportLambdas.ImportAllLambdas"
     
 End Sub
+
+Private Function HasTableReferenceInRefersTo(ByVal TablesName As Scripting.Dictionary _
+                                             , ByVal RefersTo As String _
+                                             , ByVal FromSht As Worksheet) As Boolean
+    
+    Dim Precedents As Variant
+    On Error Resume Next
+    Precedents = GetDirectPrecedents(RefersTo, FromSht)
+    On Error GoTo 0
+    
+    Dim Result As Boolean
+    
+    If IsArray(Precedents) Then
+        
+        Dim CurrentPrecedent As Variant
+        For Each CurrentPrecedent In Precedents
+            
+            If CurrentPrecedent <> vbNullString Then
+                Dim TableName As String
+                If Text.Contains(CStr(CurrentPrecedent), LEFT_BRACKET) And Text.IsEndsWith(CStr(CurrentPrecedent), RIGHT_BRACKET) Then
+                    TableName = Text.BeforeDelimiter(CStr(CurrentPrecedent), LEFT_BRACKET)
+                Else
+                    TableName = CurrentPrecedent
+                End If
+                
+                If TablesName.Exists(TableName) Then
+                    Result = True
+                    Exit For
+                End If
+            End If
+            
+        Next CurrentPrecedent
+        
+    End If
+    
+    HasTableReferenceInRefersTo = Result
+    
+End Function
 
 Private Sub AddNameIfValid(ByVal CurrentName As Name _
                              , ByVal AddToBook As Workbook _
