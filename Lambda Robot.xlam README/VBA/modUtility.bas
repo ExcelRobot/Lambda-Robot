@@ -3764,3 +3764,6 @@ Public Function IsSameTableNameUsed(ByVal DependencyObjects As Collection, ByVal
     
 End Function
 
+Public Function IsDefinedName(ByVal DependencyText As String, ByVal ForBook As Workbook) As Boolean
+    IsDefinedName = ParseFormula(EQUAL_SIGN & DependencyText, ForBook, False).Expr.IsName
+End Function

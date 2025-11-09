@@ -90,6 +90,11 @@ Public Const FONT_COLOR_INDEX As Long = -65536
 Public Const MAX_ALLOWED_LET_STEP_NAME_LENGTH As Long = 100
 Public Const MAX_LAMBDA_NAME_CHAR_COUNT As Long = 100
 Public Const MAX_LENGTH_OF_FORMULA As Long = 8192
+' Experimental
+Public Const MAX_LENGTH_OF_EACH_ITEM_ARRAY_CONST As Long = 255
+Public Const MAX_LENGTH_OF_LET_STEP_VALUE As Long = 4095
+Public Const MAX_ALLOWED_CELL_TO_CONVERT_TO_VALUE As Long = 3000
+
 Public Const NEW_LINE As String = vbNewLine
 Public Const KEY_VALUE_SEPARATOR As String = " - "
 Public Const METADATA_IDENTIFIER As String = "\\"

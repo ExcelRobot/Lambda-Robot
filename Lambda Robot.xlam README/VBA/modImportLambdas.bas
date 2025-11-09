@@ -158,11 +158,14 @@ Private Sub AddNameIfValid(ByVal CurrentName As Name _
     
     With CurrentName
         
+        ' Ignore this name if for some reason it can't be added.
+        On Error Resume Next
         If Not Context.IsNamedRangeExists(AddToBook, .Name) Then
             AddToBook.Names.Add .Name, .RefersTo, .Visible
         ElseIf ReplaceIfExists Then
             AddToBook.Names(.Name).RefersTo = .RefersTo
         End If
+        On Error GoTo 0
         
     End With
     Logger.Log TRACE_LOG, "Exit modImportLambdas.AddLambdaIfValid"

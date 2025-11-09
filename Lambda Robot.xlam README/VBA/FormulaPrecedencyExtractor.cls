@@ -1059,7 +1059,7 @@ Private Sub UpdateNewDependencyIfNoModified(ByVal CurrentDependency As Dependenc
     
     Logger.Log TRACE_LOG, "Enter FormulaPrecedencyExtractor.UpdateNewDependencyIfNoModified"
     With CurrentDependency
-        'Debug.Assert RangeReference <> "Sheet5!B2"
+        'Debug.Assert RangeReference <> "numbers"
         .FormulaText = FormulaText
         .HasFormula = HasFormula(CurrentCell)
             
@@ -1075,7 +1075,7 @@ Private Sub UpdateNewDependencyIfNoModified(ByVal CurrentDependency As Dependenc
             .IsReferByNamedRange = False
             .IsInsideNamedRangeOrTable = False
             .IsTableRef = False
-        ElseIf IsNothing(CurrentCell) And IsLocalOrGlobalNamedRangeExist(NameInFormula, this.FormulaStartCellSheetName) Then
+        ElseIf IsNothing(CurrentCell) And (IsLocalOrGlobalNamedRangeExist(NameInFormula, this.FormulaStartCellSheetName) Or IsDefinedName(NameInFormula, this.FormulaInWorkbook)) Then
             ' For const named range we will have CurrentCell nothing.
             .RangeLabel = RemoveSheetQualifierIfPresent(NameInFormula)
             .IsLabelAsInputCell = False

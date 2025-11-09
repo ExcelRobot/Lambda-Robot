@@ -325,25 +325,17 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
                                       , ByVal HelperCell As Range) As Range
     
     Logger.Log TRACE_LOG, "Enter RangeResolver.GetRangeForDependency"
+'    Debug.Assert DependencyText <> "numbers"
+'    Debug.Print DependencyText
     ' Retrieves the range object corresponding to the given dependency text.
     ' The function checks if the dependency text refers to a named range or a cell reference.
     
     If Is3DReference(DependencyText) Then Exit Function
     
     Dim Result As Range
-    Dim CurrentName As Name
     
     Dim InBook As Workbook
     Set InBook = HelperCell.Worksheet.Parent
-    On Error Resume Next
-    ' Attempt to find the named range in the parent workbook.
-    If Context.IsLocalScopedNamedRangeExists(HelperCell.Worksheet, DependencyText) Then
-        Set CurrentName = HelperCell.Worksheet.Names(DependencyText)
-    Else
-        Set CurrentName = InBook.Names(DependencyText)
-    End If
-    On Error GoTo 0
-    
     Dim RangeRefSheet As Worksheet
     
     If IsImplicitColumnRef(DependencyText, InBook) Then
@@ -356,8 +348,29 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
         Dim Table As ListObject
         Set Table = GetTable(InBook, Text.BeforeDelimiter(DependencyText, LEFT_BRACKET))
         Set Result = Table.Range.Worksheet.Range(DependencyText)
+    
+    ElseIf IsDefinedName(DependencyText, InBook) Then
         
-    ElseIf IsNothing(CurrentName) Then
+        Dim CurrentName As Name
+        On Error Resume Next
+        ' Attempt to find the named range in the parent workbook.
+        If Context.IsLocalScopedNamedRangeExists(HelperCell.Worksheet, DependencyText) Then
+            Set CurrentName = HelperCell.Worksheet.Names(DependencyText)
+        Else
+            Set CurrentName = InBook.Names(DependencyText)
+        End If
+        On Error GoTo 0
+        
+        ' If it is a named range, return the referred range.
+        If IsNothing(CurrentName) Then
+            Set Result = Nothing
+        ElseIf IsRefersToRangeIsNothing(CurrentName) Then
+            Set Result = Nothing
+        Else
+            Set Result = CurrentName.RefersToRange
+        End If
+        
+    Else
         
         Dim IsDynamicRef As Boolean
         IsDynamicRef = Text.IsEndsWith(DependencyText, HASH_SIGN)
@@ -371,15 +384,6 @@ Public Function GetRangeForDependency(ByVal DependencyText As String _
         ' If it is a dynamic reference and has a spill, use the spilling range.
         If IsDynamicRef And Result.HasSpill Then
             Set Result = Result.SpillingToRange
-        End If
-        
-    Else
-        
-        ' If it is a named range, return the referred range.
-        If IsRefersToRangeIsNothing(CurrentName) Then
-            Set Result = Nothing
-        Else
-            Set Result = CurrentName.RefersToRange
         End If
         
     End If

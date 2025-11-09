@@ -773,6 +773,28 @@ Private Sub ValueButton_Click()
     ' Check if the item is already marked as a "Value" step, if yes, exit the sub.
     If SelectedDependency.IsUserMarkAsValue Then Exit Sub
     
+    Dim ResolvedRange As Range
+    Set ResolvedRange = RangeResolver.GetRange(SelectedDependency.RangeReference)
+    
+    If IsNotNothing(ResolvedRange) Then
+        If ResolvedRange.Cells.CountLarge > MAX_ALLOWED_CELL_TO_CONVERT_TO_VALUE Then
+            MsgBox "Unable to convert to value.  The result would exceed the maximum allowable length of a let step value.", vbInformation + vbOKOnly, APP_NAME
+            Exit Sub
+        End If
+    End If
+        
+    Dim FormulaText As String
+    If IsNothing(ResolvedRange) And SelectedDependency.IsReferByNamedRange Then
+        FormulaText = modUtility.ConvertToValueFormula(Evaluate(SelectedDependency.NameInFormula))
+    Else
+        FormulaText = modUtility.ConvertToValueFormula(ResolvedRange.Value)
+    End If
+    
+    If Len(FormulaText) > MAX_LENGTH_OF_LET_STEP_VALUE Then
+        MsgBox "Unable to convert to value.  The result would exceed the maximum allowable length of a let step value.", vbInformation + vbOKOnly, APP_NAME
+        Exit Sub
+    End If
+    
     ' Update the selected DependencyInfo as a "Value" step and set its properties accordingly.
     With SelectedDependency
         
@@ -782,16 +804,6 @@ Private Sub ValueButton_Click()
         .IsUserMarkAsValue = True
         .HasAnyDependency = False
         .IsDemotedFromParameterCellToLetStep = True
-        
-        Dim ResolvedRange As Range
-        Set ResolvedRange = RangeResolver.GetRange(.RangeReference)
-        
-        Dim FormulaText As String
-        If IsNothing(ResolvedRange) And .IsReferByNamedRange Then
-            FormulaText = modUtility.ConvertToValueFormula(Evaluate(.NameInFormula))
-        Else
-            FormulaText = modUtility.ConvertToValueFormula(ResolvedRange.Value)
-        End If
         
         ' Check if the cell value can be treated as an array constant.
         .HasFormula = True
@@ -809,5 +821,7 @@ Private Sub ValueButton_Click()
     Logger.Log TRACE_LOG, "Exit ParamSelector.ValueButton_Click"
     
 End Sub
+
+
 
 
