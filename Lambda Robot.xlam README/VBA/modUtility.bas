@@ -1664,7 +1664,7 @@ Public Function GetSheetRefForRangeReference(ByVal SheetName As String _
     If IsSingleQuoteMandatory Then
         IsSingleQuoteNeeded = True
     Else
-        IsSingleQuoteNeeded = IsAnyNonAlphanumeric(SheetName)
+        IsSingleQuoteNeeded = (IsAnyNonAlphanumeric(SheetName) Or IsRangeAddress(SheetName))
     End If
     
     Dim Result As String
@@ -1681,7 +1681,7 @@ Public Function GetSheetRefForRangeReference(ByVal SheetName As String _
     
 End Function
 
-Public Function IsAnyNonAlphanumeric(ByVal Text As String) As String
+Public Function IsAnyNonAlphanumeric(ByVal Text As String) As Boolean
 
     Dim Result As Boolean
     Dim Index As Long

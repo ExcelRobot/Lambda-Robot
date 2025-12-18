@@ -20,9 +20,16 @@ Public Sub GenerateLambdaSteps(ByVal LambdaInvocationCell As Range, Optional ByV
     Context.ExtractContextFromCell LambdaInvocationCell, METHOD_NAME
     
     If StepStartCell Is Nothing Then
+        
         With LambdaInvocationCell.Worksheet
-            Set StepStartCell = .UsedRange.Cells(LambdaInvocationCell.Row, .UsedRange.Columns.CountLarge).Offset(0, 2)
+            Dim LastUsedCell As Range
+            Set LastUsedCell = .UsedRange.Cells(.UsedRange.Rows.CountLarge, .UsedRange.Columns.CountLarge)
+            Set StepStartCell = .Range(.Cells(1, 1), LastUsedCell).Cells(LambdaInvocationCell.Row, LastUsedCell.Column).Offset(0, 2)
+            
+            ' In case of formula in ROW 1 add the Label in Row 1 and the calculation in Row 2
+            If StepStartCell.Row = 1 Then Set StepStartCell = StepStartCell.Offset(1)
         End With
+        
     End If
     
     ' Initialize a builder for constructing steps

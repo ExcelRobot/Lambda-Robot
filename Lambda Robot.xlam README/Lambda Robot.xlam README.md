@@ -314,7 +314,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modAuditLambdaSteps.LambdaToLet](./VBA/modAuditLambdaSteps.bas#L58)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modAuditLambdaSteps.LambdaToLet](./VBA/modAuditLambdaSteps.bas#L65)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
