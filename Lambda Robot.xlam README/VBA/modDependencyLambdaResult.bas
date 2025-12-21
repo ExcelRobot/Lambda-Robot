@@ -414,6 +414,62 @@ Public Function InsertLetStep(ByVal Formula As String _
     
 End Function
 
+Public Function AddStepForLastCalculation(ByVal Formula As String _
+                                          , ByVal NewStepName As String) As String
+    
+    
+    Const METHOD_NAME As String = "AddStepForLastCalculation"
+    Context.ExtractContext ActiveWorkbook, METHOD_NAME
+    
+    Dim LetParts As Variant
+    LetParts = GetLetParts(Formula)
+    
+    Dim ResultFormula As String
+    If Not IsArrayAllocated(LetParts) Then
+        ResultFormula = Formula
+    Else
+        
+        Dim UniqueSteps As Collection
+        Set UniqueSteps = New Collection
+        
+        Dim FirstColumnIndex  As Long
+        FirstColumnIndex = LBound(LetParts, 2)
+        Dim RowIndex As Long
+        For RowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
+            UniqueSteps.Add LetParts(RowIndex, FirstColumnIndex), LetParts(RowIndex, FirstColumnIndex)
+        Next RowIndex
+        
+        Dim LastStepNameOrCalc As String
+        LastStepNameOrCalc = LetParts(UBound(LetParts, 1), FirstColumnIndex)
+        
+        ' If it is referring a previously defined step then no need to add any step.
+        If IsExistInCollection(UniqueSteps, LastStepNameOrCalc) Then
+            ResultFormula = Formula
+        Else
+            Dim UniqueNewStepName As String
+            UniqueNewStepName = FindUniqueNameByIncrementingNumber(UniqueSteps, NewStepName)
+            LetParts(UBound(LetParts, 1), FirstColumnIndex + 4) = LastStepNameOrCalc
+            LetParts(UBound(LetParts, 1), FirstColumnIndex) = UniqueNewStepName
+            
+            ResultFormula = EQUAL_LET_FIRST_PAREN
+            For RowIndex = LBound(LetParts, 1) To UBound(LetParts, 1)
+                ResultFormula = ResultFormula & LetParts(RowIndex, FirstColumnIndex) & COMMA _
+                                & LetParts(RowIndex, FirstColumnIndex + 4) & COMMA
+            Next RowIndex
+            
+            ResultFormula = ResultFormula & UniqueNewStepName & FIRST_PARENTHESIS_CLOSE
+            
+            ResultFormula = FormatFormula(ResultFormula)
+            
+        End If
+        
+    End If
+    
+    AddStepForLastCalculation = ResultFormula
+    Context.ClearContext METHOD_NAME
+    
+End Function
+
 Public Function RemoveLetStep(ByVal Formula As String _
                               , ByVal NameToRemove As String) As String
     
@@ -1383,6 +1439,39 @@ Context.ClearContext METHOD_NAME
 
 End Function
 
+Public Function GetLetParts(ByVal LetFormula As String) As Variant
+    
+    Dim LetParts As Variant
+    LetParts = GetDependencyFunctionResult(LetFormula, LET_PARTS)
+    If IsArrayAllocated(LetParts) Then TrimAndCleanStepsName LetParts
+    GetLetParts = LetParts
+    
+End Function
 
+Public Sub TrimAndCleanStepsName(ByRef LetParts As Variant)
+    
+    Dim FirstColumnIndex  As Long
+    FirstColumnIndex = LBound(LetParts, 2)
+    Dim CurrentRowIndex As Long
+    For CurrentRowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
+        Dim StepName As String
+        StepName = LetParts(CurrentRowIndex, FirstColumnIndex)
+        StepName = GetCleanLetVarName(StepName)
+        LetParts(CurrentRowIndex, FirstColumnIndex) = StepName
+    Next CurrentRowIndex
+    StepName = LetParts(UBound(LetParts, 1), FirstColumnIndex)
+    StepName = RTrim$(LTrim$(Text.Clean(StepName)))
+    LetParts(UBound(LetParts, 1), FirstColumnIndex) = StepName
+    
+End Sub
 
-
+Public Function GetCleanLetVarName(ByVal LetVarName As String) As String
+    
+    ' Cleaning up the input variable name by removing potential undesirable characters and spaces
+    Dim CleanLetVarName As String
+    CleanLetVarName = Text.RemoveFromStartIfPresent(LetVarName, vbNewLine)
+    CleanLetVarName = Text.RemoveFromStartIfPresent(CleanLetVarName, Chr$(10))
+    CleanLetVarName = Text.Trim(CleanLetVarName)
+    GetCleanLetVarName = CleanLetVarName
+    
+End Function

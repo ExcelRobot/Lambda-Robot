@@ -55,6 +55,36 @@
       ]
     },
     {
+      "Name": "Debug LET Steps (Compact)",
+      "Description": "Adds a last LET step to the formula returning stack of variables and values for debugging.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "dl",
+        "dls"
+      ],
+      "MacroExpression": "modLETStepManager.DebugLETSteps([[ActiveCell]])",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
+      "Name": "Debug LET Steps (Spaced)",
+      "Description": "Adds a last LET step to the formula returning stack of variables and values for debugging.",
+      "Type": "VBAMacroCommand",
+      "UserContextFilter": "ExcelActiveCellContainsFormula;ExcelSelectionIsSingleCell",
+      "LaunchCodes": [
+        "dl",
+        "dls"
+      ],
+      "MacroExpression": "modLETStepManager.DebugLETSteps([[ActiveCell]],True)",
+      "Tags": [
+        "LAMBDA",
+        "LET"
+      ]
+    },
+    {
       "Name": "Disable Bo Mode",
       "Description": "Restores standard formatting rules for generated LET and LAMBDA statements.",
       "Type": "VBAMacroCommand",

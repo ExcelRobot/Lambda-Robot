@@ -2,7 +2,7 @@
 
 \*\*Lambda Robot.xlam\*\* contains definitions for:
 
-[27 Robot Commands](#command-definitions)<BR>[15 Robot Parameters](#parameter-definitions)<BR>
+[29 Robot Commands](#command-definitions)<BR>[15 Robot Parameters](#parameter-definitions)<BR>
 
 <BR>
 
@@ -18,6 +18,8 @@
 | [Cancel Lambda Edit](#cancel-lambda-edit) | Cancel any edits to Lambda definition in active cell and revert back to custom Lambda call. |
 | [Clear Input Cell Formatting](#clear-input-cell-formatting) | Sets background color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command. |
 | [Cycle LET Steps](#cycle-let-steps) | Cyclically change last steps of the let so that we can see different steps calculated value. |
+| [Debug LET Steps (Compact)](#debug-let-steps-compact) | Adds a last LET step to the formula returning stack of variables and values for debugging. |
+| [Debug LET Steps (Spaced)](#debug-let-steps-spaced) | Adds a last LET step to the formula returning stack of variables and values for debugging. |
 | [Disable Bo Mode](#disable-bo-mode) | Restores standard formatting rules for generated LET and LAMBDA statements. |
 | [Edit Lambda](#edit-lambda) | Converts a custom Lambda function to its definition for editing. |
 | [Enable Bo Mode](#enable-bo-mode) | Ensures generated LET and LAMBDA statements are as short as possible. |
@@ -47,6 +49,8 @@
 | [Audit Formula Steps](#audit-formula-steps) | Generate steps for each of the let variable calculation and place all LAMBDA parameters and mark them as input cell. |
 | [Clear Input Cell Formatting](#clear-input-cell-formatting) | Sets background color to no fill and font color to automatic. It does reverse of "Mark As Input Cells" command. |
 | [Cycle LET Steps](#cycle-let-steps) | Cyclically change last steps of the let so that we can see different steps calculated value. |
+| [Debug LET Steps (Compact)](#debug-let-steps-compact) | Adds a last LET step to the formula returning stack of variables and values for debugging. |
+| [Debug LET Steps (Spaced)](#debug-let-steps-spaced) | Adds a last LET step to the formula returning stack of variables and values for debugging. |
 | [Disable Bo Mode](#disable-bo-mode) | Restores standard formatting rules for generated LET and LAMBDA statements. |
 | [Enable Bo Mode](#enable-bo-mode) | Ensures generated LET and LAMBDA statements are as short as possible. |
 | [Generate Let Statement](#generate-let-statement) | Generate a Let statement based on formula precedents for the active cell and replace ActiveCell formula with generated LET. |
@@ -146,9 +150,41 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLETStepManager.CycleLETSteps](./VBA/modLETStepManager.bas#L33)([[ActiveCell]],[[ActiveCell]])</code> |
+| Macro Expression | <code>[modLETStepManager.CycleLETSteps](./VBA/modLETStepManager.bas#L34)([[ActiveCell]],[[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula OR ExcelActiveCellIsSpillParent |
 | Launch Codes | <code>cls</code> |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### Debug LET Steps (Compact)
+
+*Adds a last LET step to the formula returning stack of variables and values for debugging.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA` `#LET`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modLETStepManager.DebugLETSteps](./VBA/modLETStepManager.bas#L49)([[ActiveCell]])</code> |
+| User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
+| Launch Codes | <ol><li><code>dl</code></li><li><code>dls</code></li></ol> |
+
+[^Top](#oa-robot-definitions)
+
+<BR>
+
+### Debug LET Steps (Spaced)
+
+*Adds a last LET step to the formula returning stack of variables and values for debugging.*
+
+<sup>`@Lambda Robot.xlam` `!VBA Macro Command` `#LAMBDA` `#LET`</sup>
+
+| Property | Value |
+| --- | --- |
+| Macro Expression | <code>[modLETStepManager.DebugLETSteps](./VBA/modLETStepManager.bas#L49)([[ActiveCell]],True)</code> |
+| User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
+| Launch Codes | <ol><li><code>dl</code></li><li><code>dls</code></li></ol> |
 
 [^Top](#oa-robot-definitions)
 
@@ -437,7 +473,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLETStepManager.RemoveLastLETStep](./VBA/modLETStepManager.bas#L23)([[ActiveCell]])</code> |
+| Macro Expression | <code>[modLETStepManager.RemoveLastLETStep](./VBA/modLETStepManager.bas#L24)([[ActiveCell]])</code> |
 | User Context Filter | ExcelActiveCellContainsFormula AND ExcelSelectionIsSingleCell |
 
 [^Top](#oa-robot-definitions)
@@ -466,7 +502,7 @@
 
 | Property | Value |
 | --- | --- |
-| Macro Expression | <code>[modLETStepManager.CycleLETSteps](./VBA/modLETStepManager.bas#L33)([[ActiveCell]],[[ActiveCell]],True)</code> |
+| Macro Expression | <code>[modLETStepManager.CycleLETSteps](./VBA/modLETStepManager.bas#L34)([[ActiveCell]],[[ActiveCell]],True)</code> |
 | User Context Filter | ExcelActiveCellContainsFormula OR ExcelActiveCellIsSpillParent |
 
 [^Top](#oa-robot-definitions)

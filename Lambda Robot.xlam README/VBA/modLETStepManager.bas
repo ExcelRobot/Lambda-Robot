@@ -8,9 +8,10 @@ Private Sub Test()
     AddLetStep ActiveCell, "Sum By Row", "=BYROW([[PreviousStep]],LAMBDA(x,SUM(x)))"
 End Sub
 
-Public Sub AddLetStep(ByVal FormulaCell As Range, ByVal StepName As String _
-                                                 , ByVal StepFormula As String _
-                                                  , Optional ByVal TargetCell As Range = Nothing)
+Public Sub AddLetStep(ByVal FormulaCell As Range _
+                      , ByVal StepName As String _
+                       , ByVal StepFormula As String _
+                        , Optional ByVal TargetCell As Range = Nothing)
     LetStepManager.AddLetStep FormulaCell, StepName, StepFormula, TargetCell
 End Sub
 
@@ -45,6 +46,49 @@ Public Sub CycleLETSteps(ByVal FormulaCell As Range _
     
 End Sub
 
+Public Sub DebugLETSteps(ByVal FormulaCell As Range _
+                         , Optional ByVal Spaced As Boolean = False _
+                          , Optional ByVal IsUndo As Boolean = False)
+    
+    Static PutFormulaOnUndo As Range
+    Static Formula As String
+    Static IsDeleteComment As Boolean
+    
+    If IsUndo Then
+        If IsNotNothing(PutFormulaOnUndo) Then PutFormulaOnUndo.Formula2 = Formula
+        DeleteComment PutFormulaOnUndo
+        Exit Sub
+    Else
+        ' If not undo, store the formula range for future use
+        Set PutFormulaOnUndo = FormulaCell
+        Formula = FormulaCell.Formula2
+    End If
+    
+    Const METHOD_NAME As String = "DebugLETSteps"
+    Context.ExtractContextFromCell FormulaCell, METHOD_NAME
+    
+    On Error GoTo HandleError
+    If IsCellHasSavedLambdaFormula(FormulaCell) Then
+        EditLambda FormulaCell
+        IsDeleteComment = True
+    Else
+        IsDeleteComment = False
+    End If
+    
+    LetStepManager.DebugLETSteps FormulaCell, Spaced
+    
+    If Not IsUndo Then AssingOnUndo "DebugLETSteps"
+    
+HandleError:
+    Context.ClearContext METHOD_NAME
+    If Err.Number <> 0 Then
+        MsgBox Err.Description, vbOKOnly + vbExclamation, "Stack LET Variables"
+    End If
+    
+    
+End Sub
 
-
+Public Sub DebugLETSteps_Undo()
+    DebugLETSteps Nothing, False, True
+End Sub
 

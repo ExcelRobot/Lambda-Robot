@@ -1,0 +1,62 @@
+LETStack =LAMBDA(let_variable,let_value,[max_rows],[max_columns],[spaced],[list_across], LET(
+   \\LambdaName, "LETStack",
+   _IsArray, IFERROR(
+      IF(OR(ROWS(let_value) > 1, COLUMNS(let_value) > 1), TRUE, TYPE(let_value) = 64),
+      FALSE
+   ),
+   _IsRef, IFERROR(ISREF(let_value), FALSE),
+   _Address, IF(
+      _IsRef,
+      SUBSTITUTE(
+         "[" & CELL("address", let_value)
+            & IF(
+               _IsArray,
+               ":" & CELL("address", OFFSET(let_value, ROWS(let_value) - 1, COLUMNS(let_value) - 1)),
+               ""
+            )
+            & "]",
+         "$",
+         ""
+      ),
+      ""
+   ),
+   _Variable, let_variable
+      & IF(
+         _IsArray,
+         " (" & ROWS(let_value) & "x" & COLUMNS(let_value) & ")" & IF(_IsRef, " " & _Address, ""),
+         IF(_IsRef, " " & _Address, "")
+      ),
+   _TopBottomN, LAMBDA(array,n,[by_columns], LET(
+      _SepCount, IF(by_columns, ROWS, COLUMNS)(array),
+      _Size, IF(by_columns, COLUMNS, ROWS)(array),
+      _Separator, IFNA(UNICHAR(8230), IF(by_columns, SEQUENCE(_SepCount), SEQUENCE(1, _SepCount))),
+      _Split, _Size > n * 2 + 1,
+      _Result, IF(
+         _Split,
+         IF(
+            by_columns,
+            HSTACK(TAKE(array, , ROUNDUP(n, 0)), _Separator, TAKE(array, , -ROUNDDOWN(n, 0))),
+            VSTACK(TAKE(array, ROUNDUP(n, 0)), _Separator, TAKE(array, -ROUNDDOWN(n, 0)))
+         ),
+         array
+      ),
+      _Result
+   )),
+   _Value, IF(
+      _IsArray,
+      _TopBottomN(
+         _TopBottomN(IF({1}, let_value), IF(ISOMITTED(max_rows), ROWS(let_value), max_rows) / 2),
+         IF(ISOMITTED(max_columns), COLUMNS(let_value), max_columns) / 2,
+         TRUE
+      ),
+      IF({1}, let_value)
+   ),
+   _Stack, IFNA(
+      IF(list_across, VSTACK, HSTACK)(
+         _Variable,
+         IF(spaced, IF(list_across, HSTACK, VSTACK)(IFNA(_Value, "#N/A"), ""), IFNA(_Value, "#N/A"))
+      ),
+      ""
+   ),
+   _Stack
+));

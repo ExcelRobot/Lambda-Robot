@@ -32,6 +32,7 @@ Private Type TLetStepManager
     LambdaParts As Variant
     LambdaAndLetStepsName As Variant
     LastStepName As String
+    IsAlreadyStacked As Boolean
 End Type
 
 Private this As TLetStepManager
@@ -98,20 +99,6 @@ Private Function ConvertToALetStatement(ByVal PlainFormula As String _
 
 End Function
 
-'@Pure
-Private Function GetCleanLetVarName(ByVal LetVarName As String) As String
-    
-    Logger.Log TRACE_LOG, "Enter LetStepManager.GetCleanLetVarName"
-    ' Cleaning up the input variable name by removing potential undesirable characters and spaces
-    Dim CleanLetVarName As String
-    CleanLetVarName = Text.RemoveFromStartIfPresent(LetVarName, vbNewLine)
-    CleanLetVarName = Text.RemoveFromStartIfPresent(CleanLetVarName, Chr$(10))
-    CleanLetVarName = Text.Trim(CleanLetVarName)
-    GetCleanLetVarName = CleanLetVarName
-    Logger.Log TRACE_LOG, "Exit LetStepManager.GetCleanLetVarName"
-    
-End Function
-
 '@Impure
 Private Sub RetriveContextData(ByVal FormulaCell As Range)
     
@@ -135,6 +122,23 @@ Private Sub RetriveContextData(ByVal FormulaCell As Range)
     this.LambdaParts = GetDependencyFunctionResult(this.FormulaText, LAMBDA_PARTS)
     this.LambdaAndLetStepsName = GetParametersAndStepsName(this.FormulaText)
     this.LastStepName = FindLastStepName(this.LambdaAndLetStepsName)
+    
+    
+    Dim UsedLambdas As Variant
+    UsedLambdas = GetUsedLambdas(this.FormulaText, Context.Lambdas, False)
+    
+    If IsArrayAllocated(UsedLambdas) Then
+        Dim CurrentLambdaName As Variant
+        For Each CurrentLambdaName In UsedLambdas
+            If CurrentLambdaName = LET_STACK_LAMBDA_NAME Then
+                this.IsAlreadyStacked = True
+                Exit For
+            End If
+        Next CurrentLambdaName
+    Else
+        this.IsAlreadyStacked = False
+    End If
+    
     Logger.Log TRACE_LOG, "Exit LetStepManager.RetriveContextData"
     
 End Sub
@@ -264,6 +268,173 @@ ErrorHandler:
 
 End Sub
 
+Public Sub DebugLETSteps(ByVal FormulaCell As Range, ByVal Spaced As Boolean)
+    
+    ' First validate the formula cell parameters and retrieve the context data
+    ValidateFormulaCellParam FormulaCell, CYCLE_LET_STEPS_SUB_NAME
+    On Error GoTo ErrorHandler
+    RetriveContextData FormulaCell
+    
+    If Not (this.IsLambdaFormulaWithLet Or this.IsCellStartWithLetFormula) Then
+        MsgBox "Stack LET Variables command is only for cells having a " & LET_FN_NAME _
+               & " or " & LAMBDA_FN_NAME & "/" _
+               & LET_FN_NAME & " formula.", vbCritical, "Stack LET Variables"
+        Logger.Log TRACE_LOG, "Exit Due to Exit Keyword LetStepManager.DebugLETSteps"
+        Exit Sub
+    End If
+    
+    Dim RowColCount As Long
+    If Not this.IsAlreadyStacked Then
+        RowColCount = Application.InputBox("Show how many rows/columns for arrays?", "Debug LET Steps", 6)
+        If RowColCount = 0 Then Exit Sub
+    End If
+    
+    Dim ReplaceOnFormula As String
+    Dim ReplacedFormula As String
+    ' Depending on whether cell starts with a lambda formula, the removal of the step varies
+    If this.IsLambdaFormulaWithLet Then
+        ReplaceOnFormula = EQUAL_SIGN & this.LambdaParts(UBound(this.LambdaParts, 1), LBound(this.LambdaParts, 2))
+        ReplacedFormula = GetFormulaAfterLETStepStacking(ReplaceOnFormula, RowColCount, RowColCount, Spaced)
+        ReplacedFormula = GetUptoLambdaParamDefPart(this.FormulaText) _
+                          & Text.RemoveFromStartIfPresent(ReplacedFormula, EQUAL_SIGN) & FIRST_PARENTHESIS_CLOSE _
+                          & GetLambdaInvocationPart(this.FormulaText)
+    Else
+        ReplaceOnFormula = this.FormulaText
+        ReplacedFormula = EQUAL_SIGN & GetFormulaAfterLETStepStacking(ReplaceOnFormula, RowColCount, RowColCount, Spaced)
+    End If
+    
+    ReplacedFormula = FormatFormula(ReplacedFormula)
+    
+    Logger.Log DEBUG_LOG, "Before Stacking:" & vbNewLine & ReplaceOnFormula
+    Logger.Log DEBUG_LOG, "After Stacking:" & vbNewLine & ReplacedFormula
+    
+    If Not this.IsAlreadyStacked And Not Context.IsLambdaExists(LET_STACK_LAMBDA_NAME) Then
+        this.OnBook.Names.Add LET_STACK_LAMBDA_NAME, ThisWorkbook.Names(LET_STACK_LAMBDA_NAME).RefersTo
+    End If
+    
+    FormulaCell.Formula2 = ReplaceInvalidCharFromFormulaWithValid(ReplacedFormula)
+    Exit Sub
+    
+    
+ErrorHandler:
+    ' If an error occurs, clean up resources and raise error
+    Dim ErrorNumber As Long
+    ErrorNumber = Err.Number
+    Dim ErrorDescription As String
+    ErrorDescription = Err.Description
+    
+    If ErrorNumber <> 0 Then
+        Err.Raise ErrorNumber, Err.Source, ErrorDescription
+        Resume
+    End If
+    
+End Sub
+
+Private Function GetFormulaAfterLETStepStacking(ByVal Formula As String _
+                                                , ByVal MaxRowCount As Long _
+                                                 , ByVal MaxColCount As Long _
+                                                  , ByVal Spaced As Boolean) As String
+    
+    Formula = Text.PadIfNotPresent(Formula, EQUAL_SIGN)
+    Dim ResultFormula As String
+    
+    Dim LetParts As Variant
+    If this.IsAlreadyStacked Then
+        
+        LetParts = GetLetParts(Formula)
+        Dim LastRowIndex As Long
+        LastRowIndex = UBound(LetParts, 1)
+        
+        Const DEBUG_ACTIVE_PREFIX As String = "IF(TRUE,"
+        Const DEBUG_INACTIVE_PREFIX As String = "IF(FALSE,"
+        
+        Dim FirstColIndex As Long
+        FirstColIndex = LBound(LetParts, 2)
+        If Text.IsStartsWith(LetParts(LastRowIndex, FirstColIndex), DEBUG_ACTIVE_PREFIX, IGNORE_CASE) Then
+            LetParts(LastRowIndex, FirstColIndex) = DEBUG_INACTIVE_PREFIX & Mid(LetParts(LastRowIndex, FirstColIndex), Len(DEBUG_ACTIVE_PREFIX) + 1)
+        ElseIf Text.IsStartsWith(LetParts(LastRowIndex, FirstColIndex), DEBUG_INACTIVE_PREFIX, IGNORE_CASE) Then
+            LetParts(LastRowIndex, FirstColIndex) = DEBUG_ACTIVE_PREFIX & Mid(LetParts(LastRowIndex, FirstColIndex), Len(DEBUG_INACTIVE_PREFIX) + 1)
+        End If
+        
+        ResultFormula = LET_AND_OPEN_PAREN
+        Dim FirstColumnIndex  As Long
+        FirstColumnIndex = LBound(LetParts, 2)
+        Dim RowIndex As Long
+        For RowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
+            ResultFormula = ResultFormula & LetParts(RowIndex, FirstColumnIndex) & COMMA & LetParts(RowIndex, FirstColumnIndex + 4) & COMMA
+        Next RowIndex
+        ResultFormula = ResultFormula & LetParts(UBound(LetParts, 1), FirstColIndex) & FIRST_PARENTHESIS_CLOSE
+        
+    Else
+        Dim ResultStepName As String
+        ResultStepName = FormulaFormatConfig.LetVarPrefix & MakeValidLetVarName(LAST_STEP_NAME, GetNamingConv(False))
+        Formula = AddStepForLastCalculation(Formula, ResultStepName)
+        LetParts = GetLetParts(Formula)
+        ResultFormula = GetStackedFormulaFromLetParts(LetParts, MaxRowCount, MaxColCount, Spaced)
+    End If
+    
+    GetFormulaAfterLETStepStacking = ResultFormula
+    
+End Function
+
+Private Function GetStackedFormulaFromLetParts(ByVal LetParts As Variant _
+                                               , ByVal MaxRowCount As Long _
+                                                , ByVal MaxColCount As Long _
+                                                 , ByVal Spaced As Boolean) As String
+    
+    Dim Formula As String
+    Formula = LET_AND_OPEN_PAREN
+    
+    Dim StackingPart As String
+    StackingPart = "_Stack" & COMMA & IF_FN_NAME & FIRST_PARENTHESIS_OPEN & "_Across" & COMMA _
+                & HSTACK_FN_NAME & COMMA & VSTACK_FN_NAME & FIRST_PARENTHESIS_CLOSE & FIRST_PARENTHESIS_OPEN
+'    StackingPart = IF_NA_FN_NAME & FIRST_PARENTHESIS_OPEN _
+ '                  & VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN '_
+                   '& LET_STACK_LAMBDA_NAME & FIRST_PARENTHESIS_OPEN & """Variable"", ""Value""" _
+                                                                                    & FIRST_PARENTHESIS_CLOSE & COMMA
+    
+    Dim UniqueSteps As Collection
+    Set UniqueSteps = New Collection
+    
+    Dim FirstColumnIndex  As Long
+    FirstColumnIndex = LBound(LetParts, 2)
+    Dim RowIndex As Long
+    For RowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
+        UniqueSteps.Add LetParts(RowIndex, FirstColumnIndex), LetParts(RowIndex, FirstColumnIndex)
+        Formula = Formula & LetParts(RowIndex, FirstColumnIndex) & COMMA & LetParts(RowIndex, FirstColumnIndex + 4) & COMMA
+        StackingPart = StackingPart & LET_STACK_LAMBDA_NAME _
+                       & FIRST_PARENTHESIS_OPEN & """" _
+                       & LetParts(RowIndex, FirstColumnIndex) & """" _
+                       & COMMA & LetParts(RowIndex, FirstColumnIndex) _
+                       & COMMA & "_MaxRows" & COMMA & "_MaxCols" _
+                       & COMMA & "_Spaced" & COMMA & "_Across" _
+                       & FIRST_PARENTHESIS_CLOSE & COMMA
+    Next RowIndex
+    
+    StackingPart = Text.RemoveFromEndIfPresent(StackingPart, COMMA) & FIRST_PARENTHESIS_CLOSE & COMMA _
+            & IF_NA_FN_NAME & FIRST_PARENTHESIS_OPEN & "_Stack" & COMMA & """""" & FIRST_PARENTHESIS_CLOSE
+    
+    StackingPart = LET_AND_OPEN_PAREN _
+                   & "_MaxRows" & COMMA & MaxRowCount _
+                   & COMMA & "_MaxCols" & COMMA & MaxColCount _
+                   & COMMA & "_Spaced" & COMMA & Spaced _
+                   & COMMA & "_Across" & COMMA & FALSE_KEYWORD _
+                   & COMMA & StackingPart & FIRST_PARENTHESIS_CLOSE
+    
+    Dim DebugStepName As String
+    DebugStepName = FormulaFormatConfig.LetVarPrefix & MakeValidLetVarName(FindUniqueNameByIncrementingNumber(UniqueSteps, "Debug"), GetNamingConv(False))
+    
+    Formula = Formula & DebugStepName & COMMA & StackingPart _
+              & COMMA & IF_FN_NAME & FIRST_PARENTHESIS_OPEN _
+              & "TRUE," & DebugStepName & COMMA _
+              & LetParts(UBound(LetParts, 1) - 1, FirstColumnIndex) _
+              & FIRST_PARENTHESIS_CLOSE & FIRST_PARENTHESIS_CLOSE
+    
+    GetStackedFormulaFromLetParts = Formula
+    
+End Function
+
+
 '@EntryPoint
 Public Sub CycleLETSteps(ByVal FormulaCell As Range _
                          , Optional ByVal TargetCell As Range _
@@ -345,36 +516,6 @@ Private Function GetFormulaAfterCycleLetStep(ByVal LetFormula As String, ByVal I
     
 End Function
 
-Private Function GetLetParts(ByVal LetFormula As String) As Variant
-    
-    Logger.Log TRACE_LOG, "Enter LetStepManager.GetLetParts"
-    Dim LetParts As Variant
-    LetParts = GetDependencyFunctionResult(LetFormula, LET_PARTS)
-    TrimAndCleanStepsName LetParts
-    GetLetParts = LetParts
-    Logger.Log TRACE_LOG, "Exit LetStepManager.GetLetParts"
-    
-End Function
-
-Private Sub TrimAndCleanStepsName(ByRef LetParts As Variant)
-    
-    Logger.Log TRACE_LOG, "Enter LetStepManager.TrimAndCleanStepsName"
-    Dim FirstColumnIndex  As Long
-    FirstColumnIndex = LBound(LetParts, 2)
-    Dim CurrentRowIndex As Long
-    For CurrentRowIndex = LBound(LetParts, 1) To UBound(LetParts, 1) - 1
-        Dim StepName As String
-        StepName = LetParts(CurrentRowIndex, FirstColumnIndex)
-        StepName = GetCleanLetVarName(StepName)
-        LetParts(CurrentRowIndex, FirstColumnIndex) = StepName
-    Next CurrentRowIndex
-    StepName = LetParts(UBound(LetParts, 1), FirstColumnIndex)
-    StepName = RTrim$(LTrim$(Text.Clean(StepName)))
-    LetParts(UBound(LetParts, 1), FirstColumnIndex) = StepName
-    Logger.Log TRACE_LOG, "Exit LetStepManager.TrimAndCleanStepsName"
-    
-End Sub
-
 Private Sub GetRowAndColumnDetails(ByVal LetParts As Variant, ByRef FirstColumnIndex As Long _
                                                              , ByRef LastRowIndex As Long _
                                                               , ByRef FirstRowIndex As Long _
@@ -388,10 +529,11 @@ Private Sub GetRowAndColumnDetails(ByVal LetParts As Variant, ByRef FirstColumnI
     
 End Sub
 
-Private Sub GetStepNames(ByVal LetParts As Variant, ByVal LastRowIndex As Long _
-                                                   , ByVal FirstColumnIndex As Long _
-                                                    , ByRef LastStepName As String _
-                                                     , ByRef SecondLastStepName As String)
+Private Sub GetStepNames(ByVal LetParts As Variant _
+                         , ByVal LastRowIndex As Long _
+                          , ByVal FirstColumnIndex As Long _
+                           , ByRef LastStepName As String _
+                            , ByRef SecondLastStepName As String)
     Logger.Log TRACE_LOG, "Enter LetStepManager.GetStepNames"
     LastStepName = LetParts(LastRowIndex, FirstColumnIndex)
     SecondLastStepName = LetParts(LastRowIndex - 1, FirstColumnIndex)

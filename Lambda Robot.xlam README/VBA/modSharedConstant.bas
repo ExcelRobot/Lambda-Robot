@@ -43,6 +43,7 @@ Public Const ISBLANK_FN_NAME As String = "ISBLANK"
 Public Const CHOOSECOLS_FN_NAME As String = "CHOOSECOLS"
 Public Const COLUMNS_FN_NAME As String = "COLUMNS"
 Public Const IF_FN_NAME As String = "IF"
+Public Const IF_NA_FN_NAME As String = "IFNA"
 Public Const FILTER_FN_NAME As String = "FILTER"
 Public Const ROWS_FN_NAME As String = "ROWS"
 Public Const NA_FN_NAME As String = "NA"
@@ -71,6 +72,7 @@ Public Const ARRAY_CONST_COLUMN_SEPARATOR As String = ","
 Public Const ARRAY_CONST_ROW_SEPARATOR As String = ";"
 Public Const LIST_SEPARATOR As String = ","
 Public Const IMPLICIT_INTERSECTION_OPERATOR As String = "@"
+Public Const LET_STACK_LAMBDA_NAME As String = "LETStack"
 
 ' @Defined Independent Const
 
