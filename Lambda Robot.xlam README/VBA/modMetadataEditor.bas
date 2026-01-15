@@ -78,7 +78,7 @@ Public Function EditMetadataForCell(ByVal ForCell As Range _
     If IsNothing(ForCell) Then
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modMetadataEditor.EditMetadataForCell"
         Exit Function
-    ElseIf ForCell.Cells.Count > 1 Then
+    ElseIf ForCell.Cells.CountLarge > 1 Then
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modMetadataEditor.EditMetadataForCell"
         Exit Function
     ElseIf Not IsLambdaFunction(GetCellFormula(ForCell)) And Not modUtility.IsCellHasSavedLambdaFormula(ForCell) Then

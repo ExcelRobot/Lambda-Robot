@@ -455,7 +455,7 @@ Private Function LetToLambdaInvalidMessage(ByVal LetFormulaCell As Range _
     Dim Reason As String
     ' Check if more than one cell is selected in LetFormulaCell
     ' If more than one cell is selected, display a message box and exit the function
-    If LetFormulaCell.Cells.Count > 1 Then
+    If LetFormulaCell.Cells.CountLarge > 1 Then
         Reason = "Unable to convert " & LET_FN_NAME & " to " & LAMBDA_FN_NAME _
                  & ". Only one cell at a time allowed."
     ElseIf Not LetFormulaCell.HasFormula Then

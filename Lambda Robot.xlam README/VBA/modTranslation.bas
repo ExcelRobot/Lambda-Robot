@@ -31,7 +31,7 @@ End Sub
 Public Function CopyFormulaToEnglish(ByVal FormulaCell As Range) As String
 
     If FormulaCell Is Nothing Then Exit Function
-    If FormulaCell.Cells.Count > 1 Then Exit Function
+    If FormulaCell.Cells.CountLarge > 1 Then Exit Function
     If Not FormulaCell.HasFormula Then Exit Function
 
     CopyFormulaToEnglish = GetCellFormula(FormulaCell)

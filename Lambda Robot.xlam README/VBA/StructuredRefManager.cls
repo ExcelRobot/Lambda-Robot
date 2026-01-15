@@ -178,7 +178,7 @@ Public Function FindStructuralFormulaText(ByVal ForCell As Range, ByVal FormulaT
     Result = GetStructuredFormula(ForCell)
     
     ' If the cell has more than one cell and the formula text is not prefixed with '=', set it to an empty string.
-    If ForCell.Count > 1 And Not Text.IsStartsWith(FormulaText, EQUAL_SIGN) Then
+    If ForCell.CountLarge > 1 And Not Text.IsStartsWith(FormulaText, EQUAL_SIGN) Then
         Result = vbNullString
     End If
 

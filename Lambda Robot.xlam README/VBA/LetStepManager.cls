@@ -732,7 +732,7 @@ Private Sub ValidateFormulaCellParam(ByVal FormulaCell As Range, ByVal ErrorSour
     ' Validate FormulaCell parameter
     Const ERROR_DESCRIPTION As String = "Invalid FormulaCell param."
     If IsNothing(FormulaCell) Then Err.Raise 13, ErrorSource, ERROR_DESCRIPTION
-    If FormulaCell.Cells.Count > 1 Then Err.Raise 13, ErrorSource, ERROR_DESCRIPTION
+    If FormulaCell.Cells.CountLarge > 1 Then Err.Raise 13, ErrorSource, ERROR_DESCRIPTION
     If Not FormulaCell.HasFormula Then Err.Raise 13, ErrorSource, ERROR_DESCRIPTION
     Logger.Log TRACE_LOG, "Exit LetStepManager.ValidateFormulaCellParam"
     

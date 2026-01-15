@@ -85,7 +85,7 @@ Public Function FindLetVarName(ByVal FromRange As Range _
                                , Optional ByVal InvalidRegionForNameCell As Range) As String
     
     ' Find a suitable name for a variable based on the input FromRange.
-    If FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
+    If FromRange.Cells.CountLarge > 1 And FromRange.Cells(1).Address = "$A$1" Then
         FindLetVarName = FromRange.Worksheet.Name
         Exit Function
     End If
@@ -105,7 +105,7 @@ Public Function FindLetVarNameCell(ByVal FromRange As Range, Optional ByVal Inva
     ' Find a suitable name for a variable based on the input FromRange.
     If IsNothing(FromRange) Then
         Exit Function
-    ElseIf FromRange.Cells.Count > 1 And FromRange.Cells(1).Address = "$A$1" Then
+    ElseIf FromRange.Cells.CountLarge > 1 And FromRange.Cells(1).Address = "$A$1" Then
         Exit Function
     End If
         
@@ -1280,8 +1280,8 @@ Public Function FindFirstNotUsedCell(ByVal ForSheet As Worksheet) As Range
     Dim UsedRanges As Range
     Set UsedRanges = ForSheet.UsedRange
     Dim LastCell As Range
-    Set LastCell = UsedRanges.Cells(Application.Min(Cells.Rows.Count - 1000, UsedRanges.Rows.Count) _
-                                    , Application.Min(Cells.Columns.Count - 1000, UsedRanges.Columns.Count))
+    Set LastCell = UsedRanges.Cells(Application.Min(Cells.Rows.CountLarge - 1000, UsedRanges.Rows.CountLarge) _
+                                    , Application.Min(Cells.Columns.CountLarge - 1000, UsedRanges.Columns.CountLarge))
     Set FindFirstNotUsedCell = LastCell.Offset(0, 1)
 
 End Function
@@ -1644,7 +1644,7 @@ Public Function GetRangeReference(ByVal GivenCells As Range _
     GetRangeReference = GivenCells.Address(IsAbsolute, IsAbsolute)
 
     ' Check if the given range is part of a dynamic array formula.
-    If GivenCells.Cells.Count > 1 And GivenCells.Cells(1, 1).HasSpill Then
+    If GivenCells.Cells.CountLarge > 1 And GivenCells.Cells(1, 1).HasSpill Then
         Dim TempRange As Range
         Set TempRange = GivenCells.Cells(1, 1)
 
@@ -2144,7 +2144,7 @@ Public Function FindFormulaText(ByVal FromBook As Workbook _
     If IsNothing(CurrentRange) Then
         FindFormulaText = vbNullString           ' Return an empty string if the range reference is not found.
     Else
-        If CurrentRange.Cells.Count = 1 Or CurrentRange.HasSpill Then
+        If CurrentRange.Cells.CountLarge = 1 Or CurrentRange.HasSpill Then
             Dim Formula As String
             On Error Resume Next
             Formula = GetCellFormula(CurrentRange.Cells(1))
@@ -2271,7 +2271,7 @@ Public Function GetRangeLabelFromNameOrLabel(ByVal FindFromRange As Range _
     Logger.Log TRACE_LOG, "Enter modUtility.GetRangeLabelFromNameOrLabel"
     Dim Result As String
     
-    If CurrentCell.Cells.Count > 1 And CurrentCell.Cells(1).Address = "$A$1" Then
+    If CurrentCell.Cells.CountLarge > 1 And CurrentCell.Cells(1).Address = "$A$1" Then
         Result = modUtility.FindLetVarName(CurrentCell)
     ElseIf IsJustCheckLabel Then
         ' If the IsJustCheckLabel flag is set, only check and return the variable name without further processing.
@@ -2283,7 +2283,7 @@ Public Function GetRangeLabelFromNameOrLabel(ByVal FindFromRange As Range _
 
         If IsNotNothing(CurrentName) Then
             ' Use the named range label only if it matches the MatchToRange and the MatchToRange is a multi-cell range.
-            If IsBothRangeEqual(CurrentName.RefersToRange, MatchToRange) And MatchToRange.Cells.Count > 1 Then
+            If IsBothRangeEqual(CurrentName.RefersToRange, MatchToRange) And MatchToRange.Cells.CountLarge > 1 Then
                 Result = modUtility.ExtractNameFromLocalNameRange(CurrentName.Name)
             Else
                 Result = modUtility.FindLetVarName(FindFromRange) ' Otherwise, get the variable name.
@@ -2936,7 +2936,7 @@ Public Function IsExpandAble(ByVal ForCell As Range) As Boolean
     End If
     
     ' Check if the input cell has only one cell and that cell has a formula
-    If ForCell.Cells.Count = 1 And ForCell.HasFormula Then
+    If ForCell.Cells.CountLarge = 1 And ForCell.HasFormula Then
         ' If true, the cell is expandable
         IsExpandAble = True
         ' Check if the input cell is part of a spill range

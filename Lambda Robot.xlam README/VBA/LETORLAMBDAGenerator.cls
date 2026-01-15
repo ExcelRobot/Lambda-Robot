@@ -706,7 +706,7 @@ Private Function IsMultiCellNotDynamic(ByVal RangeReference As String) As Boolea
         If IsNothing(ResolvedRange) Then
             Result = False
         Else
-            Result = (ResolvedRange.Cells.Count > 1)
+            Result = (ResolvedRange.Cells.CountLarge > 1)
         End If
         
     End If

@@ -378,7 +378,7 @@ Private Sub PlaceStepFormula(ByRef PutOnCell As Range _
         Set PutOnCell = PutOnCell.Offset(0, 1)
     Else
         ' Otherwise, move as many columns to the right as there are in the range specified by CellReference
-        Set PutOnCell = PutOnCell.Offset(0, LambdaInvocationCell.Worksheet.Range(CellReference).Columns.Count)
+        Set PutOnCell = PutOnCell.Offset(0, LambdaInvocationCell.Worksheet.Range(CellReference).Columns.CountLarge)
     End If
     Logger.Log TRACE_LOG, "Exit BuildLambdaSteps.PlaceStepFormula"
     

@@ -1461,7 +1461,7 @@ Private Function IsMultiCellNotDynamic(ByVal RangeReference As String) As Boolea
         ' Check if the range exists and if it contains more than one cell and is not a spill range.
         If IsNothing(RangeFromRef) Then
             Result = False
-        ElseIf RangeFromRef.Cells.Count > 1 Then
+        ElseIf RangeFromRef.Cells.CountLarge > 1 Then
             If IsNull(RangeFromRef.HasSpill) Then
                 Result = True
             Else

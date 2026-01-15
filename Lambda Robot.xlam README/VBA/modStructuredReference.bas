@@ -189,14 +189,14 @@ Private Function ConvertNormalRange(ByVal CopyFrom As Range, ByVal PasteTo As Ra
     IsFormulaPresent = HasFormulaInAnyCell(CopyFrom)
     
     Dim FormulaName As String
-    If CopyFrom.Cells.Count = 1 Then
+    If CopyFrom.Cells.CountLarge = 1 Then
         ConvertNormalRange = Prefix & CopyFrom.Address(False, False)
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modStructuredReference.ConvertNormalRange"
         Exit Function
         
-    ElseIf CopyFrom.Rows.Count = 1 And IsFormulaPresent Then
+    ElseIf CopyFrom.Rows.CountLarge = 1 And IsFormulaPresent Then
         FormulaName = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
-    ElseIf CopyFrom.Columns.Count = 1 And IsFormulaPresent Then
+    ElseIf CopyFrom.Columns.CountLarge = 1 And IsFormulaPresent Then
         FormulaName = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     Else
         ConvertNormalRange = Prefix & CopyFrom.Address(False, False)
@@ -206,7 +206,7 @@ Private Function ConvertNormalRange(ByVal CopyFrom As Range, ByVal PasteTo As Ra
     End If
     
     Const MAX_ARGUMENT_IN_STACK_FORMULA As Long = 254
-    If CopyFrom.Cells.Count > MAX_ARGUMENT_IN_STACK_FORMULA Then
+    If CopyFrom.Cells.CountLarge > MAX_ARGUMENT_IN_STACK_FORMULA Then
         FormulaName = CopyFrom.Address(False, False)
     Else
         ' Iterate over each cell and add it to formula
@@ -297,7 +297,7 @@ Public Function ConvertToStructuredReferenceForTable(ByVal CopyFrom As Range, By
     ElseIf IsOnlyInsideTotalRow(Table, CopyFrom) Then
         ConvertToStructuredReferenceForTable = Table.Name & ConvertTotalRowReference(Table, CopyFrom)
     ElseIf IsOnlyInsideDatabody(Table, CopyFrom) Then
-        If FindIntersection(Table.DataBodyRange, CopyFrom).Rows.Count = Table.DataBodyRange.Rows.Count Then
+        If FindIntersection(Table.DataBodyRange, CopyFrom).Rows.CountLarge = Table.DataBodyRange.Rows.CountLarge Then
             ConvertToStructuredReferenceForTable = Table.Name & ConvertDataBodyReference(Table, CopyFrom)
         Else
             ConvertToStructuredReferenceForTable = ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(CopyFrom _
@@ -355,7 +355,7 @@ Private Function ConvertHeaderReference(ByVal Table As ListObject, ByVal CopyFro
 
     ' We check the number of cells in CopyFrom to determine how to convert it to structured reference
     Dim Result As String
-    If CopyFrom.Cells.Count = 1 Then
+    If CopyFrom.Cells.CountLarge = 1 Then
         Result = LEFT_BRACKET & TABLE_HEADERS_MARKER & LIST_SEPARATOR _
                  & ConvertToProperColumnName(CopyFrom.Cells(1).Value) & RIGHT_BRACKET
     Else
@@ -363,7 +363,7 @@ Private Function ConvertHeaderReference(ByVal Table As ListObject, ByVal CopyFro
         Dim FirstColumnName As String
         FirstColumnName = CopyFrom.Cells(1, 1).Value
         Dim LastColumnName As String
-        LastColumnName = CopyFrom.Cells(1, CopyFrom.Cells.Count).Value
+        LastColumnName = CopyFrom.Cells(1, CopyFrom.Cells.CountLarge).Value
         
         ' We check if we're referring to the entire header
         If FirstColumnName = Table.ListColumns(1).Name And LastColumnName = Table.ListColumns(Table.ListColumns.Count).Name Then
@@ -441,7 +441,7 @@ Private Function ConvertTotalRowReference(ByVal Table As ListObject, ByVal CopyF
     ColIndex = CopyFrom.Cells(1).Column - Table.TotalsRowRange.Cells(1).Column + 1
     
     Dim Result As String
-    If CopyFrom.Cells.Count = 1 Then
+    If CopyFrom.Cells.CountLarge = 1 Then
         ' If CopyFrom is a single cell, create a structured reference to that cell in the table's totals row
         Result = LEFT_BRACKET & TABLE_TOTALS_MARKER & LIST_SEPARATOR _
                  & ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name) & RIGHT_BRACKET
@@ -451,7 +451,7 @@ Private Function ConvertTotalRowReference(ByVal Table As ListObject, ByVal CopyF
         FirstColumnName = Table.ListColumns.Item(ColIndex).Name
         
         Dim LastColumnName As String
-        ColIndex = CopyFrom.Cells(1, CopyFrom.Cells.Count).Column - Table.TotalsRowRange.Cells(1).Column + 1
+        ColIndex = CopyFrom.Cells(1, CopyFrom.Cells.CountLarge).Column - Table.TotalsRowRange.Cells(1).Column + 1
         LastColumnName = Table.ListColumns.Item(ColIndex).Name
         
         ' Check if we're referring to the entire totals row
@@ -492,7 +492,7 @@ Public Function ConvertDataBodyReference(ByVal Table As ListObject, ByVal CopyFr
     ColIndex = CopyFrom.Cells(1).Column - Table.DataBodyRange.Cells(1).Column + 1
     
     Dim Result As String
-    If CopyFrom.Columns.Count = 1 Then
+    If CopyFrom.Columns.CountLarge = 1 Then
         ' If CopyFrom is a single column, create a structured reference to that column in the table's data body
         Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name)
     Else
@@ -531,7 +531,7 @@ Private Function FindColumnNamePrefixes(ByVal Table As ListObject, ByVal CopyFro
     Set GivenRangeFirstCol = CopyFrom.Columns(1)
     
     ' Check if the number of rows in GivenRangeFirstCol is greater than the number of rows in the table's range
-    If GivenRangeFirstCol.Rows.Count > Table.Range.Rows.Count Then
+    If GivenRangeFirstCol.Rows.CountLarge > Table.Range.Rows.CountLarge Then
         FindColumnNamePrefixes = "Not TableRef"
         Logger.Log TRACE_LOG, "Exit Due to Exit Keyword modStructuredReference.FindColumnNamePrefixes"
         Exit Function
@@ -549,7 +549,7 @@ Private Function FindColumnNamePrefixes(ByVal Table As ListObject, ByVal CopyFro
         ' Check if CopyFrom range is inside the data body of the table
         If HasIntersection(Table.DataBodyRange, GivenRangeFirstCol) Then
             If FindIntersection(Table.DataBodyRange _
-                                , GivenRangeFirstCol).Rows.Count = Table.DataBodyRange.Rows.Count Then
+                                , GivenRangeFirstCol).Rows.CountLarge = Table.DataBodyRange.Rows.CountLarge Then
                 Prefix = IIf(Prefix <> vbNullString, Prefix & LIST_SEPARATOR, vbNullString) & TABLE_DATA_MARKER
             Else
                 FindColumnNamePrefixes = "Not TableRef"
@@ -598,7 +598,7 @@ Private Function IsAllIncluded(ByVal Table As ListObject, ByVal FirstColumnRange
     
     ' If all conditions are met, check if FirstColumnRange has the same number of rows as the table's range
     If IsAllIncluded Then
-        IsAllIncluded = (FirstColumnRange.Rows.Count = Table.Range.Rows.Count)
+        IsAllIncluded = (FirstColumnRange.Rows.CountLarge = Table.Range.Rows.CountLarge)
     End If
     
     Logger.Log TRACE_LOG, "Exit modStructuredReference.IsAllIncluded"
@@ -614,7 +614,7 @@ Private Function ConvertTableReference(ByVal Table As ListObject, ByVal CopyFrom
     ColIndex = CopyFrom.Cells(1).Column - Table.HeaderRowRange.Cells(1).Column + 1
     
     Dim Result As String
-    If CopyFrom.Columns.Count = 1 Then
+    If CopyFrom.Columns.CountLarge = 1 Then
         ' If CopyFrom is a single column, create a structured reference to that column in the table
         Result = ConvertToProperColumnName(Table.ListColumns.Item(ColIndex).Name)
     Else
@@ -623,7 +623,7 @@ Private Function ConvertTableReference(ByVal Table As ListObject, ByVal CopyFrom
         FirstColumnName = Table.ListColumns.Item(ColIndex).Name
         
         Dim LastColumnName As String
-        ColIndex = CopyFrom.Cells(1, CopyFrom.Columns.Count).Column - Table.HeaderRowRange.Cells(1).Column + 1
+        ColIndex = CopyFrom.Cells(1, CopyFrom.Columns.CountLarge).Column - Table.HeaderRowRange.Cells(1).Column + 1
         LastColumnName = Table.ListColumns.Item(ColIndex).Name
         
         ' Check if we're referring to the entire table, if so, return an empty string
@@ -764,13 +764,13 @@ Private Function CombineMultipleNamedRange(ByVal CopyFrom As Range, ByVal PasteT
         
         ' Determine the next named range to process based on whether the current range is in columns or rows
         If NamedRangeRangeInColumns Then
-            Index = Temp.RefersToRange.Columns(Temp.RefersToRange.Columns.Count).Cells(1).Column - CopyFrom.Cells(1).Column + 2
+            Index = Temp.RefersToRange.Columns(Temp.RefersToRange.Columns.CountLarge).Cells(1).Column - CopyFrom.Cells(1).Column + 2
             Set Temp = FindClosestNamedRange(CopyFrom.Columns(Index).Cells(1))
-            If Index > CopyFrom.Columns.Count Then Exit Do
+            If Index > CopyFrom.Columns.CountLarge Then Exit Do
         Else
-            Index = Temp.RefersToRange.Rows(Temp.RefersToRange.Rows.Count).Cells(1).Row - CopyFrom.Cells(1).Row + 2
+            Index = Temp.RefersToRange.Rows(Temp.RefersToRange.Rows.CountLarge).Cells(1).Row - CopyFrom.Cells(1).Row + 2
             Set Temp = FindClosestNamedRange(CopyFrom.Rows(Index).Cells(1))
-            If Index > CopyFrom.Rows.Count Then Exit Do
+            If Index > CopyFrom.Rows.CountLarge Then Exit Do
         End If
         
         If IsNothing(Temp) Then Exit Function
@@ -813,7 +813,7 @@ Private Function FindClosestNamedRange(ByVal CopyFrom As Range) As Name
     
     ' Find the closest named range to CopyFrom based on the number of cells it covers
     For Each CurrentName In AllMatchNamedRanges
-        Temp = CurrentName.RefersToRange.Cells.Count - CopyFrom.Cells.Count
+        Temp = CurrentName.RefersToRange.Cells.CountLarge - CopyFrom.Cells.CountLarge
         If Temp < MinimumCellCount Then
             MinimumCellCount = Temp
             Set FinalName = CurrentName
@@ -885,15 +885,15 @@ Private Function ConvertColumnsToFormulaText(ByVal RefersToRange As Range _
     
     Dim Formula As String
     ' Check if CopyFrom covers the whole columns or rows of RefersToRange
-    If CopyFrom.Rows.Count = RefersToRange.Rows.Count Then
+    If CopyFrom.Rows.CountLarge = RefersToRange.Rows.CountLarge Then
         If ColIndex = 1 Then
             ' Return structured reference for the whole columns
             Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
-                                          & LIST_SEPARATOR & CopyFrom.Columns.Count _
+                                          & LIST_SEPARATOR & CopyFrom.Columns.CountLarge _
                                           & FIRST_PARENTHESIS_CLOSE
                                           
-        ElseIf ColIndex + CopyFrom.Columns.Count - 1 = RefersToRange.Columns.Count Then
+        ElseIf ColIndex + CopyFrom.Columns.CountLarge - 1 = RefersToRange.Columns.CountLarge Then
             ' Return structured reference for the whole columns
             Formula = DROP_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
@@ -906,29 +906,29 @@ Private Function ConvertColumnsToFormulaText(ByVal RefersToRange As Range _
                                           & NameToRefer & LIST_SEPARATOR _
                                           & LIST_SEPARATOR & (ColIndex - 1) _
                                           & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR _
-                                          & LIST_SEPARATOR & CopyFrom.Columns.Count _
+                                          & LIST_SEPARATOR & CopyFrom.Columns.CountLarge _
                                           & FIRST_PARENTHESIS_CLOSE
         End If
-    ElseIf CopyFrom.Columns.Count = RefersToRange.Columns.Count Then
+    ElseIf CopyFrom.Columns.CountLarge = RefersToRange.Columns.CountLarge Then
         If RowIndex = 1 Then
             ' Return structured reference for the whole rows
             Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR _
-                                          & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
+                                          & CopyFrom.Rows.CountLarge & FIRST_PARENTHESIS_CLOSE
                                           
-        ElseIf RowIndex + CopyFrom.Rows.Count - 1 = RefersToRange.Rows.Count Then
+        ElseIf RowIndex + CopyFrom.Rows.CountLarge - 1 = RefersToRange.Rows.CountLarge Then
             ' Return structured reference for the whole rows
             Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN _
                                           & NameToRefer & LIST_SEPARATOR & "-" _
-                                          & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
-        ElseIf RowIndex = 2 And RefersToRange.Rows.Count - CopyFrom.Rows.Count = 2 _
-               And CopyFrom.Rows.Count > 1 Then
+                                          & CopyFrom.Rows.CountLarge & FIRST_PARENTHESIS_CLOSE
+        ElseIf RowIndex = 2 And RefersToRange.Rows.CountLarge - CopyFrom.Rows.CountLarge = 2 _
+               And CopyFrom.Rows.CountLarge > 1 Then
             ' Special case for structured reference when CopyFrom is in the middle of the rows
             If IsForTable Then
                 Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                               & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR & "1)" _
                                               & LIST_SEPARATOR _
-                                              & RefersToRange.Rows.Count - 2 & FIRST_PARENTHESIS_CLOSE
+                                              & RefersToRange.Rows.CountLarge - 2 & FIRST_PARENTHESIS_CLOSE
             Else
                 Formula = DROP_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                               & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR & "1)" _
@@ -939,7 +939,7 @@ Private Function ConvertColumnsToFormulaText(ByVal RefersToRange As Range _
             Formula = TAKE_FN_NAME & FIRST_PARENTHESIS_OPEN & DROP_FN_NAME _
                                           & FIRST_PARENTHESIS_OPEN & NameToRefer & LIST_SEPARATOR _
                                           & (RowIndex - 1) & FIRST_PARENTHESIS_CLOSE & LIST_SEPARATOR _
-                                          & CopyFrom.Rows.Count & FIRST_PARENTHESIS_CLOSE
+                                          & CopyFrom.Rows.CountLarge & FIRST_PARENTHESIS_CLOSE
                                           
         End If
     End If
@@ -1006,7 +1006,7 @@ Private Function ConvertToStructuredReferenceForSpillRange(ByVal CopyFrom As Ran
             
             If SpillRange.Address = CopyFrom.Address Then
                 ConvertToStructuredReferenceForSpillRange = ReferToName
-            ElseIf SpillRange.Rows.Count > 1 And SpillRange.Columns.Count > 1 _
+            ElseIf SpillRange.Rows.CountLarge > 1 And SpillRange.Columns.CountLarge > 1 _
                    And SpillRange.Cells(1).Address = CopyFrom.Address Then
                 ' If spill parent and Spill Range is a 2D grid then return VbNullString
                 ConvertToStructuredReferenceForSpillRange = vbNullString
@@ -1073,11 +1073,11 @@ Private Function CombineSpillRangesForContigiousArea(ByVal CopyFrom As Range, By
         If SpillRangeInColumns Then
             Index = Temp.Columns(Temp.Columns.Count).Cells(1).Column - CopyFrom.Cells(1).Column + 2
             Set Temp = CopyFrom.Columns(Index).Cells(1).SpillingToRange
-            If Index > CopyFrom.Columns.Count Then Exit Do
+            If Index > CopyFrom.Columns.CountLarge Then Exit Do
         Else
             Index = Temp.Rows(Temp.Rows.Count).Cells(1).Row - CopyFrom.Cells(1).Row + 2
             Set Temp = CopyFrom.Rows(Index).Cells(1).SpillingToRange
-            If Index > CopyFrom.Rows.Count Then Exit Do
+            If Index > CopyFrom.Rows.CountLarge Then Exit Do
         End If
         
         If IsNothing(Temp) Then Exit Do
@@ -1097,8 +1097,8 @@ Private Function IsSpillRangeInColumns(ByVal CopyFrom As Range) As Boolean
     Logger.Log TRACE_LOG, "Enter modStructuredReference.IsSpillRangeInColumns"
     Dim Temp As Range
     Set Temp = CopyFrom.Cells(1).SpillingToRange
-    IsSpillRangeInColumns = (FindIntersection(Temp, CopyFrom).Rows.Count = CopyFrom.Rows.Count _
-                             And CopyFrom.Columns.Count > Temp.Columns.Count)
+    IsSpillRangeInColumns = (FindIntersection(Temp, CopyFrom).Rows.CountLarge = CopyFrom.Rows.CountLarge _
+                             And CopyFrom.Columns.CountLarge > Temp.Columns.CountLarge)
     Logger.Log TRACE_LOG, "Exit modStructuredReference.IsSpillRangeInColumns"
     
 End Function
@@ -1108,7 +1108,7 @@ Private Function IsSpillRangeInRows(ByVal CopyFrom As Range) As Boolean
     Logger.Log TRACE_LOG, "Enter modStructuredReference.IsSpillRangeInRows"
     Dim Temp As Range
     Set Temp = CopyFrom.Cells(1).SpillingToRange
-    IsSpillRangeInRows = (Temp.Columns.Count = CopyFrom.Columns.Count And CopyFrom.Rows.Count > Temp.Rows.Count)
+    IsSpillRangeInRows = (Temp.Columns.CountLarge = CopyFrom.Columns.CountLarge And CopyFrom.Rows.CountLarge > Temp.Rows.CountLarge)
     Logger.Log TRACE_LOG, "Exit modStructuredReference.IsSpillRangeInRows"
     
 End Function
@@ -1145,7 +1145,7 @@ Private Function IsInColumns(ByVal Source As Range) As Boolean
     FirstRow = Source.Areas(1).Row
     IsInColumns = True
     For Each Area In Source.Areas
-        If Area.Rows.Count <> RowCount Or Area.Row <> FirstRow Then
+        If Area.Rows.CountLarge <> RowCount Or Area.Row <> FirstRow Then
             IsInColumns = False
             Exit For
         End If
@@ -1171,7 +1171,7 @@ Private Function IsInRows(ByVal Source As Range) As Boolean
     FirstColumn = Source.Areas(1).Column
     IsInRows = True
     For Each Area In Source.Areas
-        If Area.Columns.Count <> ColumnCount Or Area.Column <> FirstColumn Then
+        If Area.Columns.CountLarge <> ColumnCount Or Area.Column <> FirstColumn Then
             IsInRows = False
             Exit For
         End If
@@ -1229,7 +1229,7 @@ Private Function ConvertPartOfDatabodyWithOrWithoutHeaderAndTotal(ByVal CopyFrom
     Set ReferredTo = FindIntersection(Table.DataBodyRange, CopyFrom)
     
     ' If the number of columns is not equal to the number of table columns, exit
-    If ReferredTo.Columns.Count <> Table.ListColumns.Count Then Exit Function
+    If ReferredTo.Columns.CountLarge <> Table.ListColumns.Count Then Exit Function
     
     ' Get the name to refer in the structured reference
     Dim NameToRefer As String
@@ -1299,11 +1299,11 @@ Private Function GetStackFormulaForMultiNamedRange(ByVal CopyFrom As Range _
     Set CellIntersectingNamedRangeAndCopyFrom = FindIntersection(CopyFrom, NamedRangeRefersToRange)
     
     ' Determine if the CopyFrom range is stacked horizontally or vertically
-    If CopyFrom.Rows.Count = CellIntersectingNamedRangeAndCopyFrom.Rows.Count _
-       And CopyFrom.Columns.Count > CellIntersectingNamedRangeAndCopyFrom.Columns.Count Then
+    If CopyFrom.Rows.CountLarge = CellIntersectingNamedRangeAndCopyFrom.Rows.CountLarge _
+       And CopyFrom.Columns.CountLarge > CellIntersectingNamedRangeAndCopyFrom.Columns.CountLarge Then
         GetStackFormulaForMultiNamedRange = HSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
-    ElseIf CopyFrom.Columns.Count = CellIntersectingNamedRangeAndCopyFrom.Columns.Count _
-           And CopyFrom.Rows.Count > CellIntersectingNamedRangeAndCopyFrom.Rows.Count Then
+    ElseIf CopyFrom.Columns.CountLarge = CellIntersectingNamedRangeAndCopyFrom.Columns.CountLarge _
+           And CopyFrom.Rows.CountLarge > CellIntersectingNamedRangeAndCopyFrom.Rows.CountLarge Then
         GetStackFormulaForMultiNamedRange = VSTACK_FN_NAME & FIRST_PARENTHESIS_OPEN
     Else
         GetStackFormulaForMultiNamedRange = vbNullString

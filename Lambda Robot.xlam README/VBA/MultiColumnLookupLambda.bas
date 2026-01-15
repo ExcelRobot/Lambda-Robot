@@ -96,7 +96,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
     
     ' Loop through each column in the header row (except the last column)
     Dim ColIndex As Long
-    For ColIndex = 1 To HeaderRow.Columns.Count - 1
+    For ColIndex = 1 To HeaderRow.Columns.CountLarge - 1
         
         Dim CurrentCell As Range
         Set CurrentCell = HeaderRow.Columns(ColIndex)
@@ -120,7 +120,7 @@ Private Function GetMultiColumnLookUpLambda(ByVal FromRange As Range) As String
                                  & ONE_SPACE & FIRST_PARENTHESIS_OPEN & CHOOSECOLS_FN_NAME & "(_Table" _
                                  & LIST_SEPARATOR & ColIndex & ")=" & CurrentHeader & "))"
                                  
-        If ColIndex <> HeaderRow.Columns.Count - 1 Then FilterCriteriaStepPart = FilterCriteriaStepPart & "*"
+        If ColIndex <> HeaderRow.Columns.CountLarge - 1 Then FilterCriteriaStepPart = FilterCriteriaStepPart & "*"
         
         ' Build the invocation part for the current column
         InvocationPart = InvocationPart & GetValueForInvocation(CurrentCell.Offset(1, 0)) & LIST_SEPARATOR

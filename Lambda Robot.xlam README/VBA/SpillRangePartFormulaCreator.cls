@@ -201,20 +201,20 @@ Private Sub ExtractInfoFromSelectedCells(ByVal SelectedCells As Range, ByVal Des
         Set .TopRightCell = .SpillingRange.Rows(1).Cells(.SpillingRange.Columns.CountLarge)
         .IsTopRightCellIncluded = IsSubRange(SelectedCells, .TopRightCell)
         
-        Set .BottomLeftCell = .SpillingRange.Rows(.SpillingRange.Rows.Count).Cells(1)
+        Set .BottomLeftCell = .SpillingRange.Rows(.SpillingRange.Rows.CountLarge).Cells(1)
         .IsBottomLeftCellIncluded = IsSubRange(SelectedCells, .BottomLeftCell)
         
-        Set .BottomRightCell = .BottomLeftCell.Offset(, .SpillingRange.Columns.Count - 1)
+        Set .BottomRightCell = .BottomLeftCell.Offset(, .SpillingRange.Columns.CountLarge - 1)
         .IsBottomRightCellIncluded = IsSubRange(SelectedCells, .BottomRightCell)
         
         .IsAnyCellOfFirstCol = IsAnyCommonCell(SelectedCells, .SpillingRange.Columns(1))
         .IsAnyCellOfFirstRow = IsAnyCommonCell(SelectedCells, .SpillingRange.Rows(1))
-        .IsAnyCellOfLastCol = IsAnyCommonCell(SelectedCells, .SpillingRange.Columns(.SpillingRange.Columns.Count))
-        .IsAnyCellOfLastRow = IsAnyCommonCell(SelectedCells, .SpillingRange.Rows(.SpillingRange.Rows.Count))
+        .IsAnyCellOfLastCol = IsAnyCommonCell(SelectedCells, .SpillingRange.Columns(.SpillingRange.Columns.CountLarge))
+        .IsAnyCellOfLastRow = IsAnyCommonCell(SelectedCells, .SpillingRange.Rows(.SpillingRange.Rows.CountLarge))
         
         this.CellsCount = SelectedCells.Cells.CountLarge
-        this.RowCount = SelectedCells.Rows.Count
-        this.ColCount = SelectedCells.Columns.Count
+        this.RowCount = SelectedCells.Rows.CountLarge
+        this.ColCount = SelectedCells.Columns.CountLarge
         this.TopCellRowDiff = SelectedCells.Row - .SpillParentCell.Row
         this.TopCellColDiff = SelectedCells.Column - .SpillParentCell.Column
         

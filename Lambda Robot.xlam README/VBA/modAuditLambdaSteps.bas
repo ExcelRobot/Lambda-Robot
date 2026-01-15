@@ -161,7 +161,7 @@ Private Function LambdaToLetOperationInvalidMessage(ByVal LambdaFormulaCell As R
     
     Dim Result As String
     ' Validation: Ensure only one cell is selected to convert from LAMBDA to LET.
-    If LambdaFormulaCell.Cells.Count > 1 Then
+    If LambdaFormulaCell.Cells.CountLarge > 1 Then
         Result = "Unable to convert " & LAMBDA_FN_NAME & " to " & LET_FN_NAME _
                  & ". Only one cell at a time allowed."
     ElseIf Not LambdaFormulaCell.HasFormula Then
