@@ -514,7 +514,11 @@ Private Sub UpdateForNewName(ByVal SelectedDependencyVarName As String _
     ListBoxData(ForListBox.ListIndex, 0) = NewValidVarName
     ForListBox.List = ListBoxData
     
-    Me.Preview.Value = RenameLambdaParamOrLetStep(Me.Preview.Value, SelectedDependencyVarName, NewValidVarName, IsParamName)
+    Dim Formula As String
+    Formula = TranslateApplicationLanguageFormulaToEnUS(Me.Preview.Value)
+    Formula = RenameLambdaParamOrLetStep(Formula, SelectedDependencyVarName, NewValidVarName, IsParamName)
+    Formula = TranslateEnUSFormulaToApplicationLanguage(Formula)
+    Me.Preview.Value = Formula
     
     Logger.Log TRACE_LOG, "Exit ParamSelector.UpdateForNewName"
     
