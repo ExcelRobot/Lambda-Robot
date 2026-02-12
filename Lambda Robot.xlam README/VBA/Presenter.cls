@@ -398,8 +398,10 @@ Private Sub IPresenter_UpdateMetadataInFormula()
         Dim OldName As Name
         Set OldName = this.LambdaFormulaCell.Worksheet.Parent.Names(this.MetaParser.OldLambdaName)
         Logger.Log DEBUG_LOG, "Final Lambda to update in name manager : " & NEW_LINE & NewLambdaFormula
-        OldName.RefersTo = ReplaceNewlineWithChar10(NewLambdaFormula)
+        ' Set to temp RefersTo to avoid bug in internation versions that causes setting comment to fail
+        OldName.RefersTo = "=$A$1"
         modUtility.UpdateNameComment OldName, this.LambdaMetadata.NameManagerComment
+        OldName.RefersTo = ReplaceNewlineWithChar10(NewLambdaFormula)
     Else
         AssignFormulaIfErrorPrintIntoDebugWindow False, this.LambdaFormulaCell, NewLambdaFormula, "Updated Formula : "
         this.LambdaFormulaCell.Calculate
