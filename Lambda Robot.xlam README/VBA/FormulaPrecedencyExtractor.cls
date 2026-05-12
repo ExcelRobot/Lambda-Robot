@@ -742,7 +742,7 @@ Private Function FindDirectPrecedency(ByVal ForCell As Range) As Collection
         
         If CurrentPrecendentReference = vbNullString Then Exit For
         
-        ' I don’t think we should trace precedence outside of active workbook even if it is open.
+        ' I donï¿½t think we should trace precedence outside of active workbook even if it is open.
         ' Chat Date: 8 Sept 2024, Channel: Erik and Rob Teams group.
         
         If Not IsReferenceFromDifferentBook(CurrentPrecendentReference, this.FormulaInWorkbook) Then

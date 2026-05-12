@@ -29,7 +29,7 @@ LETStack =LAMBDA(let_variable,let_value,[max_rows],[max_columns],[spaced],[list_
    _TopBottomN, LAMBDA(array,n,[by_columns], LET(
       _SepCount, IF(by_columns, ROWS, COLUMNS)(array),
       _Size, IF(by_columns, COLUMNS, ROWS)(array),
-      _Separator, IFNA(UNICHAR(8230), IF(by_columns, SEQUENCE(_SepCount), SEQUENCE(1, _SepCount))),
+      _Separator, EXPAND(UNICHAR(8230), IF(by_columns, _SepCount, 1), IF(by_columns, 1, _SepCount), UNICHAR(8230)),
       _Split, _Size > n * 2 + 1,
       _Result, IF(
          _Split,

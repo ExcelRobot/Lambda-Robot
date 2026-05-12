@@ -1843,7 +1843,7 @@ End Function
 Public Sub ScrollToDependencyDataRange(ByVal Table As ListObject)
     
     ' Scrolls to the dependency data range in the specified table.
-    Application.Goto Table.Range, True
+    Application.GoTo Table.Range, True
     Table.Range(1, 1).Select
     
 End Sub
@@ -2692,7 +2692,7 @@ Public Sub MoveColumnToRightOfScreen(ByVal StartCell As Range)
     Dim PreviousStatus As Boolean
     PreviousStatus = Application.ScreenUpdating
     Application.ScreenUpdating = False
-    Application.Goto StartCell, True
+    Application.GoTo StartCell, True
     Dim Count As Long
     Dim Temp As Range
     Set Temp = StartCell
@@ -2706,15 +2706,15 @@ Public Sub MoveColumnToRightOfScreen(ByVal StartCell As Range)
         End If
         Count = Count + 1
         Set Temp = StartCell.Offset(0, -1 * Count)
-        Application.Goto Temp, True
+        Application.GoTo Temp, True
     Loop
 
     If Count < StartCell.Column Then
         ' If the count is less than the StartCell column, move to the last visible column.
         Set Temp = StartCell.Offset(0, -1 * Count)
-        Application.Goto Temp, True
+        Application.GoTo Temp, True
     End If
-    If Temp.Row <> 1 Then Application.Goto Temp.Offset(-1, 0), True
+    If Temp.Row <> 1 Then Application.GoTo Temp.Offset(-1, 0), True
     StartCell.Select
     Application.ScreenUpdating = PreviousStatus
     Exit Sub

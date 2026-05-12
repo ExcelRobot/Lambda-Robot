@@ -124,20 +124,11 @@ Private Sub RetriveContextData(ByVal FormulaCell As Range)
     this.LastStepName = FindLastStepName(this.LambdaAndLetStepsName)
     
     
-    Dim UsedLambdas As Variant
-    UsedLambdas = GetUsedLambdas(this.FormulaText, Context.Lambdas, False)
-    
-    If IsArrayAllocated(UsedLambdas) Then
-        Dim CurrentLambdaName As Variant
-        For Each CurrentLambdaName In UsedLambdas
-            If CurrentLambdaName = LET_STACK_LAMBDA_NAME Then
-                this.IsAlreadyStacked = True
-                Exit For
-            End If
-        Next CurrentLambdaName
-    Else
-        this.IsAlreadyStacked = False
-    End If
+    ' [perf] Avoid full lambda classification of Workbook.Names (~1 Parser.Parse per
+    ' name) just to learn whether the formula already uses LETStack. Scan the
+    ' formula's tokens once instead.
+    this.IsAlreadyStacked = IsNameTokenInFormula(this.FormulaText, LET_STACK_LAMBDA_NAME)
+
     
     Logger.Log TRACE_LOG, "Exit LetStepManager.RetriveContextData"
     

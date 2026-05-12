@@ -26,12 +26,15 @@ End Sub
 Public Function IsBuiltInFunction(ByVal FunctionName As String) As Boolean
     
     Dim FXTagEnumValue As Long
+    Dim CXTagEnumValue As Long
     #If DEVELOPMENT_MODE Then
         Dim ParseResult As OARobot.FormulaParseResult
         FXTagEnumValue = TokenTag_ExcelFunction
+        CXTagEnumValue = TokenTag_ExcelCommand
     #Else
         Dim ParseResult As Object
         FXTagEnumValue = 31
+        CXTagEnumValue = 32
     #End If
     
     Set ParseResult = ParseFormula(EQUAL_SIGN & FunctionName & FIRST_PARENTHESIS_OPEN & FIRST_PARENTHESIS_CLOSE)
@@ -41,6 +44,9 @@ Public Function IsBuiltInFunction(ByVal FunctionName As String) As Boolean
         Result = False
     Else
         Result = (ParseResult.Expr.Tokens(0).Tag = FXTagEnumValue)
+        If Not Result Then
+            Result = (ParseResult.Expr.Tokens(0).Tag = CXTagEnumValue)
+        End If
     End If
     
     IsBuiltInFunction = Result
@@ -72,8 +78,8 @@ Public Function GetDirectPrecedents(ByVal Formula As String, ByVal FormulaInShee
     
     For Each CurrentDependency In Dependencies
         ' Check if local or global lambdas present or not
-        If Not (IsExistInCollection(Context.Lambdas, CStr(CurrentDependency)) _
-                Or IsExistInCollection(Context.Lambdas, QualifiedSheetName & CurrentDependency)) Then
+        If Not (Context.IsLambdaExists(CStr(CurrentDependency)) _
+                Or Context.IsLambdaExists(QualifiedSheetName & CurrentDependency)) Then
             ValidDependencies.Add CurrentDependency
         End If
     Next CurrentDependency
@@ -1378,6 +1384,49 @@ Public Function GetUsedLambdas(ByVal Formula As String _
     GetUsedLambdas = CollectionToArray(AllUsedLambdas)
     
 End Function
+'@Pure
+Public Function IsNameTokenInFormula(ByVal Formula As String _
+                                     , ByVal TargetName As String _
+                                      , Optional ByVal IsR1C1 As Boolean = False) As Boolean
+
+    ' True iff a NAME / ETA_FN / EXCEL_FN token in Formula equals TargetName.
+    ' Lets callers answer "does this formula reference name X?" without
+    ' iterating Workbook.Names or classifying lambdas.
+
+    #If DEVELOPMENT_MODE Then
+        Dim ParseResult As OARobot.FormulaParseResult
+        Dim CurrentToken As OARobot.Token
+    #Else
+        Dim ParseResult As Object
+        Dim CurrentToken As Object
+    #End If
+
+    Set ParseResult = ParseFormula(Formula, , IsR1C1)
+    If ParseResult Is Nothing Then Exit Function
+    If Not ParseResult.ParseSuccess Then Exit Function
+
+    Dim Tokens As Variant
+    Set Tokens = ParseResult.Expr.Tokens
+
+    Const ETA_FN_TAG As Long = 35
+    Const EXCEL_FN_TAG As Long = 31
+    Const NAME_TAG As Long = 30
+
+    Dim Counter As Long
+    For Counter = 0 To Tokens.Count - 1
+        Set CurrentToken = Tokens.Item(Counter)
+        Select Case CurrentToken.Tag
+            Case ETA_FN_TAG, EXCEL_FN_TAG, NAME_TAG
+                If CurrentToken.String = TargetName Then
+                    IsNameTokenInFormula = True
+                    Exit Function
+                End If
+        End Select
+    Next Counter
+
+End Function
+
+
 
 Public Function GetExcelLabsLambdas(ByVal FromBook As Workbook) As Collection
     

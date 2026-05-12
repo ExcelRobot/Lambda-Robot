@@ -12,6 +12,7 @@ Option Explicit
 
 Private Type TFormulaInfo
     FormulaText As String
+    A1FormulaText As String
     Source As String
     IsR1C1 As Boolean
 End Type
@@ -42,18 +43,33 @@ Public Property Let IsR1C1(ByVal RHS As Boolean)
     this.IsR1C1 = RHS
 End Property
 
+Public Property Get A1FormulaText() As String
+    A1FormulaText = this.A1FormulaText
+End Property
+
+Public Property Let A1FormulaText(ByVal RHS As String)
+    this.A1FormulaText = RHS
+End Property
+
 Public Property Get Self() As FormulaInfo
     Set Self = Me
 End Property
 
-Public Function Create(ByVal FormulaText As String, ByVal Source As String, ByVal IsR1C1 As Boolean) As FormulaInfo
+' A1FormulaText is optional; defaults to FormulaText when omitted (correct for IsR1C1=False callers).
+Public Function Create(ByVal FormulaText As String _
+                       , ByVal Source As String _
+                       , ByVal IsR1C1 As Boolean _
+                       , Optional ByVal A1FormulaText As String = vbNullString) As FormulaInfo
 
     With New FormulaInfo
         .FormulaText = FormulaText
         .Source = Source
         .IsR1C1 = IsR1C1
+        .A1FormulaText = IIf(A1FormulaText = vbNullString, FormulaText, A1FormulaText)
         Set Create = .Self
     End With
 
 End Function
+
+
 

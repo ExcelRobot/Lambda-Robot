@@ -43,12 +43,47 @@ Private DependentMethods As Scripting.Dictionary
 
 Private AllNamedRangeDic As Scripting.Dictionary
 Private AllNamedRangeColl As Collection
-Public Lambdas As Collection
-Public NonLambdas As Collection
-Public RangeRefNamedRanges As Collection
+' [perf HOT-3232] Lazy classification state.
+Private LambdasField As Collection
+Private NonLambdasField As Collection
+Private RangeRefNamedRangesField As Collection
+Private LambdaCache As Scripting.Dictionary
+Private RangeRefCache As Scripting.Dictionary
+Private LambdasFullyClassified As Boolean
+Private NonLambdasFullyClassified As Boolean
+Private RangeRefFullyClassified As Boolean
 Private CachedBookName As String
+Private CachedBookRef As Workbook
 Private IsContextExtracted As Boolean
 Private AllTablesDic As Scripting.Dictionary
+' [perf HOT-3232] Phase-time accumulators for IsLambdaName instrumentation.
+' Reset at start of EnsureLambdasClassified, summary emitted at end.
+Private LambdaTraceRefersToTime As Double
+Private LambdaTraceContainsTime As Double
+Private LambdaTraceParseTime As Double
+Private LambdaTraceClassifyTime As Double
+Private LambdaTraceTotalCalls As Long
+Private LambdaTraceEarlyExits As Long
+Private LambdaTraceParseAttempts As Long
+Private LambdaTraceParseFailures As Long
+
+
+
+' [perf HOT-3232] Lazy property getters � classification deferred until first read.
+Public Property Get Lambdas() As Collection
+    EnsureLambdasClassified
+    Set Lambdas = LambdasField
+End Property
+
+Public Property Get NonLambdas() As Collection
+    EnsureNonLambdasClassified
+    Set NonLambdas = NonLambdasField
+End Property
+
+Public Property Get RangeRefNamedRanges() As Collection
+    EnsureRangeRefClassified
+    Set RangeRefNamedRanges = RangeRefNamedRangesField
+End Property
 
 Public Sub ExtractContextFromCell(ByVal FromCell As Range, ByVal CalledFromMethod As String)
     
@@ -121,6 +156,7 @@ Public Sub ExtractContext(ByVal ForBook As Workbook, ByVal CalledFromMethod As S
     UpdateNamedRangesCollection ForBook
     UpdateTableDictionary ForBook
     CachedBookName = ForBook.Name
+    Set CachedBookRef = ForBook
     IsContextExtracted = True
     
     If LOG_CONTEXT_TIMING Then
@@ -199,54 +235,145 @@ Private Sub ConfigFormulaFormatter()
 End Sub
 
 Private Sub UpdateNamedRangesCollection(ByVal ForBook As Workbook)
-    
+    ' [perf HOT-3232] Defer iteration. Workbook.Names enumeration is itself
+    ' ~1s per 1000 names in Excel COM. Build the dict only when an enumeration
+    ' query (Lambdas / NonLambdas / RangeRefNamedRanges getters,
+    ' GetAllNamedRange*FromBook) actually needs it. Direct single-name queries
+    ' (IsLambdaExists, IsNamedRangeExists, IsLocalScopedNamedRangeExists) bypass
+    ' this and use Workbook.Names(name) lookups.
+    Set AllNamedRangeDic = Nothing
+    Set AllNamedRangeColl = Nothing
+    Set LambdasField = Nothing
+    Set NonLambdasField = Nothing
+    Set RangeRefNamedRangesField = Nothing
+    LambdasFullyClassified = False
+    NonLambdasFullyClassified = False
+    RangeRefFullyClassified = False
+    Set LambdaCache = New Scripting.Dictionary
+    LambdaCache.CompareMode = vbTextCompare
+    Set RangeRefCache = New Scripting.Dictionary
+    RangeRefCache.CompareMode = vbTextCompare
+    ' [perf HOT-3232] Reset per-name parse accumulators for the next operation.
+    LambdaTraceRefersToTime = 0
+    LambdaTraceContainsTime = 0
+    LambdaTraceParseTime = 0
+    LambdaTraceClassifyTime = 0
+    LambdaTraceTotalCalls = 0
+    LambdaTraceEarlyExits = 0
+    LambdaTraceParseAttempts = 0
+    LambdaTraceParseFailures = 0
+
+End Sub
+
+Private Sub EnsureNamedRangeDicBuilt()
+    If Not AllNamedRangeDic Is Nothing Then Exit Sub
+    If CachedBookRef Is Nothing Then Exit Sub
+
     Dim StartTime As Double
     If LOG_CONTEXT_TIMING Then StartTime = Timer
-    
+
     Set AllNamedRangeDic = New Scripting.Dictionary
     AllNamedRangeDic.CompareMode = vbTextCompare
-    
     Set AllNamedRangeColl = New Collection
-    Set Lambdas = New Collection
-    Set NonLambdas = New Collection
-    Set RangeRefNamedRanges = New Collection
-    
+
     Dim CurrentName As Name
-    For Each CurrentName In ForBook.Names
-        
-        ' Ignore built in and filter related named ranges
+    For Each CurrentName In CachedBookRef.Names
         If Not IsBuiltInName(CurrentName) Then
-'            Debug.Print CurrentName.Name
             If Not Text.IsEndsWith(CurrentName.Name, "!_FilterDatabase") Then
-            
                 AllNamedRangeDic.Add CurrentName.Name, CurrentName
                 AllNamedRangeColl.Add CurrentName, CurrentName.Name
-                If IsLambdaName(CurrentName) Then
-                    ' Add the name to the collection of lambda functions.
-                    Lambdas.Add CurrentName, CurrentName.Name
-                Else
-                
-                    NonLambdas.Add CurrentName, CurrentName.Name
-                    If IsRangeRefNamedRange(CurrentName) Then
-                        RangeRefNamedRanges.Add CurrentName, CurrentName.Name
-                    End If
-                
-                End If
-        
             End If
-        
         End If
-        
     Next CurrentName
-    
+
     If LOG_CONTEXT_TIMING Then
-        Debug.Print "Total Lambdas: " & Lambdas.Count
-        Debug.Print "Total Non Lambdas: " & NonLambdas.Count
-        Debug.Print "Total Range Ref Names: " & RangeRefNamedRanges.Count
-        Debug.Print "Total time to retrieve named range info: " & Timer - StartTime
+        Debug.Print "EnsureNamedRangeDicBuilt: " & Format$(Timer - StartTime, "0.000") & "s, " & AllNamedRangeDic.Count & " names"
     End If
-    
 End Sub
+
+' [perf HOT-3232] Lazy classification helpers � called by Lambdas/NonLambdas/RangeRefNamedRanges
+' getters. The whole-collection getters trigger a full iteration + classification pass.
+' IsLambdaExists touches just one name and bypasses these via direct Workbook.Names lookup.
+
+Private Sub EnsureLambdasClassified()
+    If LambdasFullyClassified Then Exit Sub
+    EnsureNamedRangeDicBuilt
+    If AllNamedRangeDic Is Nothing Then Exit Sub
+    Set LambdasField = New Collection
+    Dim CurrentKey As Variant
+
+    Dim CurrentName As Name
+    For Each CurrentKey In AllNamedRangeDic.Keys
+        Set CurrentName = AllNamedRangeDic(CurrentKey)
+        If IsLambdaNameMemoized(CurrentName) Then
+            LambdasField.Add CurrentName, CurrentName.Name
+        End If
+    Next CurrentKey
+
+    LambdasFullyClassified = True
+End Sub
+
+Private Sub EnsureNonLambdasClassified()
+    If NonLambdasFullyClassified Then Exit Sub
+    EnsureNamedRangeDicBuilt
+    If AllNamedRangeDic Is Nothing Then Exit Sub
+    Set NonLambdasField = New Collection
+    Dim CurrentKey As Variant
+    Dim CurrentName As Name
+    For Each CurrentKey In AllNamedRangeDic.Keys
+        Set CurrentName = AllNamedRangeDic(CurrentKey)
+        If Not IsLambdaNameMemoized(CurrentName) Then
+            NonLambdasField.Add CurrentName, CurrentName.Name
+        End If
+    Next CurrentKey
+    NonLambdasFullyClassified = True
+End Sub
+
+Private Sub EnsureRangeRefClassified()
+    If RangeRefFullyClassified Then Exit Sub
+    EnsureNamedRangeDicBuilt
+    If AllNamedRangeDic Is Nothing Then Exit Sub
+    Set RangeRefNamedRangesField = New Collection
+    Dim CurrentKey As Variant
+    Dim CurrentName As Name
+    For Each CurrentKey In AllNamedRangeDic.Keys
+        Set CurrentName = AllNamedRangeDic(CurrentKey)
+        ' [perf HOT-3232] No explicit IsLambda check here � IsRangeRefMemoized
+        ' returns False for lambdas (their RefersToRange errors), so an explicit
+        ' filter would just force a full Parser.Parse pass over every name. This
+        ' is the entire ~4s GenerateLambdaStatement hotspot.
+        If IsRangeRefMemoized(CurrentName) Then
+            RangeRefNamedRangesField.Add CurrentName, CurrentName.Name
+        End If
+    Next CurrentKey
+    RangeRefFullyClassified = True
+End Sub
+
+Private Function IsLambdaNameMemoized(ByVal CurrentName As Name) As Boolean
+    If LambdaCache Is Nothing Then
+        IsLambdaNameMemoized = IsLambdaName(CurrentName)
+        Exit Function
+    End If
+    If LambdaCache.Exists(CurrentName.Name) Then
+        IsLambdaNameMemoized = LambdaCache(CurrentName.Name)
+    Else
+        IsLambdaNameMemoized = IsLambdaName(CurrentName)
+        LambdaCache(CurrentName.Name) = IsLambdaNameMemoized
+    End If
+End Function
+
+Private Function IsRangeRefMemoized(ByVal CurrentName As Name) As Boolean
+    If RangeRefCache Is Nothing Then
+        IsRangeRefMemoized = IsRangeRefNamedRange(CurrentName)
+        Exit Function
+    End If
+    If RangeRefCache.Exists(CurrentName.Name) Then
+        IsRangeRefMemoized = RangeRefCache(CurrentName.Name)
+    Else
+        IsRangeRefMemoized = IsRangeRefNamedRange(CurrentName)
+        RangeRefCache(CurrentName.Name) = IsRangeRefMemoized
+    End If
+End Function
 
 Private Sub UpdateTableDictionary(ByVal ForBook As Workbook)
     
@@ -267,21 +394,32 @@ End Sub
 
 ' Check if the outer function is LAMBDA or not and it is the entire function.
 Private Function IsLambdaName(ByVal CurrentName As Name) As Boolean
-    
+
 '    Debug.Assert CurrentName.Name <> "TestLambda"
-    If Not Text.Contains(CurrentName.RefersTo, "LAMBDA", IGNORE_CASE) Then
+    LambdaTraceTotalCalls = LambdaTraceTotalCalls + 1
+
+    Dim RefersToStr As String
+    RefersToStr = CurrentName.RefersTo
+
+    Dim HasLambdaText As Boolean
+    HasLambdaText = Text.Contains(RefersToStr, "LAMBDA", IGNORE_CASE)
+
+    If Not HasLambdaText Then
+        LambdaTraceEarlyExits = LambdaTraceEarlyExits + 1
         IsLambdaName = False
         Exit Function
     End If
-    
+
     Dim ParsedFormulaResult As Object
-    
-    Set ParsedFormulaResult = Parser.Parse(CurrentName.RefersTo, False, LocaleFactory.EN_US, Scope, DefinedNames)
+    Set ParsedFormulaResult = Parser.Parse(RefersToStr, False, LocaleFactory.EN_US, Scope, DefinedNames)
+    LambdaTraceParseAttempts = LambdaTraceParseAttempts + 1
+
     If Not ParsedFormulaResult.ParseSuccess Then
+        LambdaTraceParseFailures = LambdaTraceParseFailures + 1
         IsLambdaName = False
         Exit Function
     End If
-    
+
     Dim Result As Boolean
     If ParsedFormulaResult.Expr.IsLambda Then
         Result = True
@@ -290,9 +428,9 @@ Private Function IsLambdaName(ByVal CurrentName As Name) As Boolean
     Else
         Result = False
     End If
-    
+
     IsLambdaName = Result
-    
+
 End Function
 
 Private Function IsRangeRefNamedRange(ByVal CurrentName As Name) As Boolean
@@ -303,6 +441,10 @@ Private Function IsRangeRefNamedRange(ByVal CurrentName As Name) As Boolean
     
 NotRangeRef:
     IsRangeRefNamedRange = False
+    ' [perf HOT-3232] Clear the active error so it does not propagate to the caller's
+    ' On Error handler. EnsureRangeRefClassified now calls this for lambdas (whose
+    ' RefersToRange errors out), so this handler runs ~hundreds of times per pass.
+    Err.Clear
 
 End Function
 
@@ -323,7 +465,9 @@ Private Function GetAllNamedRangeFromBook(ByVal FromBook As Workbook _
     Dim Result As Object
     
     If FromBook.Name = CachedBookName Then
-        
+        ' [perf HOT-3232] Build dict on first enumeration request, then reuse for the
+        ' rest of the ExtractContext lifetime.
+        EnsureNamedRangeDicBuilt
         If IsAsCollection Then
             Set Result = AllNamedRangeColl
         Else
@@ -362,6 +506,7 @@ Public Function GetAllRangeRefNamedRangeFromBook(ByVal FromBook As Workbook) As 
     Dim Result As Collection
     
     If FromBook.Name = CachedBookName Then
+        ' Property accessor triggers EnsureRangeRefClassified � full pass + cache.
         Set Result = RangeRefNamedRanges
     Else
         
@@ -410,14 +555,28 @@ Public Function IsTableExists(ByVal SearchInBook As Workbook _
     IsTableExists = IsExist
     
 End Function
-
 Public Function IsNamedRangeExists(ByVal SearchInBook As Workbook _
                                   , ByVal NameOfTheNamedRange As String) As Boolean
     
     ' Checks if a named range exists in the given workbook.
     Dim IsExist As Boolean
     If SearchInBook.Name = CachedBookName Then
-        IsExist = AllNamedRangeDic.Exists(NameOfTheNamedRange)
+        ' [perf HOT-3232] Prefer dict if built; fall back to direct lookup.
+        If Not AllNamedRangeDic Is Nothing Then
+            IsExist = AllNamedRangeDic.Exists(NameOfTheNamedRange)
+        Else
+            Dim NamedRange As Name
+            On Error Resume Next
+            Set NamedRange = SearchInBook.Names(NameOfTheNamedRange)
+            On Error GoTo 0
+            IsExist = Not (NamedRange Is Nothing)
+            If IsExist Then
+                If IsBuiltInName(NamedRange) Or _
+                   Text.IsEndsWith(NamedRange.Name, "!_FilterDatabase") Then
+                    IsExist = False
+                End If
+            End If
+        End If
     Else
         
         If LOG_CONTEXT_TIMING Then Debug.Print "This shouldn't happened too often: IsNamedRangeExist"
@@ -447,25 +606,80 @@ Public Function IsLocalScopedNamedRangeExists(ScopeSheet As Worksheet _
     
     Dim Result As Boolean
     If ScopeSheet.Parent.Name = CachedBookName Then
-        Result = AllNamedRangeDic.Exists(SheetQualifiedName)
+        ' [perf HOT-3232] Prefer dict if built; fall back to direct lookup.
+        ' Workbook.Names(...) accepts sheet-qualified names like "Sheet1!Foo".
+        If Not AllNamedRangeDic Is Nothing Then
+            Result = AllNamedRangeDic.Exists(SheetQualifiedName)
+        Else
+            Dim NamedRange As Name
+            On Error Resume Next
+            Set NamedRange = ScopeSheet.Parent.Names(SheetQualifiedName)
+            On Error GoTo 0
+            Result = Not (NamedRange Is Nothing)
+            If Result Then
+                If IsBuiltInName(NamedRange) Or _
+                   Text.IsEndsWith(NamedRange.Name, "!_FilterDatabase") Then
+                    Result = False
+                End If
+            End If
+        End If
     Else
     
        If LOG_CONTEXT_TIMING Then Debug.Print "This shouldn't happened too often: IsLocalScopedNamedRangeExist"
-        Dim CurrentName As Name
-        For Each CurrentName In ScopeSheet.Names
-            If LCase$(CurrentName.Name) = SheetQualifiedName Then
+        Dim FallbackName As Name
+        For Each FallbackName In ScopeSheet.Names
+            If LCase$(FallbackName.Name) = SheetQualifiedName Then
                 Result = True
                 Exit For
             End If
-        Next CurrentName
+        Next FallbackName
     End If
     
     IsLocalScopedNamedRangeExists = Result
     
 End Function
 
+Public Function GetLambdaName(ByVal LambdaName As String) As Name
+    ' [perf HOT-3232] Lazy single-name lambda lookup. Returns the Name object iff
+    ' LambdaName resolves to a defined name AND it parses as a lambda. Returns Nothing
+    ' otherwise. Memoizes the IsLambdaName parse via LambdaCache so each name is
+    ' parsed at most once per ExtractContext lifetime � callers that ask "is X a lambda?"
+    ' for a handful of names pay only that handful of parses, not the full N.
+    If LambdaCache Is Nothing Then Exit Function
+
+    Dim NamedRange As Name
+    If Not AllNamedRangeDic Is Nothing Then
+        If AllNamedRangeDic.Exists(LambdaName) Then
+            Set NamedRange = AllNamedRangeDic(LambdaName)
+        End If
+    Else
+        If CachedBookRef Is Nothing Then Exit Function
+        On Error Resume Next
+        Set NamedRange = CachedBookRef.Names(LambdaName)
+        On Error GoTo 0
+        If Not NamedRange Is Nothing Then
+            If IsBuiltInName(NamedRange) Or _
+               Text.IsEndsWith(NamedRange.Name, "!_FilterDatabase") Then
+                Set NamedRange = Nothing
+            End If
+        End If
+    End If
+
+    If NamedRange Is Nothing Then Exit Function
+
+    Dim Result As Boolean
+    If LambdaCache.Exists(LambdaName) Then
+        Result = LambdaCache(LambdaName)
+    Else
+        Result = IsLambdaName(NamedRange)
+        LambdaCache(LambdaName) = Result
+    End If
+
+    If Result Then Set GetLambdaName = NamedRange
+End Function
+
 Public Function IsLambdaExists(ByVal LambdaName As String) As Boolean
-    IsLambdaExists = IsExistInCollection(Lambdas, LambdaName)
+    IsLambdaExists = Not (GetLambdaName(LambdaName) Is Nothing)
 End Function
 
 Public Sub ClearContext(ByVal CalledFromMethod As String)
@@ -489,12 +703,15 @@ Public Sub ClearContext(ByVal CalledFromMethod As String)
     If DependentMethods.Count = 0 Then
         ReleaseContext
     End If
+
     
 End Sub
 
 Private Sub ReleaseContext()
     
 '    Debug.Print "Clearing context..."
+
+
     Set DependentMethods = Nothing
     
     Set Scope = Nothing
@@ -511,10 +728,16 @@ Private Sub ReleaseContext()
     
     Set AllNamedRangeDic = Nothing
     Set AllNamedRangeColl = Nothing
-    Set Lambdas = Nothing
-    Set NonLambdas = Nothing
-    Set RangeRefNamedRanges = Nothing
+    Set LambdasField = Nothing
+    Set NonLambdasField = Nothing
+    Set RangeRefNamedRangesField = Nothing
+    Set LambdaCache = Nothing
+    Set RangeRefCache = Nothing
+    LambdasFullyClassified = False
+    NonLambdasFullyClassified = False
+    RangeRefFullyClassified = False
     CachedBookName = vbNullString
+    Set CachedBookRef = Nothing
     IsContextExtracted = False
     
 End Sub

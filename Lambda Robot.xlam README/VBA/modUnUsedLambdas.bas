@@ -23,7 +23,7 @@ Public Sub RemoveUnusedLambdas(Optional ByVal FromBook As Workbook)
         With CurrentName
             AddToCollectionIfNotExist AllUniqueFormulas _
                                       , .RefersToR1C1 _
-                                       , FormulaInfo.Create(.RefersToR1C1, .Name & ".RefersToR1C1", True)
+                                       , FormulaInfo.Create(.RefersToR1C1, .Name & ".RefersToR1C1", True, .RefersTo)
         End With
     
     Next CurrentName
@@ -177,7 +177,7 @@ Private Function GetAllUsedLambdas(ByVal AllUniqueFormulas As Collection _
     
     For Each CurrentFormula In AllUniqueFormulas
         Dim UsedLambdasInCurrentFormula As Variant
-        UsedLambdasInCurrentFormula = GetUsedLambdas(CurrentFormula.FormulaText, AllLambdas, CurrentFormula.IsR1C1)
+        UsedLambdasInCurrentFormula = GetUsedLambdas(CurrentFormula.A1FormulaText, AllLambdas, False)
         If IsArray(UsedLambdasInCurrentFormula) Then
             Dim CurrentLambda As Variant
             For Each CurrentLambda In UsedLambdasInCurrentFormula
@@ -242,7 +242,8 @@ Private Sub UpdateFormulaCollFromCellFormulas(ByRef AllUniqueFormulas As Collect
             Dim CurrentFormulaInfo As FormulaInfo
             Set CurrentFormulaInfo = FormulaInfo.Create(GetCellFormula(CurrentCell, True) _
                                                         , "Range(" & GetRangeRefWithSheetName(CurrentCell) & ").Formula2R1C1" _
-                                                         , True)
+                                                         , True _
+                                                          , GetCellFormula(CurrentCell, False))
             AddToCollectionIfNotExist AllUniqueFormulas, .Formula2R1C1, CurrentFormulaInfo
         End With
     Next CurrentCell
@@ -303,5 +304,7 @@ Private Function GetSpecialCells(ByVal FromRange As Range _
     Logger.Log TRACE_LOG, "Exit modUnUsedLambdas.GetSpecialCells"
     
 End Function
+
+
 
 

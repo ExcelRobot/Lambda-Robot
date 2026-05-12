@@ -18,7 +18,6 @@ End Enum
 Private Type TDependencyFormulaReplacer
     LambdaInSheet As Worksheet
     LambdaInBook As Workbook
-    AllLambdas As Collection
     DependentOnLambdas As Collection
     AllDependency As Collection
     PutDependencyOnTable As ListObject
@@ -41,8 +40,9 @@ Private Sub RetriveBasicStat(ByVal LambdaInCell As Range)
     Set this.LambdaInSheet = LambdaInCell.Worksheet
     ' Set LambdaInBook property with the parent workbook of the lambda cell
     Set this.LambdaInBook = LambdaInCell.Worksheet.Parent
-    ' Set AllLambdas property with all the lambdas in the lambda workbook
-    Set this.AllLambdas = Context.Lambdas
+    ' [perf HOT-3232] AllLambdas eager cache removed; lookups go through
+    ' Context.GetLambdaName / Context.IsLambdaExists per name as needed.
+
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.RetriveBasicStat"
         
 End Sub
@@ -457,11 +457,14 @@ Private Function FindDirectDependentLambdas(ByVal FormulaText As String) As Coll
         Dim LambdaName As String
         LambdaName = CStr(CurrentUsedFunction)
         ' If not added already and if it is a lambda then add in the dependent list.
-        If Not IsExistInCollection(DependentLambdas, LambdaName) _
-           And IsExistInCollection(this.AllLambdas, LambdaName) Then
-            Dim CurrentMapper As Mapper
-            Set CurrentMapper = Mapper.Create(LambdaName, this.AllLambdas.Item(LambdaName))
-            DependentLambdas.Add CurrentMapper, LambdaName
+        If Not IsExistInCollection(DependentLambdas, LambdaName) Then
+            Dim LambdaNameRef As Name
+            Set LambdaNameRef = Context.GetLambdaName(LambdaName)
+            If Not LambdaNameRef Is Nothing Then
+                Dim CurrentMapper As Mapper
+                Set CurrentMapper = Mapper.Create(LambdaName, LambdaNameRef)
+                DependentLambdas.Add CurrentMapper, LambdaName
+            End If
         End If
     Next CurrentUsedFunction
     
@@ -480,9 +483,11 @@ Private Function GetMapperIfLambdaRef(ByVal TokenName As String, ByVal TokenType
         Exit Function
     End If
     ' If token type is named range but not lambdas ref then no mapper as well.
-    If Not IsExistInCollection(this.AllLambdas, TokenName) Then Exit Function
-    
-    Set GetMapperIfLambdaRef = Mapper.Create(TokenName, this.AllLambdas.Item(TokenName))
+    Dim LambdaNameRef As Name
+    Set LambdaNameRef = Context.GetLambdaName(TokenName)
+    If LambdaNameRef Is Nothing Then Exit Function
+
+    Set GetMapperIfLambdaRef = Mapper.Create(TokenName, LambdaNameRef)
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.GetMapperIfLambdaRef"
         
 End Function
@@ -492,7 +497,6 @@ Private Sub Class_Initialize()
     ' This sub is automatically called when a new instance of the class is created.
     
     ' Initialize the AllLambdas, DependentOnLambdas, and AllDependency collections.
-    Set this.AllLambdas = New Collection
     Set this.DependentOnLambdas = New Collection
     Set this.AllDependency = New Collection
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.Class_Initialize"
@@ -504,7 +508,6 @@ Private Sub Class_Terminate()
     ' This sub is automatically called when the class instance is about to be destroyed.
     
     ' Clear the references to the collections to release memory resources.
-    Set this.AllLambdas = Nothing
     Set this.DependentOnLambdas = Nothing
     Set this.AllDependency = Nothing
     Logger.Log TRACE_LOG, "Exit DependencyFormulaReplacer.Class_Terminate"
